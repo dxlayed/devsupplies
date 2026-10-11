@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Log in — devsupplies.cc</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header class="top">
+    <a class="logo" href="/"><span class="logo-mark">D</span><span>dev<b>supplies</b></span></a>
+    <a class="btn btn-outline btn-sm top-right" href="/">Back to shop</a>
+  </header>
+
+  <main class="auth">
+    <form class="panel auth-card" id="form">
+      <div class="seg" role="tablist">
+        <button type="button" class="seg-btn" id="tabLogin" role="tab" aria-selected="true">Log in</button>
+        <button type="button" class="seg-btn" id="tabSignup" role="tab" aria-selected="false">Create account</button>
+      </div>
+      <div>
+        <h1 id="title">Welcome back</h1>
+        <p class="muted" id="subtitle">Log in with your email to check out.</p>
+      </div>
+      <label class="field"><span>Email</span><input name="email" type="email" required maxlength="254" autocomplete="email" placeholder="you@gmail.com"></label>
+      <label class="field"><span>Password</span><input name="password" type="password" required minlength="8" maxlength="200" autocomplete="current-password"></label>
+      <label class="field" id="codeField" hidden><span>Owner setup code</span><input name="code" autocomplete="off" placeholder="From data/setup-code.txt"></label>
+      <p class="error" id="error" hidden></p>
+      <button class="btn btn-solid btn-block" id="submit">Log in</button>
+    </form>
+  </main>
+
+  <script src="login.js"></script>
+</body>
+</html>
