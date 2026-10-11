@@ -17,7 +17,7 @@ router.get('/owner/stats', (req, res) => {
 
 // Products
 router.get('/owner/products', (req, res) => {
-  res.json(db.prepare(`${PRODUCT_SELECT} ORDER BY p.rowid`).all().map(productRow));
+  res.json(db.prepare(`${PRODUCT_SELECT} WHERE p.id != 'deal' ORDER BY p.rowid`).all().map(productRow));
 });
 
 router.patch('/owner/products/:id', (req, res) => {
@@ -78,7 +78,7 @@ router.patch('/owner/users/:id', (req, res) => {
 // Orders. Cancelling refunds the buyer; un-cancelling charges them again.
 router.get('/owner/orders', (req, res) => {
   res.json(db.prepare(`
-    SELECT o.id, u.username, p.name AS product, o.price, o.status, o.created, o.delivered AS content
+    SELECT o.id, u.username, COALESCE(o.title, p.name) AS product, o.price, o.status, o.created, o.delivered AS content
     FROM orders o JOIN users u ON u.id=o.user_id JOIN products p ON p.id=o.product_id
     ORDER BY o.id DESC LIMIT 200
   `).all());
