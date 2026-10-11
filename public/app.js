@@ -3,6 +3,7 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&
 const money = (n) => "$" + Number(n).toFixed(2);
 
 let products = [];
+let user = null; // { email, owner } when logged in
 const state = { cat: "all", q: "", sort: "new", min: "", max: "", cart: loadCart() };
 
 function loadCart() {
@@ -70,6 +71,13 @@ function renderCart() {
   $("cartEmpty").hidden = items.length > 0;
   $("cartTotal").textContent = money(items.reduce((sum, p) => sum + p.price, 0));
   $("checkout").disabled = items.length === 0;
+  $("cartNote").hidden = !!user || items.length === 0;
+}
+
+function renderAccount() {
+  $("account").innerHTML = user
+    ? `<span class="account-email" title="${esc(user.email)}">${esc(user.email)}</span>${user.owner ? `<a class="btn btn-solid btn-sm" href="/owner">Owner panel</a>` : ""}<button class="btn btn-outline btn-sm" id="logout">Log out</button>`
+    : `<a class="btn btn-outline btn-sm" href="/login">Log in</a><a class="btn btn-solid btn-sm" href="/login#signup">Sign up</a>`;
 }
 
 function render() { renderCats(); renderGrid(); renderCart(); }
@@ -107,9 +115,26 @@ $("reset").addEventListener("click", () => {
   render();
 });
 // Hook this up to your payment provider (Stripe, Lemon Squeezy, Paddle, …).
-$("checkout").addEventListener("click", () => toast("Checkout isn't connected yet"));
+$("checkout").addEventListener("click", () => {
+  if (!user) { location.href = "/login"; return; }
+  toast("Checkout isn't connected yet");
+});
+
+$("account").addEventListener("click", async (e) => {
+  if (e.target.id !== "logout") return;
+  await fetch("/api/user/logout", { method: "POST" }).catch(() => {});
+  user = null;
+  renderAccount();
+  renderCart();
+});
 
 $("year").textContent = new Date().getFullYear();
+
+renderAccount();
+fetch("/api/me")
+  .then((r) => r.json())
+  .then((me) => { user = me.user && { ...me.user, owner: me.owner }; renderAccount(); renderCart(); })
+  .catch(() => {});
 
 fetch("/api/products")
   .then((r) => r.json())
