@@ -3,109 +3,96 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>devsupplies.cc — digital products, delivered instantly</title>
-  <meta name="description" content="Digital products for developers. Pay once, download instantly.">
+  <title>devsupplies.cc — digital goods for developers</title>
+  <meta name="description" content="Templates, kits and assets for developers. Pay once with your balance, download right away.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
   <header class="top">
-    <a class="logo" href="/"><span class="logo-mark">D</span><span>dev<b>supplies</b></span></a>
-    <nav class="tabs" aria-label="Main">
-      <a class="tab active" href="#shop">Shop</a>
-      <a class="tab" href="#how">How it works</a>
-      <a class="tab" href="#faq">FAQ</a>
+    <a class="logo" href="/"><span class="logo-mark">D</span><span class="logo-text">devsupplies</span></a>
+    <nav class="nav" aria-label="Main">
+      <a href="/" aria-current="page">Shop</a>
+      <a href="#how">How it works</a>
+      <a href="#faq">FAQ</a>
     </nav>
-    <div class="account top-right" id="account"></div>
+    <div class="top-actions">
+      <span id="account"></span>
+      <button class="btn btn-ghost btn-sm" id="cartBtn" aria-controls="drawer">Cart <span class="count-badge" id="cartCount">0</span></button>
+    </div>
   </header>
 
-  <main class="layout" id="shop">
-
-    <aside class="panel filters" aria-label="Filters">
-      <div class="panel-head">
-        <h2>Filters</h2>
-        <button class="btn btn-outline btn-xs" id="reset">Reset</button>
-      </div>
-
-      <h3 class="label">Category</h3>
-      <div class="cat-list" id="cats"></div>
-
-      <h3 class="label">Price</h3>
-      <div class="range">
-        <label><span class="sr-only">Minimum price</span><input type="number" id="min" min="0" step="1" placeholder="$ 0" inputmode="decimal"></label>
-        <span>to</span>
-        <label><span class="sr-only">Maximum price</span><input type="number" id="max" min="0" step="1" placeholder="$ Any" inputmode="decimal"></label>
-      </div>
-    </aside>
-
-    <section class="center">
-      <div class="panel hero">
-        <h1>Digital goods for developers.</h1>
-        <p>Pick what you need, pay once, and the files are yours. No subscriptions and no waiting around.</p>
-        <div class="hero-actions">
-          <a class="btn btn-solid" href="#products">Browse products</a>
-          <a class="btn btn-outline" href="#how">How it works</a>
-        </div>
-      </div>
-
-      <div class="toolbar" id="products">
-        <label class="grow"><span class="sr-only">Search products</span><input type="search" id="search" placeholder="Search" autocomplete="off"></label>
-        <label><span class="sr-only">Sort</span>
-          <select id="sort">
-            <option value="new">Newest</option>
-            <option value="low">Lowest price</option>
-            <option value="high">Highest price</option>
-            <option value="name">Name</option>
-          </select>
-        </label>
-      </div>
-      <p class="count" id="count"></p>
-
-      <div class="grid" id="grid"></div>
-      <div class="panel empty" id="empty" hidden>
-        <strong id="emptyTitle"></strong>
-        <span id="emptyText"></span>
-      </div>
+  <main class="shop">
+    <section class="hero">
+      <h1>Digital goods for developers.</h1>
+      <p>Templates, kits and assets you buy once and keep. Top up your balance with crypto and check out in one click.</p>
     </section>
 
-    <aside class="panel cart" aria-label="Cart">
-      <div class="panel-head"><h2>Cart</h2><span class="pill" id="cartCount">0</span></div>
-      <ul class="cart-items" id="cartItems"></ul>
-      <div class="cart-empty" id="cartEmpty">
-        <strong>Your cart is empty</strong>
-        <span>Add a product to get started.</span>
-      </div>
-      <div class="cart-total"><span>Total</span><strong id="cartTotal">$0.00</strong></div>
-      <button class="btn btn-solid btn-block" id="checkout" disabled>Checkout</button>
-      <p class="cart-note" id="cartNote" hidden>You'll need to log in to check out.</p>
-    </aside>
+    <div class="toolbar" id="products">
+      <div class="chips" id="cats" role="group" aria-label="Category"></div>
+      <label class="grow"><span class="sr-only">Search products</span><input class="search" type="search" id="search" placeholder="Search" autocomplete="off"></label>
+      <label><span class="sr-only">Sort</span>
+        <select id="sort">
+          <option value="new">Newest</option>
+          <option value="low">Price: low to high</option>
+          <option value="high">Price: high to low</option>
+          <option value="name">Name</option>
+        </select>
+      </label>
+    </div>
 
+    <div class="grid" id="grid"></div>
+    <div class="empty" id="empty" hidden>
+      <strong id="emptyTitle"></strong>
+      <span id="emptyText"></span>
+    </div>
   </main>
 
-  <section class="below" id="how">
+  <section class="info" id="how">
     <h2>How it works</h2>
     <ol class="steps">
-      <li class="panel"><span class="num">1</span><h3>Choose</h3><p>Browse the shop and add what you need to your cart.</p></li>
-      <li class="panel"><span class="num">2</span><h3>Pay once</h3><p>One payment per product. Nothing recurring.</p></li>
-      <li class="panel"><span class="num">3</span><h3>Download</h3><p>Your files are delivered as soon as payment clears.</p></li>
+      <li><h3>Add funds</h3><p>Deposit crypto from your account page. It's added to your balance once confirmed.</p></li>
+      <li><h3>Pick products</h3><p>Add what you need to your cart. Every product is a one-time purchase.</p></li>
+      <li><h3>Check out</h3><p>Pay from your balance. The order shows up under Orders and Downloads straight away.</p></li>
     </ol>
   </section>
 
-  <section class="below" id="faq">
+  <section class="info" id="faq">
     <h2>FAQ</h2>
     <div class="faq">
-      <details class="panel"><summary>How do I receive my purchase?</summary><p>Digital products are delivered right after checkout.</p></details>
-      <details class="panel"><summary>Is this a subscription?</summary><p>No. Every product is a one-time purchase.</p></details>
-      <details class="panel"><summary>Something went wrong with my order</summary><p>Get in touch and we'll sort it out.</p></details>
+      <details><summary>Which coins can I deposit?</summary><p>The coins listed on the Deposit tab of your account. Send to the address shown, then submit the transaction ID.</p></details>
+      <details><summary>How long does a deposit take?</summary><p>Deposits are checked by hand, usually within a few hours. Your balance updates as soon as it's approved.</p></details>
+      <details><summary>Is anything a subscription?</summary><p>No. Every product is a one-time purchase.</p></details>
+      <details><summary>Something's wrong with my order</summary><p>Get in touch with the order number from your Orders tab and it'll be sorted out.</p></details>
     </div>
   </section>
 
-  <footer class="foot"><span>© <span id="year"></span> devsupplies.cc</span><a href="/owner">Owner</a></footer>
+  <footer class="foot"><span>© <span id="year"></span> devsupplies.cc</span><a href="/account">My account</a></footer>
+
+  <div class="scrim" id="scrim"></div>
+  <aside class="drawer" id="drawer" aria-label="Cart" aria-hidden="true">
+    <div class="drawer-head">
+      <h2>Cart</h2>
+      <button class="btn btn-quiet btn-sm" id="closeCart">Close</button>
+    </div>
+    <div class="drawer-body">
+      <ul id="cartItems"></ul>
+      <div class="empty" id="cartEmpty"><strong>Your cart is empty</strong><span>Add a product to get started.</span></div>
+    </div>
+    <div class="drawer-foot">
+      <div class="sum" id="balanceRow" hidden><span>Your balance</span><strong id="balance">$0.00</strong></div>
+      <div class="sum total"><span>Total</span><strong id="cartTotal">$0.00</strong></div>
+      <p class="error" id="cartError" hidden></p>
+      <button class="btn btn-primary btn-block" id="checkout" disabled>Check out</button>
+      <a class="btn btn-ghost btn-block" id="depositLink" href="/account#deposit" hidden>Add funds</a>
+    </div>
+  </aside>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="common.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
