@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Support | DevSupplies</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&family=Outfit:wght@600;700;800;900&display=swap">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<nav id="nav"></nav>
+
+<main class="page wrap">
+  <div class="page-head">
+    <div>
+      <h1>Support</h1>
+      <p>Tell us what is going on and we will reply here. You can also reach us in the Discord.</p>
+    </div>
+    <button class="btn btn-white" onclick="newTicket()">New ticket</button>
+  </div>
+
+  <div class="support">
+    <aside>
+      <div class="tickets" id="ticket-list"><div class="small">Loading your tickets...</div></div>
+    </aside>
+
+    <section class="panel" id="pane"></section>
+  </div>
+</main>
+
+<footer id="footer"></footer>
+
+<script src="/main.js"></script>
+<script>
+let topics = {}, myOrders = [], tickets = [], openId = null, pollTimer = null, lastSig = '';
+const TOPIC_HINTS = {
+  order: 'Wrong details, missing info, or anything else about something you bought',
+  login: "The account you bought won't log in",
+  deposit: 'You sent Litecoin but your balance did not go up',
+  question: 'Ask anything before you buy',
+  other: 'Anything that does not fit above',
+};
+
+// ── Ticket list ───────────────────────────────────────────────
+async function loadTickets() {
+  try { tickets = await api('GET', '/support'); } catch { return; }
+  $('ticket-list').innerHTML = tickets.length ? tickets.map(t => `
+    <button class="ticket-btn${t.id === openId ? ' on' : ''}${t.status === 'closed' ? ' closed' : ''}" onclick="openTicket(${t.id})">
+      <div class="t-top"><span class="t-subject">${esc(t.subject)}</span>${t.unread ? `<span class="dot-count">${t.unread}</span>` : `<span class="badge${t.status === 'open' ? '' : ' badge-cancelled'}">${t.status === 'open' ? 'Open' : 'Closed'}</span>`}</div>
+      <div class="t-meta">${esc(t.topicLabel)}, ${esc(shortDate(t.updated))}</div>
+    </button>`).join('') : '<p class="small">No tickets yet. Your conversations will show up here.</p>';
+}
+
+// ── New ticket: details first ─────────────────────────────────
+let draft = { topic: null };
+function newTicket(topic) {
+  openId = null; stopPoll(); loadTickets();
+  draft = { topic: topic || null };
+  const ordersOptions = myOrders.map(o => `<option value="${o.id}">#${o.id} ${esc(o.product)} (${money(o.price)}, ${esc(shortDate(o.created))})</option>`).join('');
+  $('pane').innerHTML = `
+    <h2>Open a ticket</h2>
+    <p class="small" style="margin:-8px 0 18px">A few details first, so we can sort it out faster.</p>
+    <div class="label" style="margin-bottom:8px">What is this about?</div>
+    <div class="topics">${Object.entries(topics).map(([k, label]) => `
+      <button class="topic${draft.topic === k ? ' on' : ''}" onclick="pickTopic('${k}')">${esc(label)}<small>${esc(TOPIC_HINTS[k] || '')}</small></button>`).join('')}
+    </div>
+    <form id="t-form" novalidate ${draft.topic ? '' : 'hidden'} style="margin-top:12px">
+      <div class="msg" id="t-err" role="alert"></div>
+      <div class="field" id="f-order">
+        <label class="label" for="t-order">Which order? <span id="order-opt"></span></label>
+        ${myOrders.length ? `<select class="input" id="t-order"><option value="">Choose an order</option>${ordersOptions}</select>`
+          : '<p class="small">You have no orders yet.</p><input type="hidden" id="t-order" value="">'}
+      </div>
+      <div class="field" id="f-tx">
+        <label class="label" for="t-tx">Litecoin transaction ID (optional)</label>
+        <input class="input mono" id="t-tx" placeholder="Paste it from your wallet if you have it">
+      </div>
+      <div class="field">
+        <label class="label" for="t-subject">Short title</label>
+        <input class="input" id="t-subject" maxlength="120" placeholder="For example: login says wrong password">
+      </div>
+      <div class="field">
+        <label class="label" for="t-msg">What happened?</label>
+        <textarea class="input" id="t-msg" maxlength="2000" placeholder="What you tried, what you expected, and what you saw instead"></textarea>
+      </div>
+      <button class="btn btn-white" id="t-go" type="submit">Open ticket</button>
+    </form>`;
+  $('t-form').addEventListener('submit', submitTicket);
+  if (draft.topic) pickTopic(draft.topic);
+}
+
+function pickTopic(k) {
+  draft.topic = k;
+  document.querySelectorAll('.topic').forEach(b => b.classList.toggle('on', b.getAttribute('onclick') === `pickTopic('${k}')`));
+  $('t-form').hidden = false;
+  const needsOrder = k === 'order' || k === 'login';
+  $('f-order').hidden = !(needsOrder || k === 'other');
+  $('order-opt').textContent = needsOrder ? '' : '(optional)';
+  $('f-tx').hidden = k !== 'deposit';
+  $('t-subject').focus();
+}
+
+async function submitTicket(e) {
+  e.preventDefault();
+  const err = $('t-err'); err.classList.remove('show');
+  const btn = $('t-go'); btn.disabled = true;
+  try {
+    const d = await api('POST', '/support', {
+      topic: draft.topic, orderId: $('t-order')?.value || null, txid: $('t-tx').value,
+      subject: $('t-subject').value, message: $('t-msg').value,
+    });
+    toast('Ticket opened. We will reply here.');
+    await openTicket(d.id);
+  } catch (ex) { err.textContent = ex.message; err.classList.add('show'); btn.disabled = false; }
+}
+
+// ── Conversation ──────────────────────────────────────────────
+async function openTicket(id, quiet) {
+  let t;
+  try { t = await api('GET', '/support/' + id); } catch (e) { if (!quiet) toast(e.message); return; }
+  const sig = t.id + ':' + t.status + ':' + t.messages.length;
+  if (quiet && sig === lastSig) return; // nothing new, leave the reply box alone
+  lastSig = sig;
+  const firstOpen = openId !== id;
+  openId = id;
+  const scrollWasBottom = !firstOpen && $('thread') && $('thread').scrollHeight - $('thread').scrollTop - $('thread').clientHeight < 40;
+  const draftText = $('r-body')?.value || '';
+  $('pane').innerHTML = `
+    <div class="dialog-head" style="margin-bottom:14px">
+      <div><h2 style="margin-bottom:4px">${esc(t.subject)}</h2><p class="small">Ticket #${t.id}, opened ${esc(shortDate(t.created))}</p></div>
+      <span class="badge${t.status === 'open' ? '' : ' badge-cancelled'}">${t.status === 'open' ? 'Open' : 'Closed'}</span>
+    </div>
+    <dl class="context">
+      <div><dt>About</dt><dd>${esc(t.topicLabel)}</dd></div>
+      ${t.order ? `<div><dt>Order</dt><dd>#${t.order.id} ${esc(t.order.product)}, ${money(t.order.price)}</dd></div>` : ''}
+      ${t.txid ? `<div class="wide"><dt>Transaction</dt><dd class="mono">${esc(t.txid)}</dd></div>` : ''}
+    </dl>
+    <div class="thread" id="thread">${t.messages.map(m => `
+      <div class="bubble ${m.sender === 'user' ? 'me' : 'them'}">${m.sender === 'owner' ? '<div class="bubble-who">DevSupplies</div>' : ''}${esc(m.body)}<time>${esc(shortDate(m.created))}</time></div>`).join('')}
+    </div>
+    <form class="reply" id="r-form">
+      <textarea class="input" id="r-body" maxlength="2000" placeholder="${t.status === 'open' ? 'Write a reply' : 'Reply to reopen this ticket'}" aria-label="Your reply"></textarea>
+      <button class="btn btn-white" type="submit">Send</button>
+    </form>
+    ${t.status === 'open' ? '<div style="margin-top:12px;text-align:right"><button class="btn btn-ghost btn-sm" onclick="closeTicket()">Close ticket</button></div>' : '<div class="closed-note">This ticket is closed. Send a reply if you still need help and it will reopen.</div>'}`;
+  $('r-body').value = draftText;
+  $('r-form').addEventListener('submit', sendReply);
+  $('r-body').addEventListener('keydown', ev => { if (ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)) sendReply(ev); });
+  if (firstOpen || scrollWasBottom) $('thread').scrollTop = $('thread').scrollHeight;
+  loadTickets(); refreshUnread();
+  startPoll();
+}
+
+async function sendReply(e) {
+  e.preventDefault();
+  const body = $('r-body').value.trim();
+  if (!body) return;
+  $('r-body').value = '';
+  try { await api('POST', `/support/${openId}/messages`, { body }); await openTicket(openId); $('thread').scrollTop = $('thread').scrollHeight; }
+  catch (ex) { $('r-body').value = body; toast(ex.message); }
+}
+
+async function closeTicket() {
+  try { await api('POST', `/support/${openId}/close`); toast('Ticket closed.'); openTicket(openId); }
+  catch (e) { toast(e.message); }
+}
+
+// New replies show up on their own
+function startPoll() { stopPoll(); pollTimer = setInterval(() => { if (!document.hidden && openId) openTicket(openId, true); }, 8000); }
+function stopPoll() { clearInterval(pollTimer); }
+setInterval(() => { if (!document.hidden && !openId) loadTickets(); }, 15000);
+
+startPage().then(async () => {
+  try { [topics, myOrders] = await Promise.all([api('GET', '/support/topics'), api('GET', '/orders')]); } catch {}
+  await loadTickets();
+  const want = new URLSearchParams(location.search);
+  if (want.get('ticket')) openTicket(parseInt(want.get('ticket'), 10));
+  else if (tickets.some(t => t.status === 'open') && !want.get('topic')) openTicket(tickets.find(t => t.status === 'open').id);
+  else {
+    newTicket(want.get('topic'));
+    if (want.get('order') && $('t-order')) $('t-order').value = want.get('order');
+  }
+});
+</script>
+</body>
+</html>

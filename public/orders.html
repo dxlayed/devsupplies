@@ -47,6 +47,7 @@ startPage().then(async () => {
           <div class="codebox grow">${esc(o.content)}</div>
           <button class="btn btn-ghost" data-copy="${esc(o.content)}" onclick="copyText(this.dataset.copy)">Copy</button>
         </div>` : ''}
+        <div style="margin-top:12px"><a class="small" href="/support?topic=order&order=${o.id}">Problem with this order? Get help</a></div>
       </article>`).join('') : '<div class="empty">No orders yet. <a href="/#accounts">Browse accounts</a> to make your first one.</div>';
   } catch (e) { $('list').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
 });

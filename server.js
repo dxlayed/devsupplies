@@ -15,6 +15,7 @@ const shop = code('shop');
 const deposits = code('deposits');
 const owner = code('owner');
 const deals = code('deals');
+const support = code('support');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -30,6 +31,7 @@ app.use('/api', shop.router);
 app.use('/api', deposits.router);
 app.use('/api', owner.router);
 app.use('/api', deals.router);
+app.use('/api', support.router);
 app.use('/api', (req, res) => res.status(404).json({ error: 'Not found.' }));
 
 // Pages
@@ -38,6 +40,7 @@ app.get(['/login', '/login.html'],     auth.pageGuestsOnly, file('login.html'));
 app.get(['/signup', '/signup.html'],   auth.pageGuestsOnly, file('signup.html'));
 app.get(['/deposit', '/deposit.html'], auth.pageNeedsLogin, file('deposit.html'));
 app.get(['/orders', '/orders.html'],   auth.pageNeedsLogin, file('orders.html'));
+app.get(['/support', '/support.html'], auth.pageNeedsLogin, file('support.html'));
 app.get(['/owner', '/owner.html'],     auth.pageNeedsOwner, file('owner.html'));
 
 // Shared look and script

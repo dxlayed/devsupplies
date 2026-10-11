@@ -83,6 +83,37 @@ db.exec(`
     image_type TEXT NOT NULL,
     position   INTEGER NOT NULL DEFAULT 0
   );
+  CREATE TABLE IF NOT EXISTS deposit_requests (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id    INTEGER NOT NULL REFERENCES users(id),
+    address    TEXT NOT NULL,
+    usd        REAL NOT NULL,
+    litoshis   INTEGER NOT NULL,
+    rate       REAL NOT NULL,
+    status     TEXT NOT NULL DEFAULT 'waiting',
+    expires    INTEGER NOT NULL,
+    created    TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS tickets (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id      INTEGER NOT NULL REFERENCES users(id),
+    topic        TEXT NOT NULL,
+    subject      TEXT NOT NULL,
+    order_id     INTEGER,
+    txid         TEXT,
+    status       TEXT NOT NULL DEFAULT 'open',
+    user_unread  INTEGER NOT NULL DEFAULT 0,
+    owner_unread INTEGER NOT NULL DEFAULT 1,
+    created      TEXT NOT NULL DEFAULT (datetime('now')),
+    updated      TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS ticket_messages (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    ticket_id INTEGER NOT NULL REFERENCES tickets(id),
+    sender    TEXT NOT NULL,
+    body      TEXT NOT NULL,
+    created   TEXT NOT NULL DEFAULT (datetime('now'))
+  );
   CREATE TABLE IF NOT EXISTS settings (
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL
@@ -105,6 +136,9 @@ addColumn('users', 'watch_until', 'INTEGER NOT NULL DEFAULT 0');
 addColumn('orders', 'delivered', 'TEXT');
 addColumn('orders', 'title', 'TEXT');   // name shown for the order (used by deals)
 addColumn('orders', 'deal_id', 'INTEGER');
+addColumn('deposits', 'request_id', 'INTEGER'); // the fixed-amount request a payment was matched to
+db.exec('CREATE INDEX IF NOT EXISTS ticket_messages_ticket ON ticket_messages(ticket_id, id)');
+db.exec('CREATE INDEX IF NOT EXISTS tickets_user ON tickets(user_id, updated)');
 db.exec('CREATE UNIQUE INDEX IF NOT EXISTS users_ltc_index ON users(ltc_index)');
 db.exec('CREATE INDEX IF NOT EXISTS inventory_product ON inventory(product_id, sold)');
 

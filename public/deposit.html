@@ -17,34 +17,64 @@
   <div class="page-head">
     <div>
       <h1>Add funds</h1>
-      <p>Pay with Litecoin. Your balance is in USD at the live price.</p>
+      <p>Choose an amount in dollars and we tell you exactly how much Litecoin to send.</p>
     </div>
   </div>
 
-  <div id="loading" class="panel small" style="text-align:center;padding:48px">Getting your deposit address...</div>
+  <div id="loading" class="panel small" style="text-align:center;padding:48px">Getting things ready...</div>
 
   <div class="deposit-grid" id="body" hidden>
-    <section class="panel" aria-labelledby="addr-h">
-      <h2 id="addr-h">Your Litecoin address</h2>
+    <!-- Step 1: amount -->
+    <section class="panel" id="step-amount" aria-labelledby="amt-h" hidden>
+      <h2 id="amt-h">How much do you want to add?</h2>
+      <form id="amt-form" novalidate>
+        <div class="msg" id="amt-err" role="alert"></div>
+        <label class="label" for="amt" style="display:block;margin-bottom:8px">Amount in USD</label>
+        <div class="amount-wrap"><span>$</span><input class="input amount-input" id="amt" type="number" inputmode="decimal" min="1" step="0.01" placeholder="25"></div>
+        <div class="presets">
+          <button type="button" class="tog" onclick="preset(10)">$10</button>
+          <button type="button" class="tog" onclick="preset(25)">$25</button>
+          <button type="button" class="tog" onclick="preset(50)">$50</button>
+          <button type="button" class="tog" onclick="preset(100)">$100</button>
+        </div>
+        <button class="btn btn-white btn-block" id="amt-go" type="submit">Get payment amount</button>
+      </form>
+      <p class="small" style="margin-top:14px">We lock the Litecoin price for <span id="lock-min">30</span> minutes, so you get exactly what you choose.</p>
+    </section>
+
+    <!-- Step 2: pay the exact amount -->
+    <section class="panel" id="step-pay" aria-labelledby="pay-h" hidden>
+      <div class="dialog-head" style="margin-bottom:10px">
+        <h2 id="pay-h" style="margin:0">Send exactly</h2>
+        <span class="timer" id="timer">Locked 30:00</span>
+      </div>
+      <div class="row" style="align-items:center">
+        <div class="send-amount grow" id="send-ltc">0 <small>LTC</small></div>
+        <button class="btn btn-white btn-sm" onclick="copyText(current.request.ltc)">Copy amount</button>
+      </div>
+      <p class="small" style="margin:6px 0 20px" id="send-usd"></p>
       <div class="qr" id="qr"></div>
+      <label class="label" style="display:block;margin-bottom:8px">To this address</label>
       <div class="row">
         <div class="codebox grow" id="addr"></div>
-        <button class="btn btn-white" onclick="copyText($('addr').textContent)">Copy</button>
+        <button class="btn btn-ghost btn-sm" onclick="copyText(current.address)">Copy</button>
       </div>
-      <p class="small" style="margin-top:16px">This address is yours only and you can reuse it. Send any amount of LTC. Sending any other coin to it will lose the funds.</p>
+      <div class="status-line" id="status"><span class="pulse"></span><span id="status-text">Waiting for your payment</span></div>
+      <p class="small" style="margin-top:14px">Send Litecoin only. If you send a different amount, or pay after the timer runs out, you get the value at the live price instead.</p>
+      <button class="btn btn-ghost btn-sm" style="margin-top:14px" id="change" onclick="changeAmount()">Change amount</button>
     </section>
 
     <section class="panel" aria-labelledby="bal-h">
       <h2 id="bal-h">Balance</h2>
       <div class="big-balance" id="bal">$0.00</div>
       <dl class="facts">
-        <dt>LTC price</dt><dd id="rate">Loading</dd>
+        <dt>LTC price now</dt><dd id="rate">Loading</dd>
         <dt>Credited after</dt><dd id="conf">1 confirmation</dd>
         <dt>Usual wait</dt><dd>About 5 minutes</dd>
       </dl>
       <h2 style="margin-top:8px">Your deposits</h2>
       <div class="list list-scroll" id="list"></div>
-      <button class="btn btn-white btn-block" style="margin-top:16px" id="check" onclick="check(true)">Check for payment</button>
+      <button class="btn btn-ghost btn-block" style="margin-top:16px" id="check" onclick="check(true)">Check for payment</button>
       <p class="small" style="margin-top:12px;text-align:center">You can leave this page. Payments still get credited.</p>
     </section>
   </div>
@@ -55,31 +85,75 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
 <script src="/main.js"></script>
 <script>
+let current = null, deadline = 0, tick = null, qrFor = '';
+
 function show(d) {
+  const had = current?.request;
+  current = d;
   me = d.user; renderNav();
   $('loading').hidden = true; $('body').hidden = false;
-  $('addr').textContent = d.address;
   $('bal').textContent = money(me.balance);
   $('rate').textContent = d.rate ? money(d.rate) + ' per LTC' : 'Unavailable right now';
   $('conf').textContent = d.confirmations + ' confirmation' + (d.confirmations > 1 ? 's' : '');
-  if (window.qrcode && !$('qr').innerHTML) {
-    const q = qrcode(0, 'M'); q.addData('litecoin:' + d.address); q.make();
-    $('qr').innerHTML = q.createSvgTag({ cellSize: 4, margin: 0 });
-  }
+  $('lock-min').textContent = d.lockMinutes;
   $('list').innerHTML = d.deposits.length
     ? d.deposits.map(x => `<div class="list-item"><span class="num">${ltcAmount(x.litoshis)}</span><span class="${x.status === 'credited' ? 'num' : 'muted'}">${x.status === 'credited' ? '+' + money(x.usd) : 'Confirming'}</span></div>`).join('')
     : '<div class="list-item"><span class="muted">No deposits yet</span></div>';
+
+  const r = d.request;
+  $('step-amount').hidden = !!r;
+  $('step-pay').hidden = !r;
+  if (!r) { clearInterval(tick); if (had && !$('amt').value) $('amt').focus(); return; }
+
+  $('send-ltc').innerHTML = `${esc(r.ltc)} <small>LTC</small>`;
+  $('send-usd').textContent = `Adds ${money(r.usd)} to your balance. Price locked at ${money(r.rate)} per LTC.`;
+  $('addr').textContent = d.address;
+  if (window.qrcode && qrFor !== r.uri) {
+    const q = qrcode(0, 'M'); q.addData(r.uri); q.make();
+    $('qr').innerHTML = q.createSvgTag({ cellSize: 4, margin: 0 });
+    qrFor = r.uri;
+  }
+  const seen = r.status === 'seen';
+  $('status-text').textContent = seen ? `Payment found. Waiting for ${d.confirmations} confirmation${d.confirmations > 1 ? 's' : ''}, your ${money(r.usd)} is locked in.` : 'Waiting for your payment';
+  $('timer').hidden = seen;
+  $('change').hidden = seen;
+  deadline = Date.now() + r.expiresIn * 1000;
+  clearInterval(tick); tick = setInterval(countdown, 1000); countdown();
 }
 
-async function check(manual) {
+function countdown() {
+  const left = Math.max(0, Math.round((deadline - Date.now()) / 1000));
+  $('timer').textContent = `Locked ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+  $('timer').classList.toggle('low', left < 300);
+  if (left === 0 && current?.request?.status === 'waiting') { clearInterval(tick); toast('The price lock ran out. Choose your amount again.'); check(false, true); }
+}
+
+function preset(n) { $('amt').value = n; $('amt').focus(); }
+
+$('amt-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const err = $('amt-err'); err.classList.remove('show');
+  const usd = parseFloat($('amt').value);
+  if (!(usd >= 1)) { err.textContent = 'Enter an amount of at least $1.'; err.classList.add('show'); return; }
+  const btn = $('amt-go'); btn.disabled = true; btn.textContent = 'Locking the price...';
+  try { show(await api('POST', '/deposit/request', { usd })); }
+  catch (ex) { err.textContent = ex.message; err.classList.add('show'); }
+  finally { btn.disabled = false; btn.textContent = 'Get payment amount'; }
+});
+
+async function changeAmount() {
+  try { show(await api('POST', '/deposit/cancel')); $('amt').focus(); } catch (e) { toast(e.message); }
+}
+
+async function check(manual, silent) {
   const btn = $('check');
   if (manual) { btn.disabled = true; btn.textContent = 'Checking...'; }
   try {
     const before = me.balance;
     const d = await api('POST', '/deposit/check');
     show(d);
-    if (d.user.balance > before) toast('Payment received. Your balance is updated.');
-    else if (manual) toast(d.deposits.some(x => x.status === 'pending') ? 'Payment found. Waiting for 1 confirmation.' : 'No payment yet. It can take a few minutes to show.');
+    if (d.user.balance > before) toast(`Payment received. ${money(d.user.balance - before)} added to your balance.`);
+    else if (manual && !silent) toast(d.deposits.some(x => x.status === 'pending') ? 'Payment found. Waiting for 1 confirmation.' : 'No payment yet. It can take a few minutes to show.');
   } catch (e) { if (manual) toast(e.message); }
   finally { if (manual) { btn.disabled = false; btn.textContent = 'Check for payment'; } }
 }
@@ -87,7 +161,7 @@ async function check(manual) {
 startPage().then(async () => {
   try {
     show(await api('POST', '/deposit/open'));
-    setInterval(() => check(false), 20000);
+    setInterval(() => { if (!document.hidden) check(false); }, 20000);
   } catch (e) { $('loading').textContent = e.message; }
 });
 </script>

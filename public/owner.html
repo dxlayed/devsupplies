@@ -18,6 +18,7 @@
     <aside class="side" aria-label="Owner sections">
       <div class="side-title">Owner panel</div>
       <button class="side-btn" data-tab="overview">Overview</button>
+      <button class="side-btn" data-tab="support">Support<span class="dot-count" data-unread="owner"></span></button>
       <button class="side-btn" data-tab="deals">Deals</button>
       <button class="side-btn" data-tab="accounts">Accounts and stock</button>
       <button class="side-btn" data-tab="orders">Orders</button>
@@ -41,7 +42,19 @@
             <button class="btn btn-white" onclick="showTab('deals')">Post a deal</button>
             <button class="btn btn-ghost" onclick="showTab('accounts')">Add stock</button>
             <button class="btn btn-ghost" onclick="showTab('users')">Change a balance</button>
+            <button class="btn btn-ghost" onclick="showTab('support')">Support tickets<span class="dot-count" data-unread="owner"></span></button>
           </div>
+        </div>
+      </section>
+
+      <!-- Support -->
+      <section class="tab" id="tab-support">
+        <div class="tab-head"><h2>Support</h2>
+          <div class="row"><button class="tog on" id="sf-open" onclick="supportFilter('open')">Open</button><button class="tog" id="sf-all" onclick="supportFilter('all')">All</button></div>
+        </div>
+        <div class="support">
+          <div class="tickets" id="o-tickets"><p class="small">Loading tickets...</p></div>
+          <section class="panel" id="o-pane"><p class="small">Pick a ticket to read and reply.</p></section>
         </div>
       </section>
 
@@ -381,8 +394,78 @@ async function loadDeals() {
   } catch {}
 }
 
+
+// Support
+let oTickets = [], oOpen = null, oSig = '', oFilter = 'open';
+function supportFilter(f) { oFilter = f; $('sf-open').classList.toggle('on', f === 'open'); $('sf-all').classList.toggle('on', f === 'all'); renderOwnerTickets(); }
+async function loadSupport() {
+  try { oTickets = await api('GET', '/owner/support'); } catch { return; }
+  renderOwnerTickets();
+}
+function renderOwnerTickets() {
+  const list = oTickets.filter(t => oFilter === 'all' || t.status === 'open');
+  $('o-tickets').innerHTML = list.length ? list.map(t => `
+    <button class="ticket-btn${t.id === oOpen ? ' on' : ''}${t.status === 'closed' ? ' closed' : ''}" onclick="openOwnerTicket(${t.id})">
+      <div class="t-top"><span class="t-subject">${esc(t.subject)}</span>${t.unread ? `<span class="dot-count">${t.unread}</span>` : (t.status === 'closed' ? '<span class="badge badge-cancelled">Closed</span>' : '')}</div>
+      <div class="t-meta">${esc(t.username)}, ${esc(t.topicLabel)}</div>
+      <div class="t-meta">${t.lastSender === 'owner' ? 'You: ' : ''}${esc(t.last || '')}</div>
+    </button>`).join('') : `<p class="small">${oFilter === 'open' ? 'No open tickets. Nice.' : 'No tickets yet.'}</p>`;
+}
+async function openOwnerTicket(id, quiet) {
+  let t;
+  try { t = await api('GET', '/owner/support/' + id); } catch (e) { if (!quiet) toast(e.message); return; }
+  const sig = t.id + ':' + t.status + ':' + t.messages.length;
+  if (quiet && sig === oSig) return;
+  oSig = sig;
+  const first = oOpen !== id; oOpen = id;
+  const draftText = $('o-body')?.value || '';
+  $('o-pane').innerHTML = `
+    <div class="dialog-head" style="margin-bottom:14px">
+      <div><h2 style="margin-bottom:4px">${esc(t.subject)}</h2><p class="small">Ticket #${t.id} from ${esc(t.username)}, ${esc(shortDate(t.created))}</p></div>
+      <button class="tog" onclick="setTicket(${t.id}, '${t.status === 'open' ? 'closed' : 'open'}')">${t.status === 'open' ? 'Close ticket' : 'Reopen'}</button>
+    </div>
+    <dl class="context">
+      <div><dt>About</dt><dd>${esc(t.topicLabel)}</dd></div>
+      <div><dt>Customer</dt><dd>${esc(t.username)}, balance ${money(t.balance)}</dd></div>
+      ${t.order ? `<div><dt>Order</dt><dd>#${t.order.id} ${esc(t.order.product)}, ${money(t.order.price)}, ${esc(t.order.status)}</dd></div>
+      <div><dt>Order date</dt><dd>${esc(shortDate(t.order.created))}</dd></div>
+      ${t.order.content ? `<div class="wide"><dt>Login details they received</dt><dd class="mono">${esc(t.order.content)}</dd></div>` : ''}` : ''}
+      ${t.txid ? `<div class="wide"><dt>Transaction</dt><dd class="mono"><a href="https://litecoinspace.org/tx/${encodeURIComponent(t.txid)}" target="_blank" rel="noopener">${esc(t.txid)}</a></dd></div>` : ''}
+    </dl>
+    <div class="thread" id="o-thread">${t.messages.map(m => `
+      <div class="bubble ${m.sender === 'owner' ? 'me' : 'them'}">${m.sender === 'user' ? `<div class="bubble-who">${esc(t.username)}</div>` : ''}${esc(m.body)}<time>${esc(shortDate(m.created))}</time></div>`).join('')}
+    </div>
+    <form class="reply" id="o-form">
+      <textarea class="input" id="o-body" maxlength="2000" placeholder="Reply to ${esc(t.username)}" aria-label="Reply"></textarea>
+      <button class="btn btn-white" type="submit">Send</button>
+    </form>`;
+  $('o-body').value = draftText;
+  $('o-form').addEventListener('submit', sendOwnerReply);
+  $('o-body').addEventListener('keydown', ev => { if (ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)) sendOwnerReply(ev); });
+  $('o-thread').scrollTop = $('o-thread').scrollHeight;
+  if (first) $('o-body').focus();
+  loadSupport(); refreshUnread();
+}
+async function sendOwnerReply(e) {
+  e.preventDefault();
+  const body = $('o-body').value.trim();
+  if (!body) return;
+  $('o-body').value = '';
+  try { await api('POST', `/owner/support/${oOpen}/messages`, { body }); await openOwnerTicket(oOpen); }
+  catch (ex) { $('o-body').value = body; toast(ex.message); }
+}
+async function setTicket(id, status) {
+  try { await api('PATCH', `/owner/support/${id}`, { status }); toast(status === 'closed' ? 'Ticket closed.' : 'Ticket reopened.'); oSig = ''; openOwnerTicket(id); }
+  catch (e) { toast(e.message); }
+}
+// Keep tickets fresh while the Support tab is open
+setInterval(() => {
+  if (document.hidden || !$('tab-support').classList.contains('on')) return;
+  loadSupport(); if (oOpen) openOwnerTicket(oOpen, true);
+}, 8000);
+
 renderPhotos();
-startPage().then(() => Promise.all([loadStats(), loadDeals(), loadProducts(), loadUsers(), loadOrders(), loadDeposits()]));
+startPage().then(() => Promise.all([loadStats(), loadSupport(), loadDeals(), loadProducts(), loadUsers(), loadOrders(), loadDeposits()]));
 </script>
 </body>
 </html>

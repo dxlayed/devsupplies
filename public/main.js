@@ -62,8 +62,24 @@ document.addEventListener('click', e => { if (e.target.classList?.contains('dial
 async function loadMe() {
   try { me = (await api('GET', '/me')).user; } catch { me = null; }
   renderNav();
+  refreshUnread();
   return me;
 }
+
+// Unread support replies, shown as small counters in the top bar
+let unread = { unread: 0, owner: 0 };
+async function refreshUnread() {
+  if (!me) return;
+  try { unread = await api('GET', '/support/unread'); } catch { return; }
+  paintUnread();
+}
+function paintUnread() {
+  document.querySelectorAll('[data-unread]').forEach(el => {
+    const n = el.dataset.unread === 'owner' ? unread.owner : unread.unread;
+    el.textContent = n > 0 ? (n > 99 ? '99+' : n) : '';
+  });
+}
+setInterval(() => { if (me && !document.hidden) refreshUnread(); }, 30000);
 
 function renderNav() {
   const nav = $('nav');
@@ -80,7 +96,8 @@ function renderNav() {
         <div class="dd-sep"></div>
         <a class="dd-item" href="/deposit">Add funds</a>
         <a class="dd-item" href="/orders">My orders</a>
-        ${me.role === 'owner' ? '<a class="dd-item" href="/owner">Owner panel</a>' : ''}
+        <a class="dd-item" href="/support">Support<span class="dot-count" data-unread="mine"></span></a>
+        ${me.role === 'owner' ? '<a class="dd-item" href="/owner">Owner panel<span class="dot-count" data-unread="owner"></span></a>' : ''}
         <div class="dd-sep"></div>
         <button class="dd-item" onclick="logout()">Log out</button>
       </div>
@@ -94,11 +111,13 @@ function renderNav() {
       <ul class="nav-links">
         <li><a href="/#deals">Deals</a></li>
         <li><a href="/#accounts">Accounts</a></li>
-        ${me ? `<li><a href="/orders" class="${here === '/orders' ? 'on' : ''}">My orders</a></li>` : ''}
+        ${me ? `<li><a href="/orders" class="${here === '/orders' ? 'on' : ''}">My orders</a></li>
+        <li><a href="/support" class="${here === '/support' ? 'on' : ''}">Support<span class="dot-count" data-unread="mine"></span></a></li>` : ''}
         <li><a href="${DISCORD_URL}" target="_blank" rel="noopener">Discord</a></li>
       </ul>
       <div class="nav-right">${right}</div>
     </div>`;
+  paintUnread();
 }
 
 function toggleMenu() { $('dropdown')?.classList.toggle('open'); }
@@ -121,6 +140,7 @@ function renderFooter() {
         <li><a href="/#accounts">Accounts</a></li>
         <li><a href="/orders">My orders</a></li>
         <li><a href="/deposit">Add funds</a></li>
+        <li><a href="/support">Support</a></li>
         <li><a href="${DISCORD_URL}" target="_blank" rel="noopener">discord.gg/devsupplies</a></li>
       </ul>
       <p class="footer-copy">&copy; ${new Date().getFullYear()} devsupplies.cc</p>
