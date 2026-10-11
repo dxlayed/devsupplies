@@ -8,11 +8,15 @@ const PORT = process.env.PORT || 4173;
 const PUBLIC = path.join(__dirname, "public");
 const DATA = process.env.DATA_DIR || path.join(__dirname, "data");
 const UPLOADS = path.join(DATA, "uploads");
-const OWNER_FILE = path.join(DATA, "owner.json");
+// The account with this email is the owner and can open the owner panel.
+const OWNER_EMAIL = (process.env.OWNER_EMAIL || "thebeast52521212@gmail.com").toLowerCase();
 const PRODUCTS_FILE = path.join(DATA, "products.json");
 const SETUP_FILE = path.join(DATA, "setup-code.txt");
+const USERS_FILE = path.join(DATA, "users.json");
+const SESSIONS_FILE = path.join(DATA, "sessions.json");
 
-const SESSION_DAYS = 7;
+const USER_SESSION_DAYS = 30;
+const MAX_SIGNUPS_PER_HOUR = 10;
 const MAX_BODY = 8 * 1024 * 1024;
 const MAX_IMAGE = 5 * 1024 * 1024;
 const MAX_FAILS = 5;
@@ -28,15 +32,17 @@ const writeJson = (file, value) => {
   fs.renameSync(file + ".tmp", file);
 };
 
-let owner = readJson(OWNER_FILE, null);
 let products = readJson(PRODUCTS_FILE, []);
-const sessions = new Map(); // token -> expiry timestamp
-const fails = new Map();    // ip -> { count, until }
+let users = readJson(USERS_FILE, []);
+// sha256(token) -> { userId, expiry }. Saved to disk so a restart doesn't log everyone out.
+const userSessions = new Map(Object.entries(readJson(SESSIONS_FILE, {})));
+const fails = new Map();    // key -> { count, until }
+const signups = new Map();  // ip -> { count, reset }
 
-// Until an owner account exists, creating one requires this one-time code,
-// so a stranger who finds the site first can't claim it.
+// Sign-ups don't verify email ownership, so creating the owner's account also
+// requires this one-time code. Otherwise anyone could register the owner email first.
 let setupCode = null;
-if (!owner) {
+if (!users.some((u) => u.email === OWNER_EMAIL)) {
   setupCode = crypto.randomBytes(4).toString("hex");
   fs.writeFileSync(SETUP_FILE, setupCode + "\n");
   console.log(`No owner account yet. Setup code: ${setupCode} (also saved to ${SETUP_FILE})`);
@@ -78,23 +84,36 @@ function readBody(req) {
   });
 }
 
-function sessionToken(req) {
-  const m = /(?:^|;\s*)ds_session=([a-f0-9]{64})/.exec(req.headers.cookie || "");
+const sha = (s) => crypto.createHash("sha256").update(s).digest("hex");
+function cookie(req, name) {
+  const m = new RegExp("(?:^|;\\s*)" + name + "=([a-f0-9]{64})").exec(req.headers.cookie || "");
   return m && m[1];
 }
-function isOwner(req) {
-  const token = sessionToken(req);
-  const expiry = token && sessions.get(token);
-  if (!expiry) return false;
-  if (expiry < Date.now()) { sessions.delete(token); return false; }
-  return true;
+const cookieAttrs = (req) => `HttpOnly; SameSite=Lax; Path=/${req.headers["x-forwarded-proto"] === "https" ? "; Secure" : ""}`;
+
+const isLocked = (key) => (fails.get(key) || {}).until > Date.now();
+function recordFail(key) {
+  const count = ((fails.get(key) || {}).count || 0) + 1;
+  fails.set(key, { count: count >= MAX_FAILS ? 0 : count, until: count >= MAX_FAILS ? Date.now() + LOCK_MS : 0 });
 }
-function startSession(req, res) {
+
+function saveUserSessions() {
+  for (const [key, s] of userSessions) if (s.expiry < Date.now()) userSessions.delete(key);
+  writeJson(SESSIONS_FILE, Object.fromEntries(userSessions));
+}
+function currentUser(req) {
+  const token = cookie(req, "ds_user");
+  const session = token && userSessions.get(sha(token));
+  if (!session || session.expiry < Date.now()) return null;
+  return users.find((u) => u.id === session.userId) || null;
+}
+function startUserSession(req, res, user) {
   const token = crypto.randomBytes(32).toString("hex");
-  sessions.set(token, Date.now() + SESSION_DAYS * 864e5);
-  const secure = req.headers["x-forwarded-proto"] === "https" ? "; Secure" : "";
-  res.setHeader("Set-Cookie", `ds_session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${SESSION_DAYS * 86400}${secure}`);
+  userSessions.set(sha(token), { userId: user.id, expiry: Date.now() + USER_SESSION_DAYS * 864e5 });
+  saveUserSessions();
+  res.setHeader("Set-Cookie", `ds_user=${token}; ${cookieAttrs(req)}; Max-Age=${USER_SESSION_DAYS * 86400}`);
 }
+const isOwner = (req) => (currentUser(req) || {}).email === OWNER_EMAIL;
 
 function saveImage(dataUrl) {
   const m = /^data:image\/(png|jpeg|webp|gif);base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl || "");
@@ -129,54 +148,73 @@ async function api(req, res, url) {
   const route = req.method + " " + url.pathname;
   const ip = req.socket.remoteAddress;
 
-  if (route === "GET /api/me") return send(res, 200, { owner: isOwner(req), needsSetup: !owner });
+  if (route === "GET /api/me") {
+    const user = currentUser(req);
+    return send(res, 200, { owner: isOwner(req), user: user && { email: user.email } });
+  }
+
+  /* accounts */
+
+  if (route === "POST /api/register") {
+    const quota = signups.get(ip);
+    const active = quota && quota.reset > Date.now();
+    if (active && quota.count >= MAX_SIGNUPS_PER_HOUR) return send(res, 429, { error: "Too many sign-ups. Try again later." });
+    const body = await readBody(req);
+    const email = String(body.email || "").trim().toLowerCase();
+    const password = String(body.password || "");
+    if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return send(res, 400, { error: "Enter a valid email address" });
+    if (password.length < 8 || password.length > 200) return send(res, 400, { error: "Password must be at least 8 characters" });
+    if (users.some((u) => u.email === email)) return send(res, 409, { error: "That email already has an account. Log in instead." });
+    if (email === OWNER_EMAIL) {
+      if (isLocked("c:" + ip)) return send(res, 429, { error: "Too many attempts. Try again in 15 minutes." });
+      if (!body.code) return send(res, 403, { needsCode: true, error: "This is the owner email. Enter the setup code from data/setup-code.txt." });
+      if (!safeEqual(String(body.code).trim(), setupCode)) {
+        recordFail("c:" + ip);
+        return send(res, 403, { needsCode: true, error: "Wrong setup code" });
+      }
+      setupCode = null;
+      fs.rmSync(SETUP_FILE, { force: true });
+    }
+    const salt = crypto.randomBytes(16).toString("hex");
+    const user = { id: crypto.randomBytes(8).toString("hex"), email, salt, hash: hashPassword(password, salt), createdAt: Date.now() };
+    users.push(user);
+    writeJson(USERS_FILE, users);
+    signups.set(ip, active ? { ...quota, count: quota.count + 1 } : { count: 1, reset: Date.now() + 36e5 });
+    startUserSession(req, res, user);
+    return send(res, 201, { email });
+  }
+
+  if (route === "POST /api/user/login") {
+    if (isLocked("u:" + ip)) return send(res, 429, { error: "Too many attempts. Try again in 15 minutes." });
+    const body = await readBody(req);
+    const email = String(body.email || "").trim().toLowerCase();
+    const user = users.find((u) => u.email === email);
+    // Hash even when the email is unknown so the response time doesn't reveal which emails have accounts.
+    const hash = hashPassword(String(body.password || "").slice(0, 200), user ? user.salt : "0000000000000000");
+    if (!user || !safeEqual(hash, user.hash)) {
+      recordFail("u:" + ip);
+      return send(res, 401, { error: "Wrong email or password" });
+    }
+    fails.delete("u:" + ip);
+    startUserSession(req, res, user);
+    return send(res, 200, { email });
+  }
+
+  if (route === "POST /api/user/logout") {
+    const token = cookie(req, "ds_user");
+    if (token && userSessions.delete(sha(token))) saveUserSessions();
+    return send(res, 200, { ok: true }, { "Set-Cookie": `ds_user=; ${cookieAttrs(req)}; Max-Age=0` });
+  }
+
+  /* products */
 
   if (route === "GET /api/products") {
     const all = url.searchParams.has("all") && isOwner(req);
     return send(res, 200, all ? products : products.filter((p) => p.published));
   }
 
-  if (route === "POST /api/setup") {
-    if (owner) return send(res, 403, { error: "An owner account already exists" });
-    const body = await readBody(req);
-    const username = String(body.username || "").trim();
-    const password = String(body.password || "");
-    if (!safeEqual(String(body.code || "").trim(), setupCode)) return send(res, 403, { error: "Wrong setup code" });
-    if (username.length < 3 || username.length > 32) return send(res, 400, { error: "Username must be 3–32 characters" });
-    if (password.length < 8) return send(res, 400, { error: "Password must be at least 8 characters" });
-    const salt = crypto.randomBytes(16).toString("hex");
-    owner = { username, salt, hash: hashPassword(password, salt) };
-    writeJson(OWNER_FILE, owner);
-    setupCode = null;
-    fs.rmSync(SETUP_FILE, { force: true });
-    startSession(req, res);
-    return send(res, 200, { ok: true });
-  }
-
-  if (route === "POST /api/login") {
-    if (!owner) return send(res, 403, { error: "No owner account yet" });
-    const lock = fails.get(ip);
-    if (lock && lock.until > Date.now()) return send(res, 429, { error: "Too many attempts. Try again in 15 minutes." });
-    const body = await readBody(req);
-    const ok = safeEqual(String(body.username || "").trim().toLowerCase(), owner.username.toLowerCase())
-      & safeEqual(hashPassword(String(body.password || ""), owner.salt), owner.hash);
-    if (!ok) {
-      const count = (lock && lock.count || 0) + 1;
-      fails.set(ip, { count: count >= MAX_FAILS ? 0 : count, until: count >= MAX_FAILS ? Date.now() + LOCK_MS : 0 });
-      return send(res, 401, { error: "Wrong username or password" });
-    }
-    fails.delete(ip);
-    startSession(req, res);
-    return send(res, 200, { ok: true });
-  }
-
-  if (route === "POST /api/logout") {
-    sessions.delete(sessionToken(req));
-    return send(res, 200, { ok: true }, { "Set-Cookie": "ds_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0" });
-  }
-
   // Everything below is owner-only.
-  if (!isOwner(req)) return send(res, 401, { error: "Not logged in" });
+  if (!isOwner(req)) return send(res, 401, { error: "Owner access only" });
 
   if (route === "POST /api/products") {
     const body = await readBody(req);
@@ -243,6 +281,7 @@ function serveStatic(req, res, url) {
   if (pathname.startsWith("/uploads/")) return serveFile(res, path.join(UPLOADS, path.basename(pathname)), "public, max-age=31536000, immutable");
   if (pathname === "/") pathname = "/index.html";
   if (pathname === "/owner") pathname = "/owner.html";
+  if (pathname === "/login") pathname = "/login.html";
 
   const file = path.join(PUBLIC, pathname);
   if (!file.startsWith(PUBLIC + path.sep)) return send(res, 403, "Forbidden");
