@@ -15,13 +15,13 @@ async function api(method, url, body) {
     body: body ? JSON.stringify(body) : undefined,
   });
   const data = await res.json().catch(() => ({}));
-  if (res.status === 401 && url !== "/api/login") show("loginView");
+  if (res.status === 401) showGate();
   if (!res.ok) throw new Error(data.error || "Something went wrong");
   return data;
 }
 
 function show(view) {
-  ["setupView", "loginView", "dashView"].forEach((v) => { $(v).hidden = v !== view; });
+  ["gateView", "dashView"].forEach((v) => { $(v).hidden = v !== view; });
   $("logout").hidden = view !== "dashView";
 }
 
@@ -40,25 +40,19 @@ function toast(msg) {
 
 /* ---------- auth ---------- */
 
-function authForm(formId, errorId, url) {
-  $(formId).addEventListener("submit", async (e) => {
-    e.preventDefault();
-    showError(errorId);
-    try {
-      await api("POST", url, Object.fromEntries(new FormData(e.target)));
-      e.target.reset();
-      await openDash();
-    } catch (err) {
-      showError(errorId, err.message);
-    }
-  });
+// The owner signs in through the normal /login page; this screen is shown to everyone else.
+function showGate(me) {
+  const wrongAccount = me && me.user;
+  $("gateText").textContent = wrongAccount
+    ? `You're logged in as ${me.user.email}, which isn't the owner account.`
+    : "Log in with the owner email to manage products.";
+  $("gateLogin").hidden = !!wrongAccount;
+  show("gateView");
 }
-authForm("setupForm", "setupError", "/api/setup");
-authForm("loginForm", "loginError", "/api/login");
 
 $("logout").addEventListener("click", async () => {
-  await api("POST", "/api/logout").catch(() => {});
-  show("loginView");
+  await api("POST", "/api/user/logout").catch(() => {});
+  showGate();
 });
 
 /* ---------- dashboard ---------- */
@@ -198,5 +192,5 @@ $("editor").addEventListener("submit", async (e) => {
 /* ---------- init ---------- */
 
 api("GET", "/api/me")
-  .then((me) => (me.owner ? openDash() : show(me.needsSetup ? "setupView" : "loginView")))
-  .catch(() => show("loginView"));
+  .then((me) => (me.owner ? openDash() : showGate(me)))
+  .catch(() => showGate());
