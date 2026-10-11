@@ -39,7 +39,7 @@ router.post('/buy', needsLogin, (req, res) => {
 
 router.get('/orders', needsLogin, (req, res) => {
   res.json(db.prepare(`
-    SELECT o.id, p.name AS product, o.price, o.status, o.created, o.delivered AS content
+    SELECT o.id, COALESCE(o.title, p.name) AS product, o.price, o.status, o.created, o.delivered AS content
     FROM orders o JOIN products p ON p.id=o.product_id
     WHERE o.user_id=? ORDER BY o.id DESC
   `).all(req.session.user.id));
