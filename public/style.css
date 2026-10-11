@@ -247,3 +247,9 @@ select option { background: var(--panel-2); }
   *, *::before, *::after { transition: none !important; }
   html { scroll-behavior: auto; }
 }
+
+/* Google sign-in */
+.google-btn { gap: 10px; }
+.google-btn svg { flex: none; }
+.or { display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--ink-3); }
+.or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--line-2); }
