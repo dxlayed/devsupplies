@@ -5,7 +5,7 @@ const path = require('path');
 const fs = require('fs');
 
 // On Railway, attach a Volume and this folder survives redeploys.
-const DATA_DIR = process.env.RAILWAY_VOLUME_MOUNT_PATH || process.env.DATA_DIR || path.join(__dirname, '..', 'data');
+const DATA_DIR = process.env.RAILWAY_VOLUME_MOUNT_PATH || process.env.DATA_DIR || path.join(__dirname, 'data');
 fs.mkdirSync(DATA_DIR, { recursive: true });
 
 const db = new DatabaseSync(path.join(DATA_DIR, 'store.db'));
@@ -63,6 +63,26 @@ db.exec(`
     credited   TEXT,
     UNIQUE(txid, vout)
   );
+  CREATE TABLE IF NOT EXISTS deals (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    name        TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    price       REAL NOT NULL,
+    content     TEXT NOT NULL,
+    image       BLOB,
+    image_type  TEXT,
+    status      TEXT NOT NULL DEFAULT 'active',
+    order_id    INTEGER,
+    updated     INTEGER NOT NULL DEFAULT 0,
+    created     TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS deal_images (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    deal_id    INTEGER NOT NULL REFERENCES deals(id) ON DELETE CASCADE,
+    image      BLOB NOT NULL,
+    image_type TEXT NOT NULL,
+    position   INTEGER NOT NULL DEFAULT 0
+  );
   CREATE TABLE IF NOT EXISTS settings (
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL
@@ -83,6 +103,8 @@ addColumn('users', 'ltc_index', 'INTEGER');
 addColumn('users', 'ltc_address', 'TEXT');
 addColumn('users', 'watch_until', 'INTEGER NOT NULL DEFAULT 0');
 addColumn('orders', 'delivered', 'TEXT');
+addColumn('orders', 'title', 'TEXT');   // name shown for the order (used by deals)
+addColumn('orders', 'deal_id', 'INTEGER');
 db.exec('CREATE UNIQUE INDEX IF NOT EXISTS users_ltc_index ON users(ltc_index)');
 db.exec('CREATE INDEX IF NOT EXISTS inventory_product ON inventory(product_id, sold)');
 
@@ -112,5 +134,17 @@ if (!db.prepare('SELECT 1 FROM products LIMIT 1').get()) {
     { id:'uk-studio', code:'UK', region:'United Kingdom', name:'TikTok UK — Live Studio + Live Access', description:'Full live studio access with live streaming enabled for UK region.',                    tags:JSON.stringify(['live studio','live access','uk region','aged']), price:37.99, coming:1, img_type:'studio' },
   ].forEach(p => insert.run(p)));
 }
+
+db.exec('CREATE INDEX IF NOT EXISTS deal_images_deal ON deal_images(deal_id, position)');
+// Move single photos from the older version of deals into the photos table
+for (const d of db.prepare('SELECT id, image, image_type FROM deals WHERE image IS NOT NULL').all()) {
+  transaction(() => {
+    db.prepare('INSERT INTO deal_images (deal_id, image, image_type, position) VALUES (?,?,?,0)').run(d.id, d.image, d.image_type);
+    db.prepare('UPDATE deals SET image=NULL, image_type=NULL WHERE id=?').run(d.id);
+  });
+}
+
+// Hidden placeholder product that deal orders point to (never shown anywhere)
+db.prepare(`INSERT OR IGNORE INTO products (id,code,region,name,description,price,coming,active) VALUES ('deal','DEAL','Deal','Deal','One-off deal',0,0,0)`).run();
 
 module.exports = { db, transaction, cents, getSetting, setSetting, freshUser, PRODUCT_SELECT, productRow };
