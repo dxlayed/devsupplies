@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Owner Panel | DevSupplies</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=DM+Mono:wght@300;400;500&display=swap">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<nav id="nav"></nav>
+
+<div class="page wide">
+  <div class="dash-top">
+    <div>
+      <div class="dash-title">Owner Panel</div>
+      <div class="dash-sub">devsupplies.cc</div>
+    </div>
+    <a class="btn btn-ghost" href="/">Back to Store</a>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-label">Revenue</div><div class="stat-val" id="s-rev">—</div></div>
+    <div class="stat"><div class="stat-label">Orders</div><div class="stat-val" id="s-ord">—</div></div>
+    <div class="stat"><div class="stat-label">Users</div><div class="stat-val" id="s-usr">—</div></div>
+    <div class="stat"><div class="stat-label">Deposited</div><div class="stat-val" id="s-dep">—</div></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">Products</div>
+    <div style="overflow-x:auto"><table><thead><tr><th>Name</th><th>Price</th><th>Stock</th><th>Available</th><th>Visible</th><th></th></tr></thead><tbody id="t-prod"></tbody></table></div>
+  </div>
+  <div class="panel">
+    <div class="panel-title">Users</div>
+    <div style="overflow-x:auto"><table><thead><tr><th>Username</th><th>Role</th><th>Balance ($)</th><th>Joined</th><th></th></tr></thead><tbody id="t-users"></tbody></table></div>
+  </div>
+  <div class="panel">
+    <div class="panel-title">Orders</div>
+    <div style="overflow-x:auto"><table><thead><tr><th>User</th><th>Product</th><th>Price</th><th>Status</th><th>Date</th><th></th></tr></thead><tbody id="t-orders"></tbody></table></div>
+  </div>
+  <div class="panel">
+    <div class="panel-title">Deposits</div>
+    <div style="overflow-x:auto"><table><thead><tr><th>User</th><th>LTC</th><th>USD</th><th>Status</th><th>Transaction</th><th>Date</th></tr></thead><tbody id="t-deps"></tbody></table></div>
+  </div>
+</div>
+
+<footer id="footer"></footer>
+
+<!-- Stock manager -->
+<div class="dialog" id="stock-dialog">
+  <div class="dialog-box wide">
+    <div class="dlg-head"><div class="dlg-title">Manage Stock</div><button class="modal-x" style="position:static" onclick="closeDlg('stock-dialog')">&#x2715;</button></div>
+    <div class="dialog-name" id="stock-name"></div>
+    <div class="small" style="margin-bottom:14px">Paste one account per line, for example <span style="color:var(--fg2)">username:password:email:emailpass</span>. Each line is one item of stock and goes to one buyer.</div>
+    <textarea class="input" id="stock-in" placeholder="user1:pass1:mail1@x.com:mailpass1&#10;user2:pass2:mail2@x.com:mailpass2"></textarea>
+    <button class="btn btn-white form-btn" style="margin:12px 0 22px" onclick="addStock()">Add to Stock</button>
+    <label class="label">In stock (<span id="stock-count">0</span>)</label>
+    <div class="mini-list" id="stock-list"></div>
+  </div>
+</div>
+
+<script src="/main.js"></script>
+<script>
+let stockProduct = null;
+const emptyRow = (cols, text) => `<tr><td colspan="${cols}" style="color:var(--fg3);text-align:center;padding:22px">${text}</td></tr>`;
+
+async function loadStats() {
+  try {
+    const s = await api('GET', '/owner/stats');
+    $('s-rev').textContent = money(s.revenue);
+    $('s-ord').textContent = s.orders;
+    $('s-usr').textContent = s.users;
+    $('s-dep').textContent = money(s.deposited);
+  } catch {}
+}
+
+// Products
+async function loadProducts() {
+  try {
+    const list = await api('GET', '/owner/products');
+    $('t-prod').innerHTML = list.map(p => `
+      <tr data-id="${esc(p.id)}">
+        <td style="color:var(--fg)">${esc(p.name)}</td>
+        <td><input class="edit-in" type="number" step="0.01" min="0" value="${p.price.toFixed(2)}" data-f="price" style="width:74px"></td>
+        <td><span style="color:var(--fg);margin-right:8px">${p.stock}</span><button class="tog" onclick="openStock('${esc(p.id)}')">Manage</button></td>
+        <td><button class="tog ${p.coming ? '' : 'on'}" onclick="setProduct('${esc(p.id)}', {coming: ${!p.coming}})">${p.coming ? 'Coming Soon' : 'Available'}</button></td>
+        <td><button class="tog ${p.active ? 'on' : ''}" onclick="setProduct('${esc(p.id)}', {active: ${!p.active}})">${p.active ? 'Live' : 'Hidden'}</button></td>
+        <td><button class="btn btn-sm btn-ghost" onclick="savePrice('${esc(p.id)}')">Save Price</button></td>
+      </tr>`).join('');
+  } catch {}
+}
+async function setProduct(id, changes) {
+  try { await api('PATCH', `/owner/products/${id}`, changes); toast('Updated.'); loadProducts(); }
+  catch (e) { toast(e.message); }
+}
+function savePrice(id) {
+  const price = parseFloat(document.querySelector(`tr[data-id="${id}"] [data-f=price]`).value);
+  setProduct(id, { price });
+}
+
+// Stock
+async function openStock(id) {
+  stockProduct = id;
+  $('stock-name').textContent = document.querySelector(`tr[data-id="${id}"] td`).textContent;
+  $('stock-in').value = '';
+  openDlg('stock-dialog');
+  loadStock();
+}
+async function loadStock() {
+  try {
+    const items = await api('GET', `/owner/stock/${stockProduct}`);
+    $('stock-count').textContent = items.length;
+    $('stock-list').innerHTML = items.length
+      ? items.map(i => `<div class="mini-item"><span>${esc(i.content)}</span><button class="x-btn" onclick="removeStock(${i.id})">Remove</button></div>`).join('')
+      : '<div class="mini-item"><span>Empty. Customers see Sold Out.</span></div>';
+  } catch (e) { toast(e.message); }
+}
+async function addStock() {
+  try {
+    const d = await api('POST', `/owner/stock/${stockProduct}`, { items: $('stock-in').value });
+    $('stock-in').value = '';
+    toast(`Added ${d.added} to stock.`);
+    loadStock(); loadProducts();
+  } catch (e) { toast(e.message); }
+}
+async function removeStock(id) {
+  try { await api('DELETE', `/owner/stock/item/${id}`); loadStock(); loadProducts(); }
+  catch (e) { toast(e.message); }
+}
+
+// Users
+async function loadUsers() {
+  try {
+    const list = await api('GET', '/owner/users');
+    $('t-users').innerHTML = list.map(u => `
+      <tr data-uid="${u.id}">
+        <td style="color:var(--fg)">${esc(u.username)}</td>
+        <td><span class="badge badge-${esc(u.role)}">${esc(u.role)}</span></td>
+        <td><input class="edit-in" type="number" step="0.01" min="0" value="${u.balance.toFixed(2)}" data-f="balance" style="width:84px"></td>
+        <td>${esc(u.joined)}</td>
+        <td><button class="btn btn-sm btn-ghost" onclick="saveBalance(${u.id})">Save</button></td>
+      </tr>`).join('');
+  } catch {}
+}
+async function saveBalance(id) {
+  const balance = parseFloat(document.querySelector(`tr[data-uid="${id}"] [data-f=balance]`).value);
+  try { await api('PATCH', `/owner/users/${id}`, { balance }); toast('Saved.'); if (id === me.id) loadMe(); }
+  catch (e) { toast(e.message); }
+}
+
+// Orders
+async function loadOrders() {
+  try {
+    const list = await api('GET', '/owner/orders');
+    $('t-orders').innerHTML = list.length ? list.map(o => `
+      <tr>
+        <td>${esc(o.username)}</td>
+        <td style="color:var(--fg)" title="${esc(o.content || '')}">${esc(o.product)}</td>
+        <td style="font-variant-numeric:tabular-nums">${money(o.price)}</td>
+        <td><span class="badge badge-${esc(o.status)}">${esc(o.status)}</span></td>
+        <td>${shortDate(o.created)}</td>
+        <td>
+          <select class="status-sel" onchange="setOrder(${o.id}, this.value)">
+            <option value="pending" ${o.status === 'pending' ? 'selected' : ''}>Pending</option>
+            <option value="delivered" ${o.status === 'delivered' ? 'selected' : ''}>Delivered</option>
+            <option value="cancelled" ${o.status === 'cancelled' ? 'selected' : ''}>Cancelled (refund)</option>
+          </select>
+        </td>
+      </tr>`).join('') : emptyRow(6, 'No orders yet');
+  } catch {}
+}
+async function setOrder(id, status) {
+  try {
+    await api('PATCH', `/owner/orders/${id}`, { status });
+    toast(status === 'cancelled' ? 'Cancelled and refunded.' : 'Order updated.');
+    loadStats(); loadOrders(); loadUsers(); loadMe();
+  } catch (e) { toast(e.message); }
+}
+
+// Deposits
+async function loadDeposits() {
+  try {
+    const list = await api('GET', '/owner/deposits');
+    $('t-deps').innerHTML = list.length ? list.map(d => `
+      <tr>
+        <td>${esc(d.username)}</td>
+        <td style="font-variant-numeric:tabular-nums">${ltcAmount(d.litoshis)}</td>
+        <td style="font-variant-numeric:tabular-nums;color:var(--fg)">${d.usd != null ? money(d.usd) : '—'}</td>
+        <td><span class="badge badge-${d.status === 'credited' ? 'delivered' : 'pending'}">${d.status === 'credited' ? 'credited' : 'confirming'}</span></td>
+        <td><a href="https://litecoinspace.org/tx/${esc(d.txid)}" target="_blank" rel="noopener" style="color:var(--fg2)">${esc(d.txid.slice(0, 10))}...</a></td>
+        <td>${shortDate(d.created)}</td>
+      </tr>`).join('') : emptyRow(6, 'No deposits yet');
+  } catch {}
+}
+
+startPage().then(() => Promise.all([loadStats(), loadProducts(), loadUsers(), loadOrders(), loadDeposits()]));
+</script>
+</body>
+</html>

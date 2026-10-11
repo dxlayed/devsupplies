@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign Up | DevSupplies</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=DM+Mono:wght@300;400;500&display=swap">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<nav id="nav"></nav>
+
+<div class="auth-wrap">
+  <form class="auth-card" id="form" novalidate>
+    <div class="auth-title">Create Account</div>
+    <div class="auth-sub">Takes ten seconds. No email needed.</div>
+    <div class="msg err" id="err"></div>
+    <div class="field"><label class="label" for="user">Username</label><input class="input" id="user" type="text" placeholder="yourname" autocomplete="username" autofocus></div>
+    <div class="field"><label class="label" for="pass">Password</label><input class="input" id="pass" type="password" placeholder="At least 6 characters" autocomplete="new-password"></div>
+    <div class="field"><label class="label" for="conf">Confirm Password</label><input class="input" id="conf" type="password" placeholder="Type it again" autocomplete="new-password"></div>
+    <button class="btn btn-white form-btn" id="go" type="submit">Create Account</button>
+    <div class="auth-alt">Already have an account? <a href="/login" id="alt">Log in</a></div>
+  </form>
+</div>
+
+<footer id="footer"></footer>
+
+<script src="/main.js"></script>
+<script>
+const next = (() => { const n = new URLSearchParams(location.search).get('next') || '/'; return n.startsWith('/') && !n.startsWith('//') ? n : '/'; })();
+$('alt').href = '/login' + location.search;
+
+function fail(msg) { $('err').textContent = msg; $('err').classList.add('show'); $('go').disabled = false; }
+
+$('form').addEventListener('submit', async e => {
+  e.preventDefault();
+  $('err').classList.remove('show');
+  const username = $('user').value.trim().toLowerCase(), password = $('pass').value;
+  if (username.length < 3) return fail('Username must be at least 3 characters.');
+  if (!/^[a-z0-9_]+$/.test(username)) return fail('Letters, numbers and underscores only.');
+  if (password.length < 6) return fail('Password must be at least 6 characters.');
+  if (password !== $('conf').value) return fail('Passwords do not match.');
+  $('go').disabled = true;
+  try {
+    const d = await api('POST', '/signup', { username, password });
+    location.href = d.user.role === 'owner' ? '/owner' : next;
+  } catch (err) { fail(err.message); }
+});
+
+startPage();
+</script>
+</body>
+</html>

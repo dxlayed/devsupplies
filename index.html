@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DevSupplies</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=DM+Mono:wght@300;400;500&display=swap">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<nav id="nav"></nav>
+
+<section class="hero">
+  <div class="hero-grid"></div>
+  <div class="eyebrow">Premium Digital Accounts</div>
+  <h1>Dev<span>Supplies</span></h1>
+  <p>Verified TikTok accounts with US and UK live access. Aged, clean, and ready to go.</p>
+  <div class="hero-btns">
+    <a class="btn btn-white" href="#prod">Browse Products</a>
+    <a class="btn btn-ghost" href="https://discord.gg/devsupplies" target="_blank" rel="noopener">Discord Server</a>
+  </div>
+</section>
+
+<section class="products" id="prod">
+  <div class="section-head">
+    <div>
+      <div class="section-label">Available Now</div>
+      <div class="section-title">TikTok Accounts</div>
+    </div>
+    <span class="section-note">Instant delivery after purchase</span>
+  </div>
+  <div class="grid" id="prod-grid">
+    <div style="padding:60px;text-align:center;font-family:var(--m);font-size:10px;color:var(--fg3);letter-spacing:.08em;text-transform:uppercase;background:var(--bg)">Loading...</div>
+  </div>
+</section>
+
+<footer id="footer"></footer>
+
+<!-- Confirm purchase -->
+<div class="dialog" id="buy-dialog">
+  <div class="dialog-box">
+    <div class="dialog-name" id="buy-name"></div>
+    <div class="dialog-price" id="buy-price"></div>
+    <div class="dialog-note" id="buy-note"></div>
+    <div class="dialog-btns">
+      <button class="btn btn-ghost" onclick="closeDlg('buy-dialog')">Cancel</button>
+      <button class="btn btn-white" id="buy-go" onclick="confirmBuy()">Confirm Purchase</button>
+    </div>
+  </div>
+</div>
+
+<!-- Account delivered -->
+<div class="dialog" id="got-dialog">
+  <div class="dialog-box wide">
+    <div class="dlg-head"><div class="dlg-title">Order Delivered</div><button class="modal-x" style="position:static" onclick="closeDlg('got-dialog')">&#x2715;</button></div>
+    <div class="dialog-name" id="got-name"></div>
+    <div class="small" style="margin-bottom:14px">Your account details. They are also saved in My Orders.</div>
+    <div class="codebox" id="got-content"></div>
+    <div class="dialog-btns" style="margin-top:18px">
+      <a class="btn btn-ghost" href="/orders">My Orders</a>
+      <button class="btn btn-white" onclick="copyText($('got-content').textContent)">Copy</button>
+    </div>
+  </div>
+</div>
+
+<script src="/main.js"></script>
+<script>
+let products = [], buyId = null;
+
+async function loadProducts() {
+  try { products = await api('GET', '/products'); } catch { return; }
+  const grid = $('prod-grid');
+  grid.innerHTML = '';
+  if (!products.length) { grid.innerHTML = '<div style="padding:60px;text-align:center;font-family:var(--m);font-size:10px;color:var(--fg3);letter-spacing:.08em;text-transform:uppercase;background:var(--bg)">No products listed</div>'; return; }
+  products.forEach(p => {
+    const coming = p.coming, inStock = p.stock > 0 && !coming;
+    const card = document.createElement('div');
+    card.className = 'card' + (coming ? ' cs' : '');
+    card.innerHTML = `
+      ${coming ? '<div class="cs-layer"><div class="cs-badge">Coming Soon</div><div class="cs-sub">In development</div></div>' : ''}
+      <div class="card-img">
+        <img src="${makeImg(p)}" alt="${esc(p.name)}">
+        <div class="stock-tag ${inStock ? 'yes' : 'no'}">${coming ? 'Coming Soon' : inStock ? p.stock + ' in stock' : 'Sold Out'}</div>
+      </div>
+      <div class="card-body">
+        <div class="card-region">${esc(p.code)} — ${esc(p.region)}</div>
+        <div class="card-name">${esc(p.name)}</div>
+        <div class="card-desc">${esc(p.description)}</div>
+        <div class="card-tags">${p.tags.map(t => `<span class="tag">${esc(t)}</span>`).join('')}</div>
+        <div class="card-foot">
+          <div class="price">${money(p.price)}</div>
+          <button class="buy-btn" ${inStock ? '' : 'disabled'} onclick="startBuy('${esc(p.id)}')">${coming ? 'Coming Soon' : inStock ? 'Purchase' : 'Sold Out'}</button>
+        </div>
+      </div>`;
+    grid.appendChild(card);
+  });
+}
+
+function startBuy(id) {
+  if (!me) { location.href = '/login?next=/'; return; }
+  const p = products.find(x => x.id === id);
+  if (!p || p.coming || p.stock <= 0) return;
+  buyId = id;
+  const enough = me.balance + 1e-9 >= p.price;
+  $('buy-name').textContent = p.name;
+  $('buy-price').textContent = money(p.price);
+  $('buy-note').textContent = enough
+    ? `Paid from your balance (${money(me.balance)}). Delivered instantly.`
+    : `Your balance is ${money(me.balance)}. Deposit ${money(p.price - me.balance)} more to buy this.`;
+  $('buy-go').textContent = enough ? 'Confirm Purchase' : 'Deposit';
+  openDlg('buy-dialog');
+}
+
+async function confirmBuy() {
+  const p = products.find(x => x.id === buyId);
+  if (!p) return;
+  if (me.balance + 1e-9 < p.price) { location.href = '/deposit'; return; }
+  const btn = $('buy-go'); btn.disabled = true;
+  try {
+    const d = await api('POST', '/buy', { productId: buyId });
+    closeDlg('buy-dialog');
+    me = d.user; renderNav();
+    $('got-name').textContent = d.order.product;
+    $('got-content').textContent = d.order.content;
+    openDlg('got-dialog');
+  } catch (e) { closeDlg('buy-dialog'); toast(e.message); }
+  finally { btn.disabled = false; loadProducts(); }
+}
+
+startPage().then(loadProducts);
+</script>
+</body>
+</html>

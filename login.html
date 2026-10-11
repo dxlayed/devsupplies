@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Log In | DevSupplies</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=DM+Mono:wght@300;400;500&display=swap">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<nav id="nav"></nav>
+
+<div class="auth-wrap">
+  <form class="auth-card" id="form" novalidate>
+    <div class="auth-title">Log In</div>
+    <div class="auth-sub">Welcome back to DevSupplies.cc</div>
+    <div class="msg err" id="err"></div>
+    <div class="field"><label class="label" for="user">Username</label><input class="input" id="user" type="text" placeholder="yourname" autocomplete="username" autofocus></div>
+    <div class="field"><label class="label" for="pass">Password</label><input class="input" id="pass" type="password" placeholder="••••••••" autocomplete="current-password"></div>
+    <button class="btn btn-white form-btn" id="go" type="submit">Log In</button>
+    <div class="auth-alt">No account? <a href="/signup" id="alt">Sign up</a></div>
+  </form>
+</div>
+
+<footer id="footer"></footer>
+
+<script src="/main.js"></script>
+<script>
+// Only allow going back to a page on this site
+const next = (() => { const n = new URLSearchParams(location.search).get('next') || '/'; return n.startsWith('/') && !n.startsWith('//') ? n : '/'; })();
+$('alt').href = '/signup' + location.search;
+
+$('form').addEventListener('submit', async e => {
+  e.preventDefault();
+  $('err').classList.remove('show');
+  $('go').disabled = true;
+  try {
+    await api('POST', '/login', { username: $('user').value.trim().toLowerCase(), password: $('pass').value });
+    location.href = next;
+  } catch (err) {
+    $('err').textContent = err.message; $('err').classList.add('show');
+    $('go').disabled = false;
+  }
+});
+
+startPage();
+</script>
+</body>
+</html>
