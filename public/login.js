@@ -1,6 +1,7 @@
 const $ = (id) => document.getElementById(id);
 const form = $("form");
 let mode = "login";
+const NO_SERVER = "Can't reach the server. Start the site with \"node server.js\" and open http://localhost:4173 (Live Server and static hosts can't create accounts).";
 
 function setMode(next) {
   mode = next;
@@ -28,7 +29,9 @@ form.addEventListener("submit", async (e) => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: form.email.value, password: form.password.value, code: form.code.value }),
-    });
+    }).catch(() => { throw new Error(NO_SERVER); });
+    // Anything other than JSON means the page isn't being served by server.js.
+    if (!/application\/json/.test(res.headers.get("content-type") || "")) throw new Error(NO_SERVER);
     const data = await res.json().catch(() => ({}));
     // Creating the owner's account asks for the one-time setup code.
     if (data.needsCode) $("codeField").hidden = false;
