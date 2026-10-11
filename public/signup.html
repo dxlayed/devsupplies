@@ -3,27 +3,30 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sign Up | DevSupplies</title>
+<title>Sign up | DevSupplies</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=DM+Mono:wght@300;400;500&display=swap">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&family=Outfit:wght@600;700;800;900&display=swap">
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
 
 <nav id="nav"></nav>
 
-<div class="auth-wrap">
+<main class="auth">
+  <div class="bloom"></div>
+  <div class="laser"></div>
   <form class="auth-card" id="form" novalidate>
-    <div class="auth-title">Create Account</div>
-    <div class="auth-sub">Takes ten seconds. No email needed.</div>
-    <div class="msg err" id="err"></div>
-    <div class="field"><label class="label" for="user">Username</label><input class="input" id="user" type="text" placeholder="yourname" autocomplete="username" autofocus></div>
+    <h1>Create account</h1>
+    <p class="sub">Just a username and password. No email needed.</p>
+    <div class="msg" id="err" role="alert"></div>
+    <div class="field"><label class="label" for="user">Username</label><input class="input" id="user" type="text" placeholder="Letters, numbers and _" autocomplete="username" autofocus></div>
     <div class="field"><label class="label" for="pass">Password</label><input class="input" id="pass" type="password" placeholder="At least 6 characters" autocomplete="new-password"></div>
-    <div class="field"><label class="label" for="conf">Confirm Password</label><input class="input" id="conf" type="password" placeholder="Type it again" autocomplete="new-password"></div>
-    <button class="btn btn-white form-btn" id="go" type="submit">Create Account</button>
-    <div class="auth-alt">Already have an account? <a href="/login" id="alt">Log in</a></div>
+    <div class="field"><label class="label" for="conf">Confirm password</label><input class="input" id="conf" type="password" autocomplete="new-password"></div>
+    <button class="btn btn-white btn-block" id="go" type="submit" style="margin-top:8px">Create account</button>
+    <p class="auth-alt">Already have one? <a href="/login" id="alt">Log in</a></p>
   </form>
-</div>
+</main>
 
 <footer id="footer"></footer>
 
@@ -38,10 +41,10 @@ $('form').addEventListener('submit', async e => {
   e.preventDefault();
   $('err').classList.remove('show');
   const username = $('user').value.trim().toLowerCase(), password = $('pass').value;
-  if (username.length < 3) return fail('Username must be at least 3 characters.');
-  if (!/^[a-z0-9_]+$/.test(username)) return fail('Letters, numbers and underscores only.');
-  if (password.length < 6) return fail('Password must be at least 6 characters.');
-  if (password !== $('conf').value) return fail('Passwords do not match.');
+  if (username.length < 3) return fail('Username needs at least 3 characters.');
+  if (!/^[a-z0-9_]+$/.test(username)) return fail('Usernames can only use letters, numbers and underscores.');
+  if (password.length < 6) return fail('Password needs at least 6 characters.');
+  if (password !== $('conf').value) return fail('The two passwords are different. Type them again.');
   $('go').disabled = true;
   try {
     const d = await api('POST', '/signup', { username, password });

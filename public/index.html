@@ -3,75 +3,79 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DevSupplies</title>
+<title>DevSupplies | TikTok accounts with live access</title>
+<meta name="description" content="Aged TikTok accounts with US and UK live access, delivered the moment you buy.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=DM+Mono:wght@300;400;500&display=swap">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&family=Outfit:wght@600;700;800;900&display=swap">
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
 
 <nav id="nav"></nav>
 
-<section class="hero">
-  <div class="hero-grid"></div>
-  <div class="eyebrow">Premium Digital Accounts</div>
-  <h1>Dev<span>Supplies</span></h1>
-  <p>Verified TikTok accounts with US and UK live access. Aged, clean, and ready to go.</p>
-  <div class="hero-btns">
-    <a class="btn btn-white" href="#prod">Browse Products</a>
-    <a class="btn btn-ghost" href="https://discord.gg/devsupplies" target="_blank" rel="noopener">Discord Server</a>
-  </div>
-</section>
-
-<section class="deals" id="deals">
-  <div class="section-head">
-    <div>
-      <div class="section-label">Limited</div>
-      <div class="section-title">Deals</div>
+<main>
+  <section class="hero">
+    <div class="bloom"></div>
+    <div class="laser"></div>
+    <h1 class="split" aria-label="DevSupplies"><span class="s-top" aria-hidden="true">DevSupplies</span><span class="s-bot" aria-hidden="true">DevSupplies</span></h1>
+    <p class="hero-sub">Aged TikTok accounts with <strong>US and UK live access</strong>. Pay from your balance and the login shows up the second you buy.</p>
+    <div class="hero-cta">
+      <a class="btn btn-white" href="#accounts">Browse accounts</a>
+      <a class="btn btn-glow" href="https://discord.gg/devsupplies" target="_blank" rel="noopener" id="hero-discord">discord.gg/devsupplies</a>
     </div>
-    <span class="section-note">One of each. First to buy gets it.</span>
-  </div>
-  <div id="deal-grid"><div class="no-deals">Loading...</div></div>
-</section>
+  </section>
 
-<section class="products" id="prod">
-  <div class="section-head">
-    <div>
-      <div class="section-label">Available Now</div>
-      <div class="section-title">TikTok Accounts</div>
+  <section class="section wrap" id="deals">
+    <div class="section-head">
+      <h2>Deals</h2>
+      <p>One-off accounts. There is only one of each, so the first buyer gets it.</p>
     </div>
-    <span class="section-note">Instant delivery after purchase</span>
-  </div>
-  <div class="grid" id="prod-grid">
-    <div style="padding:60px;text-align:center;font-family:var(--m);font-size:10px;color:var(--fg3);letter-spacing:.08em;text-transform:uppercase;background:var(--bg)">Loading...</div>
-  </div>
-</section>
+    <div id="deal-grid"></div>
+  </section>
+
+  <section class="section wrap" id="accounts">
+    <div class="section-head">
+      <h2>Accounts</h2>
+      <p>Checked before listing. Login details are delivered instantly.</p>
+    </div>
+    <div class="cards" id="prod-grid"></div>
+  </section>
+
+  <section class="section wrap" aria-labelledby="how">
+    <div class="section-head"><h2 id="how">How buying works</h2></div>
+    <div class="steps">
+      <div class="step"><div class="step-n">1</div><h3>Add funds</h3><p>Send Litecoin to your own deposit address. It becomes USD balance after one confirmation.</p></div>
+      <div class="step"><div class="step-n">2</div><h3>Pick an account</h3><p>Choose a deal or a stocked account and pay from your balance.</p></div>
+      <div class="step"><div class="step-n">3</div><h3>Log in right away</h3><p>The login details appear on screen and stay saved in My orders.</p></div>
+    </div>
+  </section>
+</main>
 
 <footer id="footer"></footer>
 
 <!-- Confirm purchase -->
-<div class="dialog" id="buy-dialog">
+<div class="dialog" id="buy-dialog" role="dialog" aria-modal="true" aria-labelledby="buy-name">
   <div class="dialog-box">
-    <div class="dialog-name" id="buy-name"></div>
+    <div class="dialog-head"><div class="dialog-title" id="buy-name"></div><button class="x-close" onclick="closeDlg('buy-dialog')" aria-label="Close"></button></div>
     <div class="dialog-price" id="buy-price"></div>
     <div class="dialog-note" id="buy-note"></div>
     <div class="dialog-btns">
       <button class="btn btn-ghost" onclick="closeDlg('buy-dialog')">Cancel</button>
-      <button class="btn btn-white" id="buy-go" onclick="confirmBuy()">Confirm Purchase</button>
+      <button class="btn btn-white" id="buy-go" onclick="confirmBuy()">Buy now</button>
     </div>
   </div>
 </div>
 
 <!-- Account delivered -->
-<div class="dialog" id="got-dialog">
+<div class="dialog" id="got-dialog" role="dialog" aria-modal="true" aria-labelledby="got-name">
   <div class="dialog-box wide">
-    <div class="dlg-head"><div class="dlg-title">Order Delivered</div><button class="modal-x" style="position:static" onclick="closeDlg('got-dialog')">&#x2715;</button></div>
-    <div class="dialog-name" id="got-name"></div>
-    <div class="small" style="margin-bottom:14px">Your account details. They are also saved in My Orders.</div>
+    <div class="dialog-head"><div class="dialog-title" id="got-name"></div><button class="x-close" onclick="closeDlg('got-dialog')" aria-label="Close"></button></div>
+    <p class="dialog-note" style="margin-bottom:16px">Here are your login details. They are also saved in My orders.</p>
     <div class="codebox" id="got-content"></div>
-    <div class="dialog-btns" style="margin-top:18px">
-      <a class="btn btn-ghost" href="/orders">My Orders</a>
-      <button class="btn btn-white" onclick="copyText($('got-content').textContent)">Copy</button>
+    <div class="dialog-btns">
+      <a class="btn btn-ghost" href="/orders">My orders</a>
+      <button class="btn btn-white" onclick="copyText($('got-content').textContent)">Copy details</button>
     </div>
   </div>
 </div>
@@ -79,82 +83,97 @@
 <!-- Photo viewer -->
 <div class="lightbox" id="lightbox" onclick="if(event.target===this)closeViewer()">
   <img id="lb-img" alt="">
-  <button class="lb-btn lb-prev" id="lb-prev" onclick="viewerStep(-1)" aria-label="Previous photo"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M8.5 3L4.5 7l4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-  <button class="lb-btn lb-next" id="lb-next" onclick="viewerStep(1)" aria-label="Next photo"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M5.5 3l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-  <button class="lb-close" onclick="closeViewer()" aria-label="Close">&#x2715;</button>
+  <button class="lb-btn lb-prev" id="lb-prev" onclick="viewerStep(-1)" aria-label="Previous photo"></button>
+  <button class="lb-btn lb-next" id="lb-next" onclick="viewerStep(1)" aria-label="Next photo"></button>
+  <button class="x-close" onclick="closeViewer()" aria-label="Close"></button>
   <div class="lb-count" id="lb-count"></div>
 </div>
 
 <script src="/main.js"></script>
 <script>
-let products = [], deals = [], buying = null; // buying = { kind: 'product'|'deal', item }
+let products = [], deals = [], buying = null;
 
-async function loadProducts() {
-  try { products = await api('GET', '/products'); } catch { return; }
-  const grid = $('prod-grid');
-  grid.innerHTML = '';
-  if (!products.length) { grid.innerHTML = '<div style="padding:60px;text-align:center;font-family:var(--m);font-size:10px;color:var(--fg3);letter-spacing:.08em;text-transform:uppercase;background:var(--bg)">No products listed</div>'; return; }
-  products.forEach(p => {
-    const coming = p.coming, inStock = p.stock > 0 && !coming;
-    const card = document.createElement('div');
-    card.className = 'card' + (coming ? ' cs' : '');
-    card.innerHTML = `
-      ${coming ? '<div class="cs-layer"><div class="cs-badge">Coming Soon</div><div class="cs-sub">In development</div></div>' : ''}
-      <div class="card-img">
-        <img src="${makeImg(p)}" alt="${esc(p.name)}">
-        <div class="stock-tag ${inStock ? 'yes' : 'no'}">${coming ? 'Coming Soon' : inStock ? p.stock + ' in stock' : 'Sold Out'}</div>
-      </div>
-      <div class="card-body">
-        <div class="card-region">${esc(p.code)} — ${esc(p.region)}</div>
-        <div class="card-name">${esc(p.name)}</div>
-        <div class="card-desc">${esc(p.description)}</div>
-        <div class="card-tags">${p.tags.map(t => `<span class="tag">${esc(t)}</span>`).join('')}</div>
-        <div class="card-foot">
-          <div class="price">${money(p.price)}</div>
-          <button class="buy-btn" ${inStock ? '' : 'disabled'} onclick="startBuy('product', '${esc(p.id)}')">${coming ? 'Coming Soon' : inStock ? 'Purchase' : 'Sold Out'}</button>
-        </div>
-      </div>`;
-    grid.appendChild(card);
-  });
-}
+// Icons in static markup
+$('hero-discord').insertAdjacentHTML('afterbegin', ICONS.discord);
+document.querySelectorAll('.x-close').forEach(b => b.innerHTML = ICONS.close);
+$('lb-prev').innerHTML = ICONS.left; $('lb-next').innerHTML = ICONS.right;
 
+// ── Deals ─────────────────────────────────────────────────────
 async function loadDeals() {
   try { deals = await api('GET', '/deals'); } catch { return; }
-  const grid = $('deal-grid');
-  if (!deals.length) { grid.innerHTML = '<div class="no-deals">No deals currently</div>'; return; }
-  grid.innerHTML = '<div class="deals-grid">' + deals.map(d => `
-    <div class="deal">
-      <div class="deal-img">
-        ${d.images.length ? d.images.map((u, i) => `<img src="${esc(u)}" class="${i ? '' : 'on'}" alt="${esc(d.name)}" loading="lazy" onclick="openViewer(${d.id}, ${i})">`).join('') : '<div class="noimg">DevSupplies.cc</div>'}
+  const box = $('deal-grid');
+  if (!deals.length) {
+    box.innerHTML = `
+      <div class="empty-deals">
+        <div class="laser"></div>
+        <h3>No deals right now</h3>
+        <p>New one-off accounts get posted in the Discord first. Join so you see the next one.</p>
+        <a class="btn btn-glow" href="${DISCORD_URL}" target="_blank" rel="noopener">${ICONS.discord}Join the Discord</a>
+      </div>`;
+    return;
+  }
+  box.innerHTML = '<div class="cards deals">' + deals.map(d => `
+    <article class="card">
+      <div class="card-media gallery">
+        ${d.images.length
+          ? d.images.map((u, i) => `<img src="${esc(u)}" class="${i ? '' : 'on'}" alt="${esc(d.name)}, photo ${i + 1}" loading="lazy" onclick="openViewer(${d.id}, ${i})">`).join('')
+          : `<div class="noimg">${splitMark('Dev')}</div>`}
+        <span class="pill-tag l">Deal</span>
+        <span class="pill-tag r">Only 1</span>
         ${d.images.length > 1 ? `
-          <button class="g-btn g-prev" onclick="slide(this, -1)" aria-label="Previous photo"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M8.5 3L4.5 7l4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-          <button class="g-btn g-next" onclick="slide(this, 1)" aria-label="Next photo"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M5.5 3l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <button class="g-btn g-prev" onclick="slide(this, -1)" aria-label="Previous photo">${ICONS.left}</button>
+          <button class="g-btn g-next" onclick="slide(this, 1)" aria-label="Next photo">${ICONS.right}</button>
           <div class="g-dots">${d.images.map((_, i) => `<span class="${i ? '' : 'on'}"></span>`).join('')}</div>` : ''}
-        <div class="deal-tag">Deal</div>
-        <div class="deal-left">1 left</div>
       </div>
-      <div class="deal-body">
-        <div class="deal-name">${esc(d.name)}</div>
-        <div class="deal-desc">${esc(d.description)}</div>
+      <div class="card-body">
+        <h3 class="card-title">${esc(d.name)}</h3>
+        ${d.description ? `<p class="card-text">${esc(d.description)}</p>` : ''}
         <div class="card-foot">
-          <div class="price">${money(d.price)}</div>
-          <button class="buy-btn" onclick="startBuy('deal', ${d.id})">Purchase</button>
+          <span class="price">${money(d.price)}</span>
+          <button class="btn btn-white btn-sm" onclick="startBuy('deal', ${d.id})">Buy now</button>
         </div>
       </div>
-    </div>`).join('') + '</div>';
+    </article>`).join('') + '</div>';
 }
 
-// Flip through a deal's photos on its card
+// ── Accounts ──────────────────────────────────────────────────
+async function loadProducts() {
+  try { products = await api('GET', '/products'); } catch { return; }
+  await fontsReady();
+  const grid = $('prod-grid');
+  if (!products.length) { grid.innerHTML = '<div class="empty" style="grid-column:1/-1">No accounts listed right now. Check the Discord for restocks.</div>'; return; }
+  grid.innerHTML = products.map(p => {
+    const soon = p.coming, inStock = p.stock > 0 && !soon;
+    return `
+    <article class="card${soon ? ' soon' : ''}">
+      <div class="card-media">
+        <img src="${makeImg(p)}" alt="${esc(p.name)}">
+        ${soon ? '<div class="soon-badge"><span>Coming soon</span></div>' : ''}
+      </div>
+      <div class="card-body">
+        <div class="card-kicker">TikTok ${esc(p.region)}</div>
+        <h3 class="card-title">${esc(p.name.replace(/^TikTok\s+(US|UK)\s+—\s+/, ''))}</h3>
+        <p class="card-text">${esc(p.description)}</p>
+        <div class="chips">${p.tags.map(t => `<span class="chip">${esc(t)}</span>`).join('')}</div>
+        <span class="stock${inStock ? ' in' : ''}">${soon ? 'Not available yet' : inStock ? `${p.stock} in stock` : 'Sold out'}</span>
+        <div class="card-foot">
+          <span class="price">${money(p.price)}</span>
+          <button class="btn btn-white btn-sm" ${inStock ? '' : 'disabled'} onclick="startBuy('product', '${esc(p.id)}')">${soon ? 'Soon' : inStock ? 'Buy now' : 'Sold out'}</button>
+        </div>
+      </div>
+    </article>`;
+  }).join('');
+}
+
+// ── Deal photos ───────────────────────────────────────────────
 function slide(btn, step) {
-  const box = btn.closest('.deal-img');
+  const box = btn.closest('.gallery');
   const imgs = [...box.querySelectorAll('img')], dots = [...box.querySelectorAll('.g-dots span')];
   const cur = imgs.findIndex(i => i.classList.contains('on'));
   const next = (cur + step + imgs.length) % imgs.length;
   imgs.forEach((i, n) => i.classList.toggle('on', n === next));
   dots.forEach((d, n) => d.classList.toggle('on', n === next));
 }
-
-// Full-size photo viewer
 let viewer = { images: [], i: 0 };
 function openViewer(dealId, i) {
   const d = deals.find(x => x.id === dealId);
@@ -167,7 +186,7 @@ function showViewer() {
   $('lb-img').src = viewer.images[viewer.i];
   const many = viewer.images.length > 1;
   $('lb-prev').hidden = $('lb-next').hidden = !many;
-  $('lb-count').textContent = many ? `${viewer.i + 1} / ${viewer.images.length}` : '';
+  $('lb-count').textContent = many ? `${viewer.i + 1} of ${viewer.images.length}` : '';
 }
 function viewerStep(step) { viewer.i = (viewer.i + step + viewer.images.length) % viewer.images.length; showViewer(); }
 function closeViewer() { $('lightbox').classList.remove('open'); }
@@ -178,6 +197,7 @@ document.addEventListener('keydown', e => {
   if (e.key === 'ArrowRight') viewerStep(1);
 });
 
+// ── Buying ────────────────────────────────────────────────────
 function startBuy(kind, id) {
   if (!me) { location.href = '/login?next=/'; return; }
   const item = kind === 'deal' ? deals.find(x => x.id === id) : products.find(x => x.id === id);
@@ -188,9 +208,9 @@ function startBuy(kind, id) {
   $('buy-name').textContent = item.name;
   $('buy-price').textContent = money(item.price);
   $('buy-note').textContent = enough
-    ? `Paid from your balance (${money(me.balance)}). Delivered instantly.`
-    : `Your balance is ${money(me.balance)}. Deposit ${money(item.price - me.balance)} more to buy this.`;
-  $('buy-go').textContent = enough ? 'Confirm Purchase' : 'Deposit';
+    ? `Paid from your balance of ${money(me.balance)}. You get the login details straight away.`
+    : `Your balance is ${money(me.balance)}. Add ${money(item.price - me.balance)} more to buy this.`;
+  $('buy-go').textContent = enough ? 'Buy now' : 'Add funds';
   openDlg('buy-dialog');
 }
 

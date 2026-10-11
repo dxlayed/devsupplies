@@ -3,26 +3,29 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Log In | DevSupplies</title>
+<title>Log in | DevSupplies</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=DM+Mono:wght@300;400;500&display=swap">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&family=Outfit:wght@600;700;800;900&display=swap">
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
 
 <nav id="nav"></nav>
 
-<div class="auth-wrap">
+<main class="auth">
+  <div class="bloom"></div>
+  <div class="laser"></div>
   <form class="auth-card" id="form" novalidate>
-    <div class="auth-title">Log In</div>
-    <div class="auth-sub">Welcome back to DevSupplies.cc</div>
-    <div class="msg err" id="err"></div>
-    <div class="field"><label class="label" for="user">Username</label><input class="input" id="user" type="text" placeholder="yourname" autocomplete="username" autofocus></div>
-    <div class="field"><label class="label" for="pass">Password</label><input class="input" id="pass" type="password" placeholder="••••••••" autocomplete="current-password"></div>
-    <button class="btn btn-white form-btn" id="go" type="submit">Log In</button>
-    <div class="auth-alt">No account? <a href="/signup" id="alt">Sign up</a></div>
+    <h1>Log in</h1>
+    <p class="sub">Welcome back. Your balance and orders are waiting.</p>
+    <div class="msg" id="err" role="alert"></div>
+    <div class="field"><label class="label" for="user">Username</label><input class="input" id="user" type="text" autocomplete="username" autofocus></div>
+    <div class="field"><label class="label" for="pass">Password</label><input class="input" id="pass" type="password" autocomplete="current-password"></div>
+    <button class="btn btn-white btn-block" id="go" type="submit" style="margin-top:8px">Log in</button>
+    <p class="auth-alt">New here? <a href="/signup" id="alt">Create an account</a></p>
   </form>
-</div>
+</main>
 
 <footer id="footer"></footer>
 

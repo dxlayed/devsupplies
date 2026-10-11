@@ -3,43 +3,52 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deposit | DevSupplies</title>
+<title>Add funds | DevSupplies</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=DM+Mono:wght@300;400;500&display=swap">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&family=Outfit:wght@600;700;800;900&display=swap">
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
 
 <nav id="nav"></nav>
 
-<div class="page">
-  <div class="dash-top">
+<main class="page wrap">
+  <div class="page-head">
     <div>
-      <div class="dash-title">Deposit</div>
-      <div class="dash-sub">Add funds with Litecoin (LTC)</div>
+      <h1>Add funds</h1>
+      <p>Pay with Litecoin. Your balance is in USD at the live price.</p>
     </div>
-    <a class="btn btn-ghost" href="/">Back to Store</a>
   </div>
 
-  <div class="dep-card">
-    <div id="loading" class="small" style="padding:30px 0;text-align:center">Getting your address...</div>
-    <div id="body" hidden>
+  <div id="loading" class="panel small" style="text-align:center;padding:48px">Getting your deposit address...</div>
+
+  <div class="deposit-grid" id="body" hidden>
+    <section class="panel" aria-labelledby="addr-h">
+      <h2 id="addr-h">Your Litecoin address</h2>
       <div class="qr" id="qr"></div>
-      <label class="label">Your LTC address</label>
-      <div class="row" style="margin-bottom:16px">
-        <div class="codebox" id="addr" style="flex:1;min-width:0;font-size:11px"></div>
+      <div class="row">
+        <div class="codebox grow" id="addr"></div>
         <button class="btn btn-white" onclick="copyText($('addr').textContent)">Copy</button>
       </div>
-      <div class="kv"><span>Balance</span><b id="bal">$0.00</b></div>
-      <div class="kv"><span>LTC price</span><b id="rate">—</b></div>
-      <div class="kv" style="margin-bottom:16px"><span>Credited after</span><b id="conf">1 confirmation</b></div>
-      <div class="small" style="margin-bottom:22px">Send any amount of LTC to this address. It is yours only and you can reuse it. Your balance goes up in USD at the live price once the payment confirms, usually within 5 minutes. You can leave this page; it still gets credited. Send Litecoin only.</div>
-      <label class="label">Your deposits</label>
-      <div class="mini-list" id="list" style="margin-bottom:18px"></div>
-      <button class="btn btn-white form-btn" style="margin-top:0" id="check" onclick="check(true)">Check for Payment</button>
-    </div>
+      <p class="small" style="margin-top:16px">This address is yours only and you can reuse it. Send any amount of LTC. Sending any other coin to it will lose the funds.</p>
+    </section>
+
+    <section class="panel" aria-labelledby="bal-h">
+      <h2 id="bal-h">Balance</h2>
+      <div class="big-balance" id="bal">$0.00</div>
+      <dl class="facts">
+        <dt>LTC price</dt><dd id="rate">Loading</dd>
+        <dt>Credited after</dt><dd id="conf">1 confirmation</dd>
+        <dt>Usual wait</dt><dd>About 5 minutes</dd>
+      </dl>
+      <h2 style="margin-top:8px">Your deposits</h2>
+      <div class="list list-scroll" id="list"></div>
+      <button class="btn btn-white btn-block" style="margin-top:16px" id="check" onclick="check(true)">Check for payment</button>
+      <p class="small" style="margin-top:12px;text-align:center">You can leave this page. Payments still get credited.</p>
+    </section>
   </div>
-</div>
+</main>
 
 <footer id="footer"></footer>
 
@@ -51,15 +60,15 @@ function show(d) {
   $('loading').hidden = true; $('body').hidden = false;
   $('addr').textContent = d.address;
   $('bal').textContent = money(me.balance);
-  $('rate').textContent = d.rate ? money(d.rate) + ' / LTC' : 'Unavailable';
+  $('rate').textContent = d.rate ? money(d.rate) + ' per LTC' : 'Unavailable right now';
   $('conf').textContent = d.confirmations + ' confirmation' + (d.confirmations > 1 ? 's' : '');
   if (window.qrcode && !$('qr').innerHTML) {
     const q = qrcode(0, 'M'); q.addData('litecoin:' + d.address); q.make();
     $('qr').innerHTML = q.createSvgTag({ cellSize: 4, margin: 0 });
   }
   $('list').innerHTML = d.deposits.length
-    ? d.deposits.map(x => `<div class="mini-item"><span>${ltcAmount(x.litoshis)}</span><span>${x.status === 'credited' ? '+' + money(x.usd) : 'Confirming'}</span></div>`).join('')
-    : '<div class="mini-item"><span>No deposits yet</span></div>';
+    ? d.deposits.map(x => `<div class="list-item"><span class="num">${ltcAmount(x.litoshis)}</span><span class="${x.status === 'credited' ? 'num' : 'muted'}">${x.status === 'credited' ? '+' + money(x.usd) : 'Confirming'}</span></div>`).join('')
+    : '<div class="list-item"><span class="muted">No deposits yet</span></div>';
 }
 
 async function check(manual) {
@@ -69,10 +78,10 @@ async function check(manual) {
     const before = me.balance;
     const d = await api('POST', '/deposit/check');
     show(d);
-    if (d.user.balance > before) toast('Deposit received. Balance updated.');
-    else if (manual) toast(d.deposits.some(x => x.status === 'pending') ? 'Payment seen. Waiting for confirmation.' : 'No payment yet.');
+    if (d.user.balance > before) toast('Payment received. Your balance is updated.');
+    else if (manual) toast(d.deposits.some(x => x.status === 'pending') ? 'Payment found. Waiting for 1 confirmation.' : 'No payment yet. It can take a few minutes to show.');
   } catch (e) { if (manual) toast(e.message); }
-  finally { if (manual) { btn.disabled = false; btn.textContent = 'Check for Payment'; } }
+  finally { if (manual) { btn.disabled = false; btn.textContent = 'Check for payment'; } }
 }
 
 startPage().then(async () => {

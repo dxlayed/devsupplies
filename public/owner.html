@@ -3,92 +3,134 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Owner Panel | DevSupplies</title>
+<title>Owner panel | DevSupplies</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=DM+Mono:wght@300;400;500&display=swap">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&family=Outfit:wght@600;700;800;900&display=swap">
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
 
 <nav id="nav"></nav>
 
-<div class="page wide">
-  <div class="dash-top">
+<main class="page wrap">
+  <div class="owner">
+    <aside class="side" aria-label="Owner sections">
+      <div class="side-title">Owner panel</div>
+      <button class="side-btn" data-tab="overview">Overview</button>
+      <button class="side-btn" data-tab="deals">Deals</button>
+      <button class="side-btn" data-tab="accounts">Accounts and stock</button>
+      <button class="side-btn" data-tab="orders">Orders</button>
+      <button class="side-btn" data-tab="users">Users and balances</button>
+      <button class="side-btn" data-tab="deposits">Deposits</button>
+    </aside>
+
     <div>
-      <div class="dash-title">Owner Panel</div>
-      <div class="dash-sub">devsupplies.cc</div>
-    </div>
-    <a class="btn btn-ghost" href="/">Back to Store</a>
-  </div>
-
-  <div class="stats">
-    <div class="stat"><div class="stat-label">Revenue</div><div class="stat-val" id="s-rev">—</div></div>
-    <div class="stat"><div class="stat-label">Orders</div><div class="stat-val" id="s-ord">—</div></div>
-    <div class="stat"><div class="stat-label">Users</div><div class="stat-val" id="s-usr">—</div></div>
-    <div class="stat"><div class="stat-label">Deposited</div><div class="stat-val" id="s-dep">—</div></div>
-  </div>
-
-  <div class="panel">
-    <div class="panel-title" id="deal-form-title">New Deal</div>
-    <div class="deal-editor">
-      <div>
-        <div class="photo-grid" id="photo-grid"></div>
-        <input type="file" id="deal-photo" accept="image/*" multiple hidden>
-        <div class="small" style="margin-top:8px">Up to 8 photos. The first is the cover; click a photo to make it the cover.</div>
-      </div>
-      <div>
-        <div class="field-row">
-          <div class="field"><label class="label" for="deal-name">Name</label><input class="input" id="deal-name" placeholder="TikTok US 25K followers + Live"></div>
-          <div class="field"><label class="label" for="deal-price">Price ($)</label><input class="input" id="deal-price" type="number" step="0.01" min="0" placeholder="49.99"></div>
+      <!-- Overview -->
+      <section class="tab" id="tab-overview">
+        <div class="tab-head"><h2>Overview</h2></div>
+        <div class="stats">
+          <div class="stat"><div class="stat-label">Revenue</div><div class="stat-val" id="s-rev">$0.00</div></div>
+          <div class="stat"><div class="stat-label">Orders</div><div class="stat-val" id="s-ord">0</div></div>
+          <div class="stat"><div class="stat-label">Users</div><div class="stat-val" id="s-usr">0</div></div>
+          <div class="stat"><div class="stat-label">Deposited</div><div class="stat-val" id="s-dep">$0.00</div></div>
         </div>
-        <div class="field"><label class="label" for="deal-desc">Description</label><textarea class="input" id="deal-desc" style="min-height:70px" placeholder="What makes this account worth it"></textarea></div>
-        <div class="field"><label class="label" for="deal-content">Account details (only the buyer sees this, after paying)</label><textarea class="input" id="deal-content" style="min-height:70px" placeholder="username:password:email:emailpass"></textarea></div>
-        <div class="row">
-          <button class="btn btn-white" id="deal-save" onclick="saveDeal()">Post Deal</button>
-          <button class="btn btn-ghost" id="deal-cancel" onclick="resetDealForm()" hidden>Cancel Edit</button>
+        <div class="panel">
+          <h2>Quick actions</h2>
+          <div class="row" style="flex-wrap:wrap">
+            <button class="btn btn-white" onclick="showTab('deals')">Post a deal</button>
+            <button class="btn btn-ghost" onclick="showTab('accounts')">Add stock</button>
+            <button class="btn btn-ghost" onclick="showTab('users')">Change a balance</button>
+          </div>
         </div>
-      </div>
-    </div>
-    <div style="overflow-x:auto"><table><thead><tr><th>Photo</th><th>Name</th><th>Price</th><th>Status</th><th></th></tr></thead><tbody id="t-deals"></tbody></table></div>
-  </div>
+      </section>
 
-  <div class="panel">
-    <div class="panel-title">Products</div>
-    <div style="overflow-x:auto"><table><thead><tr><th>Name</th><th>Price</th><th>Stock</th><th>Available</th><th>Visible</th><th></th></tr></thead><tbody id="t-prod"></tbody></table></div>
+      <!-- Deals -->
+      <section class="tab" id="tab-deals">
+        <div class="tab-head"><h2>Deals</h2></div>
+        <div class="panel">
+          <h2 id="deal-form-title">New deal</h2>
+          <div class="deal-editor">
+            <div>
+              <div class="photo-grid" id="photo-grid"></div>
+              <input type="file" id="deal-photo" accept="image/*" multiple hidden>
+              <p class="small" style="margin-top:10px">Up to 8 photos. The first is the cover. Click a photo to make it the cover.</p>
+            </div>
+            <div>
+              <div class="field-row">
+                <div class="field"><label class="label" for="deal-name">Name</label><input class="input" id="deal-name" placeholder="TikTok US 25K followers + live"></div>
+                <div class="field"><label class="label" for="deal-price">Price ($)</label><input class="input num" id="deal-price" type="number" step="0.01" min="0" placeholder="49.99"></div>
+              </div>
+              <div class="field"><label class="label" for="deal-desc">Description</label><textarea class="input" id="deal-desc" style="min-height:80px" placeholder="What makes this account worth it"></textarea></div>
+              <div class="field"><label class="label" for="deal-content">Login details (only the buyer sees these, after paying)</label><textarea class="input mono" id="deal-content" style="min-height:80px" placeholder="username:password:email:emailpass"></textarea></div>
+              <div class="row">
+                <button class="btn btn-white" id="deal-save" onclick="saveDeal()">Post deal</button>
+                <button class="btn btn-ghost" id="deal-cancel" onclick="resetDealForm()" hidden>Cancel edit</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="table-wrap" style="margin-top:16px"><table><thead><tr><th>Photo</th><th>Name</th><th>Price</th><th>Status</th><th></th></tr></thead><tbody id="t-deals"></tbody></table></div>
+      </section>
+
+      <!-- Accounts -->
+      <section class="tab" id="tab-accounts">
+        <div class="tab-head"><h2>Accounts and stock</h2></div>
+        <div class="table-wrap"><table><thead><tr><th>Name</th><th>Price</th><th>Stock</th><th>Available</th><th>Visible</th><th></th></tr></thead><tbody id="t-prod"></tbody></table></div>
+        <p class="small" style="margin-top:12px">Stock is the number of logins you have loaded. Each login goes to one buyer.</p>
+      </section>
+
+      <!-- Orders -->
+      <section class="tab" id="tab-orders">
+        <div class="tab-head"><h2>Orders</h2></div>
+        <div class="table-wrap"><table><thead><tr><th>User</th><th>Item</th><th>Price</th><th>Status</th><th>Date</th><th></th></tr></thead><tbody id="t-orders"></tbody></table></div>
+        <p class="small" style="margin-top:12px">Setting an order to cancelled refunds the buyer's balance.</p>
+      </section>
+
+      <!-- Users -->
+      <section class="tab" id="tab-users">
+        <div class="tab-head"><h2>Users and balances</h2></div>
+        <div class="table-wrap"><table><thead><tr><th>Username</th><th>Role</th><th>Balance ($)</th><th>Joined</th><th></th></tr></thead><tbody id="t-users"></tbody></table></div>
+      </section>
+
+      <!-- Deposits -->
+      <section class="tab" id="tab-deposits">
+        <div class="tab-head"><h2>Deposits</h2></div>
+        <div class="table-wrap"><table><thead><tr><th>User</th><th>LTC</th><th>USD</th><th>Status</th><th>Transaction</th><th>Date</th></tr></thead><tbody id="t-deps"></tbody></table></div>
+      </section>
+    </div>
   </div>
-  <div class="panel">
-    <div class="panel-title">Users</div>
-    <div style="overflow-x:auto"><table><thead><tr><th>Username</th><th>Role</th><th>Balance ($)</th><th>Joined</th><th></th></tr></thead><tbody id="t-users"></tbody></table></div>
-  </div>
-  <div class="panel">
-    <div class="panel-title">Orders</div>
-    <div style="overflow-x:auto"><table><thead><tr><th>User</th><th>Product</th><th>Price</th><th>Status</th><th>Date</th><th></th></tr></thead><tbody id="t-orders"></tbody></table></div>
-  </div>
-  <div class="panel">
-    <div class="panel-title">Deposits</div>
-    <div style="overflow-x:auto"><table><thead><tr><th>User</th><th>LTC</th><th>USD</th><th>Status</th><th>Transaction</th><th>Date</th></tr></thead><tbody id="t-deps"></tbody></table></div>
-  </div>
-</div>
+</main>
 
 <footer id="footer"></footer>
 
 <!-- Stock manager -->
-<div class="dialog" id="stock-dialog">
+<div class="dialog" id="stock-dialog" role="dialog" aria-modal="true" aria-labelledby="stock-name">
   <div class="dialog-box wide">
-    <div class="dlg-head"><div class="dlg-title">Manage Stock</div><button class="modal-x" style="position:static" onclick="closeDlg('stock-dialog')">&#x2715;</button></div>
-    <div class="dialog-name" id="stock-name"></div>
-    <div class="small" style="margin-bottom:14px">Paste one account per line, for example <span style="color:var(--fg2)">username:password:email:emailpass</span>. Each line is one item of stock and goes to one buyer.</div>
-    <textarea class="input" id="stock-in" placeholder="user1:pass1:mail1@x.com:mailpass1&#10;user2:pass2:mail2@x.com:mailpass2"></textarea>
-    <button class="btn btn-white form-btn" style="margin:12px 0 22px" onclick="addStock()">Add to Stock</button>
-    <label class="label">In stock (<span id="stock-count">0</span>)</label>
-    <div class="mini-list" id="stock-list"></div>
+    <div class="dialog-head"><div class="dialog-title" id="stock-name"></div><button class="x-close" onclick="closeDlg('stock-dialog')" aria-label="Close"></button></div>
+    <p class="small" style="margin:6px 0 14px">Paste one login per line, like <span class="mono">username:password:email:emailpass</span>. Each line goes to one buyer.</p>
+    <textarea class="input mono" id="stock-in" placeholder="user1:pass1:mail1@x.com:mailpass1&#10;user2:pass2:mail2@x.com:mailpass2"></textarea>
+    <button class="btn btn-white btn-block" style="margin:12px 0 22px" onclick="addStock()">Add to stock</button>
+    <div class="label" style="margin-bottom:8px">In stock: <span id="stock-count" class="num">0</span></div>
+    <div class="list list-scroll" id="stock-list"></div>
   </div>
 </div>
 
 <script src="/main.js"></script>
 <script>
+// Tabs
+function showTab(name) {
+  if (!document.getElementById('tab-' + name)) name = 'overview';
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.id === 'tab-' + name));
+  document.querySelectorAll('.side-btn').forEach(b => b.classList.toggle('on', b.dataset.tab === name));
+  history.replaceState(null, '', '#' + name);
+}
+document.querySelectorAll('.side-btn').forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
+document.querySelectorAll('.x-close').forEach(b => b.innerHTML = ICONS.close);
+showTab(location.hash.slice(1) || 'overview');
+
 let stockProduct = null;
-const emptyRow = (cols, text) => `<tr><td colspan="${cols}" style="color:var(--fg3);text-align:center;padding:22px">${text}</td></tr>`;
+const emptyRow = (cols, text) => `<tr><td colspan="${cols}" class="muted" style="text-align:center;padding:28px">${text}</td></tr>`;
 
 async function loadStats() {
   try {
@@ -106,12 +148,12 @@ async function loadProducts() {
     const list = await api('GET', '/owner/products');
     $('t-prod').innerHTML = list.map(p => `
       <tr data-id="${esc(p.id)}">
-        <td style="color:var(--fg)">${esc(p.name)}</td>
+        <td>${esc(p.name)}</td>
         <td><input class="edit-in" type="number" step="0.01" min="0" value="${p.price.toFixed(2)}" data-f="price" style="width:74px"></td>
-        <td><span style="color:var(--fg);margin-right:8px">${p.stock}</span><button class="tog" onclick="openStock('${esc(p.id)}')">Manage</button></td>
+        <td><span class="num" style="margin-right:10px">${p.stock}</span><button class="tog" onclick="openStock('${esc(p.id)}')">Manage</button></td>
         <td><button class="tog ${p.coming ? '' : 'on'}" onclick="setProduct('${esc(p.id)}', {coming: ${!p.coming}})">${p.coming ? 'Coming Soon' : 'Available'}</button></td>
         <td><button class="tog ${p.active ? 'on' : ''}" onclick="setProduct('${esc(p.id)}', {active: ${!p.active}})">${p.active ? 'Live' : 'Hidden'}</button></td>
-        <td><button class="btn btn-sm btn-ghost" onclick="savePrice('${esc(p.id)}')">Save Price</button></td>
+        <td><button class="btn btn-sm btn-ghost" onclick="savePrice('${esc(p.id)}')">Save price</button></td>
       </tr>`).join('');
   } catch {}
 }
@@ -137,8 +179,8 @@ async function loadStock() {
     const items = await api('GET', `/owner/stock/${stockProduct}`);
     $('stock-count').textContent = items.length;
     $('stock-list').innerHTML = items.length
-      ? items.map(i => `<div class="mini-item"><span>${esc(i.content)}</span><button class="x-btn" onclick="removeStock(${i.id})">Remove</button></div>`).join('')
-      : '<div class="mini-item"><span>Empty. Customers see Sold Out.</span></div>';
+      ? items.map(i => `<div class="list-item"><span class="mono">${esc(i.content)}</span><button class="x-btn" onclick="removeStock(${i.id})">Remove</button></div>`).join('')
+      : '<div class="list-item"><span class="muted">Empty. Customers see Sold out.</span></div>';
   } catch (e) { toast(e.message); }
 }
 async function addStock() {
@@ -160,7 +202,7 @@ async function loadUsers() {
     const list = await api('GET', '/owner/users');
     $('t-users').innerHTML = list.map(u => `
       <tr data-uid="${u.id}">
-        <td style="color:var(--fg)">${esc(u.username)}</td>
+        <td>${esc(u.username)}</td>
         <td><span class="badge badge-${esc(u.role)}">${esc(u.role)}</span></td>
         <td><input class="edit-in" type="number" step="0.01" min="0" value="${u.balance.toFixed(2)}" data-f="balance" style="width:84px"></td>
         <td>${esc(u.joined)}</td>
@@ -181,15 +223,15 @@ async function loadOrders() {
     $('t-orders').innerHTML = list.length ? list.map(o => `
       <tr>
         <td>${esc(o.username)}</td>
-        <td style="color:var(--fg)" title="${esc(o.content || '')}">${esc(o.product)}</td>
-        <td style="font-variant-numeric:tabular-nums">${money(o.price)}</td>
+        <td title="${esc(o.content || '')}">${esc(o.product)}</td>
+        <td class="num">${money(o.price)}</td>
         <td><span class="badge badge-${esc(o.status)}">${esc(o.status)}</span></td>
         <td>${shortDate(o.created)}</td>
         <td>
           <select class="status-sel" onchange="setOrder(${o.id}, this.value)">
             <option value="pending" ${o.status === 'pending' ? 'selected' : ''}>Pending</option>
             <option value="delivered" ${o.status === 'delivered' ? 'selected' : ''}>Delivered</option>
-            <option value="cancelled" ${o.status === 'cancelled' ? 'selected' : ''}>Cancelled (refund)</option>
+            <option value="cancelled" ${o.status === 'cancelled' ? 'selected' : ''}>Cancelled and refunded</option>
           </select>
         </td>
       </tr>`).join('') : emptyRow(6, 'No orders yet');
@@ -210,10 +252,10 @@ async function loadDeposits() {
     $('t-deps').innerHTML = list.length ? list.map(d => `
       <tr>
         <td>${esc(d.username)}</td>
-        <td style="font-variant-numeric:tabular-nums">${ltcAmount(d.litoshis)}</td>
-        <td style="font-variant-numeric:tabular-nums;color:var(--fg)">${d.usd != null ? money(d.usd) : '—'}</td>
+        <td class="num">${ltcAmount(d.litoshis)}</td>
+        <td class="num">${d.usd != null ? money(d.usd) : '—'}</td>
         <td><span class="badge badge-${d.status === 'credited' ? 'delivered' : 'pending'}">${d.status === 'credited' ? 'credited' : 'confirming'}</span></td>
-        <td><a href="https://litecoinspace.org/tx/${esc(d.txid)}" target="_blank" rel="noopener" style="color:var(--fg2)">${esc(d.txid.slice(0, 10))}...</a></td>
+        <td><a href="https://litecoinspace.org/tx/${esc(d.txid)}" target="_blank" rel="noopener" class="muted">${esc(d.txid.slice(0, 10))}...</a></td>
         <td>${shortDate(d.created)}</td>
       </tr>`).join('') : emptyRow(6, 'No deposits yet');
   } catch {}
@@ -274,8 +316,8 @@ function resetDealForm() {
   editingDeal = null; dealPhotos = [];
   ['deal-name', 'deal-price', 'deal-desc', 'deal-content'].forEach(id => $(id).value = '');
   renderPhotos();
-  $('deal-form-title').textContent = 'New Deal';
-  $('deal-save').textContent = 'Post Deal';
+  $('deal-form-title').textContent = 'New deal';
+  $('deal-save').textContent = 'Post deal';
   $('deal-cancel').hidden = true;
 }
 
@@ -288,7 +330,7 @@ function editDeal(id) {
   $('deal-desc').value = d.description; $('deal-content').value = d.content;
   renderPhotos();
   $('deal-form-title').textContent = 'Editing: ' + d.name;
-  $('deal-save').textContent = 'Save Changes';
+  $('deal-save').textContent = 'Save changes';
   $('deal-cancel').hidden = false;
   $('deal-form-title').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
@@ -305,7 +347,7 @@ async function saveDeal() {
     else await api('POST', '/owner/deals', body);
     toast(editingDeal ? 'Deal updated.' : 'Deal posted. It is live on the store.');
     resetDealForm(); loadDeals();
-  } catch (e) { toast(e.message); btn.textContent = editingDeal ? 'Save Changes' : 'Post Deal'; }
+  } catch (e) { toast(e.message); btn.textContent = editingDeal ? 'Save changes' : 'Post deal'; }
   finally { btn.disabled = false; }
 }
 
@@ -326,12 +368,12 @@ async function loadDeals() {
     ownerDeals = await api('GET', '/owner/deals');
     $('t-deals').innerHTML = ownerDeals.length ? ownerDeals.map(d => `
       <tr>
-        <td>${d.photos.length ? `<img class="deal-thumb" src="${esc(d.photos[0].url)}" alt="">` : '<div class="deal-thumb"></div>'}${d.photos.length > 1 ? `<div style="font-size:9px;color:var(--fg3);margin-top:3px">${d.photos.length} photos</div>` : ''}</td>
-        <td style="color:var(--fg)">${esc(d.name)}</td>
-        <td style="font-variant-numeric:tabular-nums">${money(d.price)}</td>
-        <td>${d.status === 'sold' ? `<span class="badge badge-delivered">Sold${d.buyer ? ' to ' + esc(d.buyer) : ''}</span>`
-             : d.status === 'hidden' ? '<span class="badge badge-pending">Hidden</span>' : '<span class="badge badge-owner">Live</span>'}</td>
-        <td style="white-space:nowrap">${d.status === 'sold' ? `<button class="tog" data-c="${esc(d.content)}" onclick="copyText(this.dataset.c)">Copy Details</button>` : `
+        <td>${d.photos.length ? `<img class="deal-thumb" src="${esc(d.photos[0].url)}" alt="">` : '<div class="deal-thumb"></div>'}${d.photos.length > 1 ? `<div class="small" style="margin-top:4px">${d.photos.length} photos</div>` : ''}</td>
+        <td>${esc(d.name)}</td>
+        <td class="num">${money(d.price)}</td>
+        <td>${d.status === 'sold' ? `<span class="badge">Sold${d.buyer ? ' to ' + esc(d.buyer) : ''}</span>`
+             : d.status === 'hidden' ? '<span class="badge badge-pending">Hidden</span>' : '<span class="badge badge-live">Live</span>'}</td>
+        <td style="white-space:nowrap">${d.status === 'sold' ? `<button class="tog" data-c="${esc(d.content)}" onclick="copyText(this.dataset.c)">Copy details</button>` : `
           <button class="tog" onclick="editDeal(${d.id})">Edit</button>
           <button class="tog" onclick="setDealStatus(${d.id}, '${d.status === 'hidden' ? 'active' : 'hidden'}')">${d.status === 'hidden' ? 'Show' : 'Hide'}</button>
           <button class="tog" onclick="deleteDeal(${d.id}, this)">Delete</button>`}</td>

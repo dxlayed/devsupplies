@@ -3,25 +3,25 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>My Orders | DevSupplies</title>
+<title>My orders | DevSupplies</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=DM+Mono:wght@300;400;500&display=swap">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&family=Outfit:wght@600;700;800;900&display=swap">
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
 
 <nav id="nav"></nav>
 
-<div class="page">
-  <div class="dash-top">
+<main class="page wrap" style="max-width:880px">
+  <div class="page-head">
     <div>
-      <div class="dash-title">My Orders</div>
-      <div class="dash-sub">Your account details stay here. Copy them somewhere safe.</div>
+      <h1>My orders</h1>
+      <p>Your login details stay here. Copy them somewhere safe too.</p>
     </div>
-    <a class="btn btn-ghost" href="/">Back to Store</a>
   </div>
-  <div id="list"><div class="empty">Loading...</div></div>
-</div>
+  <div id="list"><div class="empty">Loading your orders...</div></div>
+</main>
 
 <footer id="footer"></footer>
 
@@ -31,20 +31,23 @@ startPage().then(async () => {
   try {
     const orders = await api('GET', '/orders');
     $('list').innerHTML = orders.length ? orders.map(o => `
-      <div class="order">
+      <article class="order">
         <div class="order-top">
           <div>
-            <div class="order-name">${esc(o.product)}</div>
-            <div class="order-meta">Order #${o.id} · ${shortDate(o.created)} · ${money(o.price)}</div>
+            <h2 class="order-name">${esc(o.product)}</h2>
+            <p class="order-meta">Order #${o.id}, ${esc(shortDate(o.created))}</p>
           </div>
-          <span class="badge badge-${esc(o.status)}" style="align-self:flex-start">${esc(o.status)}</span>
+          <div style="display:flex;align-items:center;gap:12px">
+            <span class="badge badge-${esc(o.status)}">${esc(o.status[0].toUpperCase() + o.status.slice(1))}</span>
+            <span class="order-price">${money(o.price)}</span>
+          </div>
         </div>
         ${o.content ? `
         <div class="row">
-          <div class="codebox" style="flex:1;min-width:0">${esc(o.content)}</div>
+          <div class="codebox grow">${esc(o.content)}</div>
           <button class="btn btn-ghost" data-copy="${esc(o.content)}" onclick="copyText(this.dataset.copy)">Copy</button>
         </div>` : ''}
-      </div>`).join('') : '<div class="empty">No orders yet. <a href="/" style="color:var(--fg)">Browse products</a></div>';
+      </article>`).join('') : '<div class="empty">No orders yet. <a href="/#accounts">Browse accounts</a> to make your first one.</div>';
   } catch (e) { $('list').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
 });
 </script>
