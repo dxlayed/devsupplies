@@ -2,6 +2,7 @@ const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const money = (n) => "$" + Number(n).toFixed(2);
 const MAX_IMAGE = 5 * 1024 * 1024;
+const NO_SERVER = "Can't reach the server. Start the site with \"node server.js\" and open http://localhost:4173.";
 
 let products = [];
 let editing = null;     // product being edited, or null for a new one
@@ -13,7 +14,9 @@ async function api(method, url, body) {
     method,
     headers: body ? { "Content-Type": "application/json" } : {},
     body: body ? JSON.stringify(body) : undefined,
-  });
+  }).catch(() => { throw new Error(NO_SERVER); });
+  // Anything other than JSON means the page isn't being served by server.js.
+  if (!/application\/json/.test(res.headers.get("content-type") || "")) throw new Error(NO_SERVER);
   const data = await res.json().catch(() => ({}));
   if (res.status === 401) showGate();
   if (!res.ok) throw new Error(data.error || "Something went wrong");
