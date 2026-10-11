@@ -21,28 +21,13 @@
     <button class="btn btn-outline btn-sm top-right" id="logout" hidden>Log out</button>
   </header>
 
-  <!-- first run: create the owner account -->
-  <main class="auth" id="setupView" hidden>
-    <form class="panel auth-card" id="setupForm">
-      <h1>Create owner account</h1>
-      <p class="muted">Enter the one-time setup code from <code>data/setup-code.txt</code> (it's also printed when the server starts).</p>
-      <label class="field"><span>Setup code</span><input name="code" required autocomplete="off"></label>
-      <label class="field"><span>Username</span><input name="username" required minlength="3" maxlength="32" autocomplete="username"></label>
-      <label class="field"><span>Password</span><input name="password" type="password" required minlength="8" autocomplete="new-password"></label>
-      <p class="error" id="setupError" hidden></p>
-      <button class="btn btn-solid btn-block">Create account</button>
-    </form>
-  </main>
-
-  <main class="auth" id="loginView" hidden>
-    <form class="panel auth-card" id="loginForm">
-      <h1>Owner login</h1>
-      <p class="muted">Sign in to manage your products.</p>
-      <label class="field"><span>Username</span><input name="username" required autocomplete="username"></label>
-      <label class="field"><span>Password</span><input name="password" type="password" required autocomplete="current-password"></label>
-      <p class="error" id="loginError" hidden></p>
-      <button class="btn btn-solid btn-block">Log in</button>
-    </form>
+  <main class="auth" id="gateView" hidden>
+    <div class="panel auth-card">
+      <h1>Owner access only</h1>
+      <p class="muted" id="gateText">Log in with the owner email to manage products.</p>
+      <a class="btn btn-solid btn-block" id="gateLogin" href="/login">Log in</a>
+      <a class="btn btn-outline btn-block" href="/">Back to shop</a>
+    </div>
   </main>
 
   <main class="dash" id="dashView" hidden>
