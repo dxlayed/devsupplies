@@ -19,7 +19,7 @@
       <a class="tab" href="#how">How it works</a>
       <a class="tab" href="#faq">FAQ</a>
     </nav>
-    <a class="btn btn-outline btn-sm top-right" href="/owner">Owner login</a>
+    <div class="account top-right" id="account"></div>
   </header>
 
   <main class="layout" id="shop">
@@ -80,6 +80,7 @@
       </div>
       <div class="cart-total"><span>Total</span><strong id="cartTotal">$0.00</strong></div>
       <button class="btn btn-solid btn-block" id="checkout" disabled>Checkout</button>
+      <p class="cart-note" id="cartNote" hidden>You'll need to log in to check out.</p>
     </aside>
 
   </main>
@@ -102,7 +103,7 @@
     </div>
   </section>
 
-  <footer class="foot">© <span id="year"></span> devsupplies.cc</footer>
+  <footer class="foot"><span>© <span id="year"></span> devsupplies.cc</span><a href="/owner">Owner</a></footer>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="app.js"></script>
