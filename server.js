@@ -14,6 +14,9 @@ const PRODUCTS_FILE = path.join(DATA, "products.json");
 const SETUP_FILE = path.join(DATA, "setup-code.txt");
 const USERS_FILE = path.join(DATA, "users.json");
 const SESSIONS_FILE = path.join(DATA, "sessions.json");
+// Google sign-in keys. Fill in data/google.json (created on first start) or set
+// GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET. See README.txt for how to get them.
+const GOOGLE_FILE = path.join(DATA, "google.json");
 
 const USER_SESSION_DAYS = 30;
 const MAX_SIGNUPS_PER_HOUR = 10;
@@ -23,6 +26,7 @@ const MAX_FAILS = 5;
 const LOCK_MS = 15 * 60 * 1000;
 
 fs.mkdirSync(UPLOADS, { recursive: true });
+if (!fs.existsSync(GOOGLE_FILE)) fs.writeFileSync(GOOGLE_FILE, JSON.stringify({ clientId: "", clientSecret: "" }, null, 2) + "\n");
 
 const readJson = (file, fallback) => {
   try { return JSON.parse(fs.readFileSync(file, "utf8")); } catch { return fallback; }
@@ -111,7 +115,11 @@ function startUserSession(req, res, user) {
   const token = crypto.randomBytes(32).toString("hex");
   userSessions.set(sha(token), { userId: user.id, expiry: Date.now() + USER_SESSION_DAYS * 864e5 });
   saveUserSessions();
-  res.setHeader("Set-Cookie", `ds_user=${token}; ${cookieAttrs(req)}; Max-Age=${USER_SESSION_DAYS * 86400}`);
+  addCookie(res, `ds_user=${token}; ${cookieAttrs(req)}; Max-Age=${USER_SESSION_DAYS * 86400}`);
+}
+function addCookie(res, value) {
+  const prev = res.getHeader("Set-Cookie");
+  res.setHeader("Set-Cookie", [].concat(prev || [], value));
 }
 const isOwner = (req) => (currentUser(req) || {}).email === OWNER_EMAIL;
 
@@ -150,7 +158,7 @@ async function api(req, res, url) {
 
   if (route === "GET /api/me") {
     const user = currentUser(req);
-    return send(res, 200, { owner: isOwner(req), user: user && { email: user.email } });
+    return send(res, 200, { owner: isOwner(req), user: user && { email: user.email }, google: !!googleConfig() });
   }
 
   /* accounts */
@@ -190,7 +198,11 @@ async function api(req, res, url) {
     const email = String(body.email || "").trim().toLowerCase();
     const user = users.find((u) => u.email === email);
     // Hash even when the email is unknown so the response time doesn't reveal which emails have accounts.
-    const hash = hashPassword(String(body.password || "").slice(0, 200), user ? user.salt : "0000000000000000");
+    const hash = hashPassword(String(body.password || "").slice(0, 200), user && user.salt ? user.salt : "0000000000000000");
+    if (user && !user.hash) {
+      recordFail("u:" + ip);
+      return send(res, 401, { error: "This account uses Google sign-in. Click \"Continue with Google\"." });
+    }
     if (!user || !safeEqual(hash, user.hash)) {
       recordFail("u:" + ip);
       return send(res, 401, { error: "Wrong email or password" });
@@ -254,6 +266,97 @@ async function api(req, res, url) {
   send(res, 404, { error: "Not found" });
 }
 
+/* ---------- google sign-in ---------- */
+
+function googleConfig() {
+  const file = readJson(GOOGLE_FILE, {});
+  const id = process.env.GOOGLE_CLIENT_ID || file.clientId;
+  const secret = process.env.GOOGLE_CLIENT_SECRET || file.clientSecret;
+  return id && secret ? { id, secret } : null;
+}
+function redirect(res, location) {
+  res.writeHead(302, { Location: location });
+  res.end();
+}
+function callbackUrl(req) {
+  const proto = req.headers["x-forwarded-proto"] === "https" ? "https" : "http";
+  return `${proto}://${req.headers.host}/auth/google/callback`;
+}
+
+async function googleAuth(req, res, url) {
+  const config = googleConfig();
+  if (!config) return redirect(res, "/login?error=google-off");
+
+  // Step 1: send the visitor to Google's account picker.
+  if (url.pathname === "/auth/google") {
+    const state = crypto.randomBytes(32).toString("hex");
+    addCookie(res, `ds_gstate=${state}; ${cookieAttrs(req)}; Max-Age=600`);
+    const params = new URLSearchParams({
+      client_id: config.id,
+      redirect_uri: callbackUrl(req),
+      response_type: "code",
+      scope: "openid email",
+      state,
+      prompt: "select_account",
+    });
+    return redirect(res, "https://accounts.google.com/o/oauth2/v2/auth?" + params);
+  }
+
+  // Step 2: Google sends them back here with a one-time code.
+  addCookie(res, `ds_gstate=; ${cookieAttrs(req)}; Max-Age=0`);
+  const state = cookie(req, "ds_gstate");
+  const code = url.searchParams.get("code");
+  if (!code || !state || !safeEqual(state, url.searchParams.get("state") || "")) return redirect(res, "/login?error=google");
+
+  const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      code,
+      client_id: config.id,
+      client_secret: config.secret,
+      redirect_uri: callbackUrl(req),
+      grant_type: "authorization_code",
+    }),
+  });
+  const tokens = await tokenRes.json().catch(() => ({}));
+  if (!tokenRes.ok || !tokens.id_token) return redirect(res, "/login?error=google");
+
+  // The ID token came straight from Google over HTTPS, so its contents can be trusted
+  // once we check it was issued for this site and hasn't expired.
+  let info;
+  try { info = JSON.parse(Buffer.from(tokens.id_token.split(".")[1], "base64url").toString("utf8")); }
+  catch { return redirect(res, "/login?error=google"); }
+  const validIssuer = info.iss === "https://accounts.google.com" || info.iss === "accounts.google.com";
+  if (info.aud !== config.id || !validIssuer || info.exp * 1000 < Date.now()) return redirect(res, "/login?error=google");
+  if (!info.email || info.email_verified !== true) return redirect(res, "/login?error=google-unverified");
+
+  const email = String(info.email).toLowerCase();
+  let user = users.find((u) => u.email === email);
+  if (!user) {
+    user = { id: crypto.randomBytes(8).toString("hex"), email, google: info.sub, createdAt: Date.now() };
+    users.push(user);
+  } else if (!user.google) {
+    // Password sign-ups never proved they own the email, so whoever set that password
+    // might not be this person. Google has now proved ownership: drop the old password
+    // and log out its sessions, so this account is Google-only from here on.
+    user.google = info.sub;
+    delete user.hash;
+    delete user.salt;
+    for (const [key, s] of userSessions) if (s.userId === user.id) userSessions.delete(key);
+  } else if (user.google !== info.sub) {
+    return redirect(res, "/login?error=google");
+  }
+  writeJson(USERS_FILE, users);
+  if (email === OWNER_EMAIL && setupCode) {
+    // Google confirmed the owner's email, so the setup code isn't needed any more.
+    setupCode = null;
+    fs.rmSync(SETUP_FILE, { force: true });
+  }
+  startUserSession(req, res, user);
+  redirect(res, email === OWNER_EMAIL ? "/owner" : "/");
+}
+
 /* ---------- static files ---------- */
 
 const MIME = {
@@ -292,6 +395,11 @@ http.createServer((req, res) => {
   const url = new URL(req.url, "http://localhost");
   if (url.pathname.startsWith("/api/")) {
     api(req, res, url).catch((err) => { if (!res.headersSent) send(res, 400, { error: err.message }); });
+  } else if (req.method === "GET" && (url.pathname === "/auth/google" || url.pathname === "/auth/google/callback")) {
+    googleAuth(req, res, url).catch((err) => {
+      console.error("Google sign-in failed:", err.message);
+      if (!res.headersSent) redirect(res, "/login?error=google");
+    });
   } else {
     serveStatic(req, res, url);
   }
