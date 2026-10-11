@@ -1,0 +1,699 @@
+<title>DevSupplies</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&display=swap">
+
+<style>
+:root {
+  --bg:    #000;
+  --bg2:   #0a0a0a;
+  --bg3:   #111;
+  --line:  #1c1c1c;
+  --line2: #2a2a2a;
+  --fg:    #f5f5f5;
+  --fg2:   #888;
+  --fg3:   #444;
+  --font-d:'Space Grotesk',system-ui,sans-serif;
+  --font-m:'DM Mono',monospace;
+  color-scheme: dark;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-d);font-size:15px;line-height:1.6;overflow-x:hidden}
+::-webkit-scrollbar{width:3px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--line2)}
+h1,h2,h3,h4{font-weight:700;text-wrap:balance;letter-spacing:-0.025em}
+
+/* NAV */
+nav{
+  position:sticky;top:env(safe-area-inset-top,0px);z-index:100;
+  background:rgba(0,0,0,0.92);backdrop-filter:blur(16px);
+  border-bottom:1px solid var(--line);
+  padding:0 clamp(20px,5vw,56px);height:58px;
+  display:flex;align-items:center;justify-content:space-between;gap:16px;
+}
+.nav-logo{
+  font-family:var(--font-m);font-size:12px;letter-spacing:0.12em;
+  text-transform:uppercase;color:var(--fg);text-decoration:none;
+  display:flex;align-items:center;gap:9px;
+}
+.nav-dot{width:5px;height:5px;background:var(--fg);border-radius:50%;animation:blink 2.4s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+.nav-links{display:flex;list-style:none;gap:2px}
+.nav-links a{
+  font-family:var(--font-m);font-size:10px;letter-spacing:0.08em;text-transform:uppercase;
+  color:var(--fg3);text-decoration:none;padding:6px 12px;border-radius:3px;
+  transition:color .15s,background .15s;
+}
+.nav-links a:hover{color:var(--fg);background:var(--bg3)}
+.nav-actions{display:flex;gap:8px;align-items:center}
+
+/* BUTTONS */
+.btn{
+  font-family:var(--font-m);font-size:10px;font-weight:500;letter-spacing:0.08em;
+  text-transform:uppercase;border-radius:3px;padding:8px 18px;cursor:pointer;
+  border:none;display:inline-flex;align-items:center;gap:6px;
+  text-decoration:none;transition:all .15s;
+}
+.btn-ghost{background:transparent;color:var(--fg2);border:1px solid var(--line)}
+.btn-ghost:hover{color:var(--fg);border-color:var(--line2)}
+.btn-solid{background:var(--fg);color:var(--bg)}
+.btn-solid:hover{background:#d8d8d8}
+
+/* HERO */
+.hero{
+  position:relative;overflow:hidden;text-align:center;
+  padding:clamp(80px,14vw,160px) clamp(20px,5vw,56px) clamp(72px,12vw,140px);
+}
+.hero-lines{
+  position:absolute;inset:0;
+  background-image:linear-gradient(var(--line) 1px,transparent 1px),
+    linear-gradient(90deg,var(--line) 1px,transparent 1px);
+  background-size:56px 56px;opacity:.2;
+  mask-image:radial-gradient(ellipse 70% 55% at 50% 0%,black 30%,transparent 100%);
+}
+.hero-eyebrow{
+  display:inline-flex;align-items:center;gap:8px;
+  font-family:var(--font-m);font-size:10px;letter-spacing:0.12em;text-transform:uppercase;
+  color:var(--fg3);border:1px solid var(--line);border-radius:2px;
+  padding:5px 14px;margin-bottom:36px;
+}
+.hero h1{font-size:clamp(52px,10vw,110px);font-weight:700;letter-spacing:-0.045em;line-height:.95;margin-bottom:24px}
+.hero h1 .dim{color:var(--fg3)}
+.hero-sub{font-size:clamp(14px,1.8vw,16px);color:var(--fg2);max-width:440px;margin:0 auto 44px;line-height:1.75;font-weight:300}
+.hero-cta{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap}
+
+/* SECTION */
+.section{padding:clamp(56px,9vw,100px) clamp(20px,5vw,56px)}
+.section-head{
+  display:flex;align-items:flex-end;justify-content:space-between;
+  gap:16px;margin-bottom:36px;padding-bottom:20px;
+  border-bottom:1px solid var(--line);flex-wrap:wrap;
+}
+.section-eyebrow{font-family:var(--font-m);font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--fg3);margin-bottom:5px}
+.section-title{font-size:clamp(22px,3.5vw,30px);letter-spacing:-0.025em}
+.section-note{font-family:var(--font-m);font-size:10px;color:var(--fg3);letter-spacing:0.04em}
+
+/* PRODUCT GRID */
+.products-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1px;background:var(--line)}
+.product-card{background:var(--bg);transition:background .2s;cursor:pointer;position:relative;overflow:hidden}
+.product-card:hover:not(.coming-soon){background:var(--bg2)}
+
+/* COMING SOON overlay */
+.product-card.coming-soon{cursor:default}
+.cs-overlay{
+  position:absolute;inset:0;z-index:10;
+  background:rgba(0,0,0,0.72);
+  backdrop-filter:blur(2px);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+  pointer-events:none;
+}
+.cs-label{
+  font-family:var(--font-m);font-size:10px;letter-spacing:0.18em;text-transform:uppercase;
+  color:var(--fg);border:1px solid var(--line2);padding:7px 18px;border-radius:2px;
+}
+.cs-sub{font-family:var(--font-m);font-size:9px;letter-spacing:0.1em;color:var(--fg3);text-transform:uppercase}
+
+.product-img-wrap{width:100%;aspect-ratio:16/9;overflow:hidden;position:relative}
+.product-img-wrap img{width:100%;height:100%;object-fit:cover;display:block}
+.stock-pill{
+  position:absolute;top:12px;right:12px;
+  font-family:var(--font-m);font-size:9px;letter-spacing:0.1em;text-transform:uppercase;
+  padding:3px 10px;border-radius:2px;
+  background:rgba(0,0,0,0.75);backdrop-filter:blur(6px);border:1px solid var(--line2);
+}
+.stock-pill.avail{border-color:#333;color:var(--fg)}
+.stock-pill.sold{color:var(--fg3)}
+
+.product-body{padding:20px 22px 22px}
+.product-region{font-family:var(--font-m);font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--fg3);margin-bottom:5px}
+.product-name{font-size:15px;font-weight:600;letter-spacing:-0.015em;margin-bottom:7px;line-height:1.3}
+.product-desc{font-size:12px;color:var(--fg2);line-height:1.55;margin-bottom:16px;font-weight:300}
+.product-tags{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:18px}
+.tag{font-family:var(--font-m);font-size:9px;letter-spacing:0.06em;text-transform:uppercase;color:var(--fg3);border:1px solid var(--line);padding:2px 8px;border-radius:2px}
+.product-foot{display:flex;align-items:center;justify-content:space-between}
+.product-price{font-family:var(--font-m);font-size:20px;font-weight:500;letter-spacing:-0.02em;font-variant-numeric:tabular-nums}
+.buy-btn{
+  font-family:var(--font-m);font-size:9px;letter-spacing:0.08em;text-transform:uppercase;
+  background:var(--fg);color:var(--bg);border:none;border-radius:2px;
+  padding:8px 16px;cursor:pointer;transition:background .15s;
+}
+.buy-btn:hover{background:#d0d0d0}
+.buy-btn:disabled{background:transparent;color:var(--fg3);border:1px solid var(--line);cursor:not-allowed}
+
+/* AUTH MODAL */
+.overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,0.88);backdrop-filter:blur(8px);
+  z-index:500;display:flex;align-items:center;justify-content:center;padding:20px;
+  opacity:0;pointer-events:none;transition:opacity .2s;
+}
+.overlay.open{opacity:1;pointer-events:all}
+.modal{
+  background:var(--bg2);border:1px solid var(--line2);border-radius:4px;
+  width:100%;max-width:400px;padding:40px 36px;position:relative;
+  transform:translateY(10px);transition:transform .2s;
+}
+.overlay.open .modal{transform:translateY(0)}
+.modal-x{
+  position:absolute;top:18px;right:18px;background:none;border:none;
+  color:var(--fg3);font-size:18px;cursor:pointer;width:28px;height:28px;
+  display:flex;align-items:center;justify-content:center;
+  border-radius:2px;transition:color .15s,background .15s;line-height:1;
+}
+.modal-x:hover{color:var(--fg);background:var(--bg3)}
+.modal-brand{font-family:var(--font-m);font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--fg3);margin-bottom:28px}
+.auth-tabs{
+  display:flex;background:var(--bg3);border:1px solid var(--line);
+  border-radius:3px;padding:3px;margin-bottom:28px;
+}
+.auth-tab{
+  flex:1;background:none;border:none;
+  font-family:var(--font-m);font-size:10px;letter-spacing:0.08em;text-transform:uppercase;
+  color:var(--fg3);padding:8px;border-radius:2px;cursor:pointer;transition:all .15s;
+}
+.auth-tab.on{background:var(--fg);color:var(--bg)}
+.fg-{margin-bottom:16px}
+.fl{display:block;font-family:var(--font-m);font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--fg3);margin-bottom:7px}
+.fi{
+  width:100%;background:var(--bg3);border:1px solid var(--line);border-radius:3px;
+  color:var(--fg);font-family:var(--font-d);font-size:14px;padding:10px 13px;
+  outline:none;transition:border-color .15s;
+}
+.fi:focus{border-color:var(--line2)}
+.fi::placeholder{color:var(--fg3)}
+.f-hint{font-family:var(--font-m);font-size:9px;color:var(--fg3);margin-top:20px;letter-spacing:0.04em}
+.f-sub{width:100%;margin-top:16px;padding:12px;font-size:11px}
+.msg{
+  font-family:var(--font-m);font-size:10px;border-radius:3px;padding:10px 13px;
+  margin-bottom:16px;display:none;letter-spacing:0.03em;
+  background:rgba(255,255,255,0.04);border:1px solid var(--line2);
+}
+.msg.show{display:block}
+.msg.err{color:#aaa}
+.msg.ok{color:var(--fg)}
+
+/* USER CHIP */
+.u-wrap{position:relative}
+.u-chip{
+  display:flex;align-items:center;gap:7px;
+  background:var(--bg3);border:1px solid var(--line);border-radius:3px;
+  padding:6px 12px 6px 8px;cursor:pointer;
+  font-family:var(--font-m);font-size:10px;color:var(--fg);letter-spacing:0.06em;text-transform:uppercase;
+  transition:border-color .15s;
+}
+.u-chip:hover{border-color:var(--line2)}
+.u-av{width:20px;height:20px;background:var(--fg);border-radius:2px;display:flex;align-items:center;justify-content:center;color:var(--bg);font-size:10px;font-weight:700}
+.u-dd{
+  position:absolute;top:calc(100% + 6px);right:0;
+  background:var(--bg2);border:1px solid var(--line2);border-radius:3px;
+  min-width:150px;padding:4px;z-index:200;display:none;
+}
+.u-dd.open{display:block}
+.ddi{
+  display:block;width:100%;text-align:left;background:none;border:none;
+  color:var(--fg2);font-family:var(--font-m);font-size:10px;
+  letter-spacing:0.07em;text-transform:uppercase;padding:9px 12px;
+  border-radius:2px;cursor:pointer;transition:all .12s;
+}
+.ddi:hover{background:var(--bg3);color:var(--fg)}
+.ddi.danger:hover{color:#aaa}
+.dd-div{height:1px;background:var(--line);margin:3px 0}
+
+/* DASHBOARD */
+.dash{padding:clamp(36px,7vw,72px) clamp(20px,5vw,56px)}
+.dash-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:44px;flex-wrap:wrap;gap:16px}
+.dash-title{font-size:clamp(26px,4vw,38px);letter-spacing:-0.03em}
+.dash-sub{font-family:var(--font-m);font-size:10px;color:var(--fg3);margin-top:5px;letter-spacing:0.06em}
+.metrics{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:1px;background:var(--line);margin-bottom:48px}
+.metric{background:var(--bg);padding:24px 22px}
+.m-label{font-family:var(--font-m);font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--fg3);margin-bottom:12px}
+.m-val{font-family:var(--font-m);font-size:28px;font-weight:500;letter-spacing:-0.03em;font-variant-numeric:tabular-nums;line-height:1}
+.dash-block{margin-bottom:36px}
+.dash-block-title{font-family:var(--font-m);font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--fg3);padding-bottom:12px;border-bottom:1px solid var(--line)}
+.dt{width:100%;border-collapse:collapse;font-size:12px}
+.dt th{font-family:var(--font-m);font-size:9px;letter-spacing:0.08em;text-transform:uppercase;color:var(--fg3);text-align:left;padding:10px 14px;border-bottom:1px solid var(--line)}
+.dt td{padding:11px 14px;border-bottom:1px solid var(--line);color:var(--fg2);font-family:var(--font-m);font-size:11px}
+.dt tr:last-child td{border-bottom:none}
+.rb{font-size:9px;letter-spacing:0.06em;text-transform:uppercase;padding:2px 8px;border-radius:2px;font-family:var(--font-m);border:1px solid var(--line2)}
+.rb-owner{color:var(--fg)}
+.rb-user{color:var(--fg3)}
+
+/* FOOTER */
+footer{border-top:1px solid var(--line);padding:28px clamp(20px,5vw,56px);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.foot-logo{font-family:var(--font-m);font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--fg3)}
+.foot-note{font-family:var(--font-m);font-size:10px;color:var(--fg3)}
+
+/* VIEWS */
+#v-store,#v-dash{display:none}
+#v-store.on,#v-dash.on{display:block}
+
+@media(max-width:600px){
+  .nav-links{display:none}
+  .modal{padding:28px 22px}
+  .metrics{grid-template-columns:1fr 1fr}
+}
+</style>
+
+<!-- NAV -->
+<nav>
+  <a class="nav-logo" href="#" onclick="showStore()">
+    <span class="nav-dot"></span>DevSupplies
+  </a>
+  <ul class="nav-links">
+    <li><a href="#" onclick="showStore();scrollToProd()">Products</a></li>
+    <li><a href="#">Discord</a></li>
+  </ul>
+  <div class="nav-actions" id="nav-actions">
+    <button class="btn btn-ghost" onclick="openModal('login')">Log In</button>
+    <button class="btn btn-solid" onclick="openModal('signup')">Sign Up</button>
+  </div>
+  <div class="u-wrap" id="u-wrap" style="display:none">
+    <div class="u-chip" onclick="toggleDD()">
+      <div class="u-av" id="u-av">?</div>
+      <span id="u-name">user</span>
+      <svg width="9" height="9" viewBox="0 0 9 9" fill="none"><path d="M1.5 3.5l3 3 3-3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <div class="u-dd" id="u-dd">
+      <button class="ddi" id="dd-owner" onclick="showDash()" style="display:none">Owner Panel</button>
+      <div class="dd-div" id="dd-div" style="display:none"></div>
+      <button class="ddi danger" onclick="logout()">Log Out</button>
+    </div>
+  </div>
+</nav>
+
+<!-- STORE VIEW -->
+<div id="v-store" class="on">
+  <section class="hero">
+    <div class="hero-lines"></div>
+    <div class="hero-eyebrow">Premium Digital Accounts</div>
+    <h1>Dev<span class="dim">Supplies</span></h1>
+    <p class="hero-sub">Verified TikTok accounts with US and UK live access. Aged, clean, and ready to go.</p>
+    <div class="hero-cta">
+      <button class="btn btn-solid" onclick="scrollToProd()">Browse Products</button>
+      <a class="btn btn-ghost" href="#">Discord Server</a>
+    </div>
+  </section>
+
+  <section class="section" id="prod-section">
+    <div class="section-head">
+      <div>
+        <div class="section-eyebrow">Available Now</div>
+        <div class="section-title">TikTok Accounts</div>
+      </div>
+      <span class="section-note">All accounts verified before listing</span>
+    </div>
+    <div class="products-grid" id="prod-grid"></div>
+  </section>
+
+  <footer>
+    <div class="foot-logo">DevSupplies.cc</div>
+    <div class="foot-note">2024 DevSupplies — All rights reserved</div>
+  </footer>
+</div>
+
+<!-- DASHBOARD VIEW -->
+<div id="v-dash">
+  <div class="dash">
+    <div class="dash-head">
+      <div>
+        <div class="dash-title">Owner Panel</div>
+        <div class="dash-sub">devsupplies.cc — Analytics</div>
+      </div>
+      <button class="btn btn-ghost" onclick="showStore()">Back to Store</button>
+    </div>
+    <div class="metrics">
+      <div class="metric"><div class="m-label">Revenue</div><div class="m-val" id="m-rev">$0</div></div>
+      <div class="metric"><div class="m-label">Orders</div><div class="m-val" id="m-ord">0</div></div>
+      <div class="metric"><div class="m-label">Users</div><div class="m-val" id="m-usr">0</div></div>
+      <div class="metric"><div class="m-label">Listings</div><div class="m-val" id="m-lst">0</div></div>
+    </div>
+    <div class="dash-block">
+      <div class="dash-block-title">Registered Users</div>
+      <div style="overflow-x:auto"><table class="dt"><thead><tr><th>Username</th><th>Role</th><th>Joined</th></tr></thead><tbody id="t-users"></tbody></table></div>
+    </div>
+    <div class="dash-block">
+      <div class="dash-block-title">Orders</div>
+      <div style="overflow-x:auto"><table class="dt"><thead><tr><th>User</th><th>Product</th><th>Price</th><th>Date</th></tr></thead><tbody id="t-orders"></tbody></table></div>
+    </div>
+  </div>
+</div>
+
+<!-- AUTH MODAL -->
+<div class="overlay" id="overlay" onclick="outsideClose(event)">
+  <div class="modal">
+    <button class="modal-x" onclick="closeModal()">&#x2715;</button>
+    <div class="modal-brand">DevSupplies.cc</div>
+    <div class="auth-tabs">
+      <button class="auth-tab on" id="t-login" onclick="switchTab('login')">Log In</button>
+      <button class="auth-tab" id="t-signup" onclick="switchTab('signup')">Sign Up</button>
+    </div>
+    <div id="f-login">
+      <div class="msg err" id="le"></div>
+      <div class="fg-"><label class="fl" for="lu">Username</label><input class="fi" id="lu" type="text" placeholder="yourname" autocomplete="username"></div>
+      <div class="fg-"><label class="fl" for="lp">Password</label><input class="fi" id="lp" type="password" placeholder="••••••••" autocomplete="current-password"></div>
+      <button class="btn btn-solid f-sub" onclick="doLogin()">Log In</button>
+    </div>
+    <div id="f-signup" style="display:none">
+      <div class="msg err" id="se"></div>
+      <div class="msg ok" id="so"></div>
+      <div class="fg-"><label class="fl" for="su">Username</label><input class="fi" id="su" type="text" placeholder="yourname" autocomplete="username"></div>
+      <div class="fg-"><label class="fl" for="sp">Password</label><input class="fi" id="sp" type="password" placeholder="••••••••" autocomplete="new-password"></div>
+      <div class="fg-"><label class="fl" for="sc">Confirm Password</label><input class="fi" id="sc" type="password" placeholder="••••••••" autocomplete="new-password"></div>
+      <div class="f-hint">First account registered becomes the owner.</div>
+      <button class="btn btn-solid f-sub" onclick="doSignup()">Create Account</button>
+    </div>
+  </div>
+</div>
+
+<canvas id="c" style="display:none"></canvas>
+
+<script>
+const gs=(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch{return d}};
+const ss=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}};
+
+let users=gs('ds_u',[]),orders=gs('ds_o',[]),session=gs('ds_s',null);
+
+const PRODS=[
+  {
+    id:'us-live',code:'US',region:'United States',
+    name:'TikTok US — Live Access',
+    desc:'Aged US account with live streaming fully enabled. OTP-free login, instant handoff.',
+    tags:['live access','us region','aged','otp-free'],
+    price:24.99,stock:7,coming:false,
+    imgType:'live'
+  },
+  {
+    id:'us-studio',code:'US',region:'United States',
+    name:'TikTok US — Live Studio + Live Access',
+    desc:'Full live studio access with live streaming enabled. Stream with full production tools.',
+    tags:['live studio','live access','us region','aged'],
+    price:39.99,stock:5,coming:true,
+    imgType:'studio'
+  },
+  {
+    id:'uk-live',code:'UK',region:'United Kingdom',
+    name:'TikTok UK — Live Access',
+    desc:'UK-registered account with live streaming activated. Clean history, clean login.',
+    tags:['live access','uk region','aged','clean'],
+    price:22.99,stock:5,coming:false,
+    imgType:'live'
+  },
+  {
+    id:'uk-studio',code:'UK',region:'United Kingdom',
+    name:'TikTok UK — Live Studio + Live Access',
+    desc:'Full live studio access with live streaming enabled for UK region.',
+    tags:['live studio','live access','uk region','aged'],
+    price:37.99,stock:3,coming:true,
+    imgType:'studio'
+  },
+];
+
+// ── Canvas image generator ────────────────────────────────────
+function makeImg(p){
+  const W=640,H=360,cv=document.getElementById('c');
+  cv.width=W;cv.height=H;
+  const x=cv.getContext('2d');
+
+  // Pure black bg
+  x.fillStyle='#000';
+  x.fillRect(0,0,W,H);
+
+  // Grid
+  x.strokeStyle='rgba(255,255,255,0.045)';
+  x.lineWidth=1;
+  for(let i=0;i<W;i+=48){x.beginPath();x.moveTo(i,0);x.lineTo(i,H);x.stroke()}
+  for(let i=0;i<H;i+=48){x.beginPath();x.moveTo(0,i);x.lineTo(W,i);x.stroke()}
+
+  // Large BG code
+  x.save();
+  x.font='900 220px "Space Grotesk",system-ui';
+  x.fillStyle='rgba(255,255,255,0.025)';
+  x.textAlign='center';
+  x.textBaseline='middle';
+  x.fillText(p.code,W/2,H/2+8);
+  x.restore();
+
+  // Subtle radial vignette
+  const vg=x.createRadialGradient(W/2,H/2,60,W/2,H/2,W*0.72);
+  vg.addColorStop(0,'rgba(255,255,255,0.03)');
+  vg.addColorStop(1,'rgba(0,0,0,0)');
+  x.fillStyle=vg;
+  x.fillRect(0,0,W,H);
+
+  // Phone outline — geometric, sharp
+  const pw=118,ph=198,px=W/2-pw/2,py=H/2-ph/2+4;
+  x.save();
+  // outer shell
+  x.strokeStyle='rgba(255,255,255,0.55)';
+  x.lineWidth=1.5;
+  x.beginPath();
+  x.roundRect(px,py,pw,ph,8);
+  x.stroke();
+  // screen bezel
+  x.strokeStyle='rgba(255,255,255,0.1)';
+  x.lineWidth=1;
+  x.beginPath();
+  x.roundRect(px+5,py+12,pw-10,ph-24,4);
+  x.stroke();
+  // top notch line
+  x.strokeStyle='rgba(255,255,255,0.18)';
+  x.beginPath();
+  x.moveTo(px+pw/2-14,py+7);
+  x.lineTo(px+pw/2+14,py+7);
+  x.stroke();
+  x.restore();
+
+  // Studio icon if studio type
+  if(p.imgType==='studio'){
+    // Draw a small camera/studio icon in screen area
+    x.save();
+    x.strokeStyle='rgba(255,255,255,0.22)';
+    x.lineWidth=1;
+    // camera body
+    const cx2=px+pw/2,cy2=py+ph/2+10;
+    x.beginPath();
+    x.roundRect(cx2-18,cy2-12,36,26,3);
+    x.stroke();
+    // lens circle
+    x.beginPath();
+    x.arc(cx2,cy2,8,0,Math.PI*2);
+    x.stroke();
+    // viewfinder
+    x.beginPath();
+    x.moveTo(cx2-6,cy2-18);
+    x.lineTo(cx2-3,cy2-12);
+    x.lineTo(cx2+3,cy2-12);
+    x.lineTo(cx2+6,cy2-18);
+    x.stroke();
+    x.restore();
+  }
+
+  // LIVE badge
+  const bw=p.imgType==='studio'?80:46,bh=18,bx=px+pw/2-bw/2,by=py+18;
+  x.save();
+  x.fillStyle='#fff';
+  x.beginPath();
+  x.roundRect(bx,by,bw,bh,2);
+  x.fill();
+  x.font=`800 9px "DM Mono",monospace`;
+  x.fillStyle='#000';
+  x.textAlign='center';
+  x.textBaseline='middle';
+  x.fillText(p.imgType==='studio'?'LIVE STUDIO':'LIVE',bx+bw/2,by+bh/2+0.5);
+  x.restore();
+
+  // Dot on badge
+  x.save();
+  x.fillStyle='#333';
+  x.beginPath();
+  x.arc(bx+9,by+bh/2,2.5,0,Math.PI*2);
+  x.fill();
+  x.restore();
+
+  // Horizontal rule bottom
+  x.save();
+  x.strokeStyle='rgba(255,255,255,0.08)';
+  x.lineWidth=1;
+  x.beginPath();
+  x.moveTo(24,H-54);
+  x.lineTo(W-24,H-54);
+  x.stroke();
+  x.restore();
+
+  // Region bottom left
+  x.save();
+  x.font='500 9px "DM Mono",monospace';
+  x.fillStyle='rgba(255,255,255,0.3)';
+  x.textAlign='left';
+  x.textBaseline='alphabetic';
+  x.fillText(p.region.toUpperCase(),24,H-34);
+  x.restore();
+
+  // Price bottom right
+  x.save();
+  x.font='700 26px "Space Grotesk",system-ui';
+  x.fillStyle='#fff';
+  x.textAlign='right';
+  x.textBaseline='alphabetic';
+  x.fillText('$'+p.price.toFixed(2),W-24,H-28);
+  x.restore();
+
+  // DEVSUPPLIES.CC watermark — top right, between phone and edge
+  x.save();
+  x.font='400 9px "DM Mono",monospace';
+  x.fillStyle='rgba(255,255,255,0.18)';
+  x.textAlign='right';
+  x.textBaseline='top';
+  x.fillText('DEVSUPPLIES.CC',W-16,14);
+  x.restore();
+
+  // Corner ticks
+  const cm=14,co=12;
+  x.save();
+  x.strokeStyle='rgba(255,255,255,0.12)';
+  x.lineWidth=1;
+  x.beginPath();x.moveTo(co,co+cm);x.lineTo(co,co);x.lineTo(co+cm,co);x.stroke();
+  x.beginPath();x.moveTo(W-co-cm,co);x.lineTo(W-co,co);x.lineTo(W-co,co+cm);x.stroke();
+  x.beginPath();x.moveTo(co,H-co-cm);x.lineTo(co,H-co);x.lineTo(co+cm,H-co);x.stroke();
+  x.beginPath();x.moveTo(W-co-cm,H-co);x.lineTo(W-co,H-co);x.lineTo(W-co,H-co-cm);x.stroke();
+  x.restore();
+
+  return cv.toDataURL('image/png');
+}
+
+// ── render products ───────────────────────────────────────────
+function renderProds(){
+  const g=document.getElementById('prod-grid');
+  g.innerHTML='';
+  PRODS.forEach(p=>{
+    const img=makeImg(p);
+    const avail=p.stock>0&&!p.coming;
+    const el=document.createElement('div');
+    el.className='product-card'+(p.coming?' coming-soon':'');
+    el.innerHTML=`
+      ${p.coming?`<div class="cs-overlay"><div class="cs-label">Coming Soon</div><div class="cs-sub">In development</div></div>`:''}
+      <div class="product-img-wrap">
+        <img src="${img}" alt="${p.name}">
+        <div class="stock-pill ${avail?'avail':'sold'}">${p.coming?'Coming Soon':avail?p.stock+' in stock':'Sold Out'}</div>
+      </div>
+      <div class="product-body">
+        <div class="product-region">${p.code} — ${p.region}</div>
+        <div class="product-name">${p.name}</div>
+        <div class="product-desc">${p.desc}</div>
+        <div class="product-tags">${p.tags.map(t=>`<span class="tag">${t}</span>`).join('')}</div>
+        <div class="product-foot">
+          <div class="product-price">$${p.price.toFixed(2)}</div>
+          <button class="buy-btn" ${(!avail||p.coming)?'disabled':''} onclick="doBuy('${p.id}')">${p.coming?'Coming Soon':avail?'Purchase':'Sold Out'}</button>
+        </div>
+      </div>`;
+    g.appendChild(el);
+  });
+}
+
+function doBuy(id){
+  if(!session){openModal('login');return}
+  const p=PRODS.find(x=>x.id===id);
+  if(!p||p.stock<=0||p.coming)return;
+  const go=confirm(`Purchase "${p.name}" for $${p.price.toFixed(2)}?\n\nThis is a demo — no charge.`);
+  if(!go)return;
+  p.stock--;
+  orders.push({user:session.username,product:p.name,price:p.price,date:new Date().toLocaleDateString()});
+  ss('ds_o',orders);
+  renderProds();
+  alert('Order placed. Check your Discord DMs for delivery.');
+}
+
+// ── auth ──────────────────────────────────────────────────────
+function doSignup(){
+  const u=document.getElementById('su').value.trim().toLowerCase();
+  const p=document.getElementById('sp').value;
+  const c=document.getElementById('sc').value;
+  clearMsgs();
+  if(u.length<3){showMsg('se','Username must be at least 3 characters.');return}
+  if(!/^[a-z0-9_]+$/.test(u)){showMsg('se','Letters, numbers and underscores only.');return}
+  if(p.length<6){showMsg('se','Password must be at least 6 characters.');return}
+  if(p!==c){showMsg('se','Passwords do not match.');return}
+  if(users.find(x=>x.username===u)){showMsg('se','Username already taken.');return}
+  const isOwner=users.length===0;
+  const nu={username:u,password:btoa(p),role:isOwner?'owner':'user',joined:new Date().toLocaleDateString()};
+  users.push(nu);ss('ds_u',users);
+  showMsg('so',isOwner?'Account created. You are the owner.':'Account created.');
+  setTimeout(()=>{loginAs(nu);closeModal()},1100);
+}
+function doLogin(){
+  const u=document.getElementById('lu').value.trim().toLowerCase();
+  const p=document.getElementById('lp').value;
+  clearMsgs();
+  const user=users.find(x=>x.username===u&&x.password===btoa(p));
+  if(!user){showMsg('le','Incorrect username or password.');return}
+  loginAs(user);closeModal();
+}
+function loginAs(u){session={username:u.username,role:u.role};ss('ds_s',session);applySession()}
+function logout(){session=null;ss('ds_s',null);applySession();showStore();toggleDD(true)}
+function applySession(){
+  const na=document.getElementById('nav-actions');
+  const uw=document.getElementById('u-wrap');
+  if(session){
+    na.style.display='none';uw.style.display='flex';
+    document.getElementById('u-name').textContent=session.username;
+    document.getElementById('u-av').textContent=session.username[0].toUpperCase();
+    if(session.role==='owner'){
+      document.getElementById('dd-owner').style.display='block';
+      document.getElementById('dd-div').style.display='block';
+    }
+  } else {na.style.display='flex';uw.style.display='none'}
+}
+function showMsg(id,t){const e=document.getElementById(id);e.textContent=t;e.classList.add('show')}
+function clearMsgs(){document.querySelectorAll('.msg').forEach(e=>e.classList.remove('show'))}
+
+// ── modal ─────────────────────────────────────────────────────
+function openModal(tab){document.getElementById('overlay').classList.add('open');switchTab(tab||'login')}
+function closeModal(){document.getElementById('overlay').classList.remove('open')}
+function outsideClose(e){if(e.target===document.getElementById('overlay'))closeModal()}
+function switchTab(t){
+  document.getElementById('f-login').style.display=t==='login'?'':'none';
+  document.getElementById('f-signup').style.display=t==='signup'?'':'none';
+  document.getElementById('t-login').className='auth-tab'+(t==='login'?' on':'');
+  document.getElementById('t-signup').className='auth-tab'+(t==='signup'?' on':'');
+  clearMsgs();
+}
+
+// ── views ─────────────────────────────────────────────────────
+function showStore(){document.getElementById('v-store').className='on';document.getElementById('v-dash').className=''}
+function showDash(){
+  if(!session||session.role!=='owner')return;
+  document.getElementById('v-store').className='';document.getElementById('v-dash').className='on';
+  toggleDD(true);renderDash();
+}
+function renderDash(){
+  const rev=orders.reduce((s,o)=>s+o.price,0);
+  document.getElementById('m-rev').textContent='$'+rev.toFixed(2);
+  document.getElementById('m-ord').textContent=orders.length;
+  document.getElementById('m-usr').textContent=users.length;
+  document.getElementById('m-lst').textContent=PRODS.length;
+  document.getElementById('t-users').innerHTML=users.length?users.map(u=>`<tr>
+    <td style="color:var(--fg)">${u.username}</td>
+    <td><span class="rb ${u.role==='owner'?'rb-owner':'rb-user'}">${u.role}</span></td>
+    <td>${u.joined}</td></tr>`).join('')
+    :`<tr><td colspan="3" style="color:var(--fg3);text-align:center;padding:22px">No users yet</td></tr>`;
+  document.getElementById('t-orders').innerHTML=orders.length?orders.map(o=>`<tr>
+    <td>${o.user}</td><td style="color:var(--fg)">${o.product}</td>
+    <td style="color:var(--fg)">$${o.price.toFixed(2)}</td><td>${o.date}</td></tr>`).join('')
+    :`<tr><td colspan="4" style="color:var(--fg3);text-align:center;padding:22px">No orders yet</td></tr>`;
+}
+
+// ── dropdown ──────────────────────────────────────────────────
+function toggleDD(close){const d=document.getElementById('u-dd');if(close){d.classList.remove('open');return}d.classList.toggle('open')}
+document.addEventListener('click',e=>{if(!e.target.closest('.u-wrap'))document.getElementById('u-dd')?.classList.remove('open')});
+
+// ── misc ──────────────────────────────────────────────────────
+function scrollToProd(){document.getElementById('prod-section').scrollIntoView({behavior:'smooth'})}
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape')closeModal();
+  if(e.key==='Enter'&&document.getElementById('overlay').classList.contains('open')){
+    if(document.getElementById('f-login').style.display!=='none')doLogin();else doSignup();
+  }
+});
+
+renderProds();
+applySession();
+</script>
