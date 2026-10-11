@@ -62,7 +62,7 @@ nav{
 /* HERO */
 .hero{
   position:relative;overflow:hidden;text-align:center;
-  padding:clamp(80px,14vw,160px) clamp(20px,5vw,56px) clamp(72px,12vw,140px);
+  padding:clamp(48px,7vw,88px) clamp(20px,5vw,56px) clamp(48px,7vw,88px);
 }
 .hero-lines{
   position:absolute;inset:0;
@@ -94,7 +94,9 @@ nav{
 .section-note{font-family:var(--font-m);font-size:10px;color:var(--fg3);letter-spacing:0.04em}
 
 /* PRODUCT GRID */
-.products-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1px;background:var(--line)}
+.products-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line)}
+@media(max-width:900px){.products-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:560px){.products-grid{grid-template-columns:1fr}}
 .product-card{background:var(--bg);transition:background .2s;cursor:pointer;position:relative;overflow:hidden}
 .product-card:hover:not(.coming-soon){background:var(--bg2)}
 
@@ -251,6 +253,20 @@ footer{border-top:1px solid var(--line);padding:28px clamp(20px,5vw,56px);displa
   .modal{padding:28px 22px}
   .metrics{grid-template-columns:1fr 1fr}
 }
+.buy-confirm{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,0.88);backdrop-filter:blur(8px);
+  z-index:600;align-items:center;justify-content:center;padding:20px;
+}
+.buy-confirm.open{display:flex}
+.bc-box{
+  background:var(--bg2);border:1px solid var(--line2);border-radius:4px;
+  width:100%;max-width:360px;padding:32px 28px;
+}
+.bc-title{font-size:15px;font-weight:600;margin-bottom:8px;letter-spacing:-0.015em}
+.bc-price{font-family:var(--font-m);font-size:24px;font-weight:500;margin-bottom:6px;font-variant-numeric:tabular-nums}
+.bc-note{font-family:var(--font-m);font-size:10px;color:var(--fg3);letter-spacing:0.04em;margin-bottom:24px}
+.bc-btns{display:flex;gap:8px}
+.bc-btns .btn{flex:1;justify-content:center}
 </style>
 
 <!-- NAV -->
@@ -358,9 +374,29 @@ footer{border-top:1px solid var(--line);padding:28px clamp(20px,5vw,56px);displa
       <div class="fg-"><label class="fl" for="su">Username</label><input class="fi" id="su" type="text" placeholder="yourname" autocomplete="username"></div>
       <div class="fg-"><label class="fl" for="sp">Password</label><input class="fi" id="sp" type="password" placeholder="••••••••" autocomplete="new-password"></div>
       <div class="fg-"><label class="fl" for="sc">Confirm Password</label><input class="fi" id="sc" type="password" placeholder="••••••••" autocomplete="new-password"></div>
-      <div class="f-hint">First account registered becomes the owner.</div>
+      <div class="f-hint">Register with the owner username to access the dashboard.</div>
       <button class="btn btn-solid f-sub" onclick="doSignup()">Create Account</button>
     </div>
+  </div>
+</div>
+
+<div class="buy-confirm" id="buy-confirm">
+  <div class="bc-box">
+    <div class="bc-title" id="bc-name"></div>
+    <div class="bc-price" id="bc-price"></div>
+    <div class="bc-note">Delivery via Discord DM after confirmation.</div>
+    <div class="bc-btns">
+      <button class="btn btn-ghost" onclick="closeBuy()">Cancel</button>
+      <button class="btn btn-solid" onclick="confirmBuy()">Confirm Purchase</button>
+    </div>
+  </div>
+</div>
+
+<div class="buy-confirm" id="buy-ok">
+  <div class="bc-box">
+    <div class="bc-title">Order Placed</div>
+    <div class="bc-note" style="margin-top:8px;margin-bottom:24px;font-size:11px;color:var(--fg2)">Check your Discord DMs for delivery. Thank you.</div>
+    <div class="bc-btns"><button class="btn btn-solid" style="flex:1;justify-content:center" onclick="closeBuyOk()">Done</button></div>
   </div>
 </div>
 
@@ -589,18 +625,29 @@ function renderProds(){
   });
 }
 
+let _buyId=null;
 function doBuy(id){
   if(!session){openModal('login');return}
   const p=PRODS.find(x=>x.id===id);
   if(!p||p.stock<=0||p.coming)return;
-  const go=confirm(`Purchase "${p.name}" for $${p.price.toFixed(2)}?\n\nThis is a demo — no charge.`);
-  if(!go)return;
+  _buyId=id;
+  document.getElementById('bc-name').textContent=p.name;
+  document.getElementById('bc-price').textContent='$'+p.price.toFixed(2);
+  document.getElementById('buy-confirm').classList.add('open');
+}
+function closeBuy(){document.getElementById('buy-confirm').classList.remove('open');_buyId=null}
+function confirmBuy(){
+  if(!_buyId)return;
+  const p=PRODS.find(x=>x.id===_buyId);
+  if(!p)return;
   p.stock--;
   orders.push({user:session.username,product:p.name,price:p.price,date:new Date().toLocaleDateString()});
   ss('ds_o',orders);
   renderProds();
-  alert('Order placed. Check your Discord DMs for delivery.');
+  closeBuy();
+  document.getElementById('buy-ok').classList.add('open');
 }
+function closeBuyOk(){document.getElementById('buy-ok').classList.remove('open')}
 
 // ── auth ──────────────────────────────────────────────────────
 function doSignup(){
@@ -613,10 +660,10 @@ function doSignup(){
   if(p.length<6){showMsg('se','Password must be at least 6 characters.');return}
   if(p!==c){showMsg('se','Passwords do not match.');return}
   if(users.find(x=>x.username===u)){showMsg('se','Username already taken.');return}
-  const isOwner=users.length===0;
+  const isOwner=u==='devsupplies';
   const nu={username:u,password:btoa(p),role:isOwner?'owner':'user',joined:new Date().toLocaleDateString()};
   users.push(nu);ss('ds_u',users);
-  showMsg('so',isOwner?'Account created. You are the owner.':'Account created.');
+  showMsg('so',isOwner?'Owner account created. Welcome back.':'Account created.');
   setTimeout(()=>{loginAs(nu);closeModal()},1100);
 }
 function doLogin(){
