@@ -23,6 +23,17 @@
   </div>
 </section>
 
+<section class="deals" id="deals">
+  <div class="section-head">
+    <div>
+      <div class="section-label">Limited</div>
+      <div class="section-title">Deals</div>
+    </div>
+    <span class="section-note">One of each. First to buy gets it.</span>
+  </div>
+  <div id="deal-grid"><div class="no-deals">Loading...</div></div>
+</section>
+
 <section class="products" id="prod">
   <div class="section-head">
     <div>
@@ -67,7 +78,7 @@
 
 <script src="/main.js"></script>
 <script>
-let products = [], buyId = null;
+let products = [], deals = [], buying = null; // buying = { kind: 'product'|'deal', item }
 
 async function loadProducts() {
   try { products = await api('GET', '/products'); } catch { return; }
@@ -91,45 +102,70 @@ async function loadProducts() {
         <div class="card-tags">${p.tags.map(t => `<span class="tag">${esc(t)}</span>`).join('')}</div>
         <div class="card-foot">
           <div class="price">${money(p.price)}</div>
-          <button class="buy-btn" ${inStock ? '' : 'disabled'} onclick="startBuy('${esc(p.id)}')">${coming ? 'Coming Soon' : inStock ? 'Purchase' : 'Sold Out'}</button>
+          <button class="buy-btn" ${inStock ? '' : 'disabled'} onclick="startBuy('product', '${esc(p.id)}')">${coming ? 'Coming Soon' : inStock ? 'Purchase' : 'Sold Out'}</button>
         </div>
       </div>`;
     grid.appendChild(card);
   });
 }
 
-function startBuy(id) {
+async function loadDeals() {
+  try { deals = await api('GET', '/deals'); } catch { return; }
+  const grid = $('deal-grid');
+  if (!deals.length) { grid.innerHTML = '<div class="no-deals">No deals currently</div>'; return; }
+  grid.innerHTML = '<div class="deals-grid">' + deals.map(d => `
+    <div class="deal">
+      <div class="deal-img">
+        ${d.image ? `<img src="${esc(d.image)}" alt="${esc(d.name)}" loading="lazy">` : '<div class="noimg">DevSupplies.cc</div>'}
+        <div class="deal-tag">Deal</div>
+        <div class="deal-left">1 left</div>
+      </div>
+      <div class="deal-body">
+        <div class="deal-name">${esc(d.name)}</div>
+        <div class="deal-desc">${esc(d.description)}</div>
+        <div class="card-foot">
+          <div class="price">${money(d.price)}</div>
+          <button class="buy-btn" onclick="startBuy('deal', ${d.id})">Purchase</button>
+        </div>
+      </div>
+    </div>`).join('') + '</div>';
+}
+
+function startBuy(kind, id) {
   if (!me) { location.href = '/login?next=/'; return; }
-  const p = products.find(x => x.id === id);
-  if (!p || p.coming || p.stock <= 0) return;
-  buyId = id;
-  const enough = me.balance + 1e-9 >= p.price;
-  $('buy-name').textContent = p.name;
-  $('buy-price').textContent = money(p.price);
+  const item = kind === 'deal' ? deals.find(x => x.id === id) : products.find(x => x.id === id);
+  if (!item) return;
+  if (kind === 'product' && (item.coming || item.stock <= 0)) return;
+  buying = { kind, item };
+  const enough = me.balance + 1e-9 >= item.price;
+  $('buy-name').textContent = item.name;
+  $('buy-price').textContent = money(item.price);
   $('buy-note').textContent = enough
     ? `Paid from your balance (${money(me.balance)}). Delivered instantly.`
-    : `Your balance is ${money(me.balance)}. Deposit ${money(p.price - me.balance)} more to buy this.`;
+    : `Your balance is ${money(me.balance)}. Deposit ${money(item.price - me.balance)} more to buy this.`;
   $('buy-go').textContent = enough ? 'Confirm Purchase' : 'Deposit';
   openDlg('buy-dialog');
 }
 
 async function confirmBuy() {
-  const p = products.find(x => x.id === buyId);
-  if (!p) return;
-  if (me.balance + 1e-9 < p.price) { location.href = '/deposit'; return; }
+  if (!buying) return;
+  const { kind, item } = buying;
+  if (me.balance + 1e-9 < item.price) { location.href = '/deposit'; return; }
   const btn = $('buy-go'); btn.disabled = true;
   try {
-    const d = await api('POST', '/buy', { productId: buyId });
+    const d = kind === 'deal'
+      ? await api('POST', `/deals/${item.id}/buy`)
+      : await api('POST', '/buy', { productId: item.id });
     closeDlg('buy-dialog');
     me = d.user; renderNav();
     $('got-name').textContent = d.order.product;
     $('got-content').textContent = d.order.content;
     openDlg('got-dialog');
   } catch (e) { closeDlg('buy-dialog'); toast(e.message); }
-  finally { btn.disabled = false; loadProducts(); }
+  finally { btn.disabled = false; buying = null; loadProducts(); loadDeals(); }
 }
 
-startPage().then(loadProducts);
+startPage().then(() => { loadDeals(); loadProducts(); });
 </script>
 </body>
 </html>
