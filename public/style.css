@@ -221,3 +221,34 @@ a.bal{text-decoration:none}
 .deal-thumb{width:64px;height:40px;object-fit:cover;border-radius:2px;border:1px solid var(--line);display:block;background:var(--bg3)}
 
 [hidden]{display:none !important}
+
+/* DEAL GALLERY */
+.deal-img img{position:absolute;inset:0;opacity:0;transition:opacity .25s;cursor:zoom-in;pointer-events:none}
+.deal-img img.on{opacity:1;pointer-events:auto;z-index:1}
+.g-btn{position:absolute;top:50%;transform:translateY(-50%);width:32px;height:32px;border-radius:50%;border:1px solid var(--line2);background:rgba(0,0,0,.7);color:var(--fg);display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0;transition:opacity .15s;z-index:2;padding:0}
+.deal-img:hover .g-btn,.g-btn:focus-visible{opacity:1}
+@media(hover:none){.g-btn{opacity:1}}
+.g-prev{left:10px}.g-next{right:10px}
+.g-dots{position:absolute;bottom:10px;left:0;right:0;display:flex;justify-content:center;gap:5px;z-index:2;pointer-events:none}
+.g-dots span{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.35)}
+.g-dots span.on{background:#fff}
+.g-count{position:absolute;bottom:10px;right:12px;font-family:var(--m);font-size:9px;letter-spacing:.08em;color:var(--fg2);z-index:2}
+
+/* LIGHTBOX */
+.lightbox{position:fixed;inset:0;background:rgba(0,0,0,.94);z-index:700;display:none;align-items:center;justify-content:center;padding:56px 64px}
+.lightbox.open{display:flex}
+.lightbox img{max-width:100%;max-height:100%;object-fit:contain;border-radius:3px}
+.lb-btn{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:44px;border-radius:50%;border:1px solid var(--line2);background:rgba(0,0,0,.6);color:var(--fg);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
+.lb-prev{left:14px}.lb-next{right:14px}
+.lb-close{position:absolute;top:14px;right:14px;width:40px;height:40px;border-radius:50%;border:1px solid var(--line2);background:rgba(0,0,0,.6);color:var(--fg);cursor:pointer;font-size:16px}
+.lb-count{position:absolute;bottom:18px;left:0;right:0;text-align:center;font-family:var(--m);font-size:10px;letter-spacing:.1em;color:var(--fg2)}
+@media(max-width:600px){.lightbox{padding:56px 12px}}
+
+/* OWNER PHOTO PICKER */
+.photo-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.ph{position:relative;aspect-ratio:16/10;border:1px solid var(--line2);border-radius:3px;overflow:hidden;background:var(--bg2);cursor:pointer}
+.ph img{width:100%;height:100%;object-fit:cover;display:block}
+.ph-x{position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:50%;border:1px solid var(--line2);background:rgba(0,0,0,.8);color:var(--fg);font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
+.ph-cover{position:absolute;left:4px;bottom:4px;font-family:var(--m);font-size:8px;letter-spacing:.1em;text-transform:uppercase;background:var(--fg);color:var(--bg);padding:2px 6px;border-radius:2px}
+.ph-add{aspect-ratio:16/10;border:1px dashed var(--line2);border-radius:3px;display:flex;align-items:center;justify-content:center;font-family:var(--m);font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--fg3);cursor:pointer;text-align:center;padding:6px}
+.ph-add:hover{border-color:var(--fg3);color:var(--fg2)}
