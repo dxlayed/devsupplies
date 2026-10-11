@@ -4,75 +4,159 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex">
-  <title>Owner panel — devsupplies.cc</title>
+  <title>Owner — devsupplies.cc</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
   <header class="top">
-    <a class="logo" href="/"><span class="logo-mark">D</span><span>dev<b>supplies</b></span></a>
-    <nav class="tabs" aria-label="Main">
-      <a class="tab" href="/">Shop</a>
-      <a class="tab active" href="/owner">Owner</a>
+    <a class="logo" href="/"><span class="logo-mark">D</span><span class="logo-text">devsupplies</span></a>
+    <nav class="nav" aria-label="Main">
+      <a href="/">Shop</a>
+      <a href="/owner" aria-current="page">Owner</a>
     </nav>
-    <button class="btn btn-outline btn-sm top-right" id="logout" hidden>Log out</button>
+    <div class="top-actions"><button class="btn btn-ghost btn-sm" id="logout" hidden>Log out</button></div>
   </header>
 
   <main class="auth" id="gateView" hidden>
-    <div class="panel auth-card">
+    <div class="auth-card">
       <h1>Owner access only</h1>
-      <p class="muted" id="gateText">Log in with the owner email to manage products.</p>
-      <a class="btn btn-solid btn-block" id="gateLogin" href="/login">Log in</a>
-      <a class="btn btn-outline btn-block" href="/">Back to shop</a>
+      <p class="muted" id="gateText">Log in as devsupplies to manage the shop.</p>
+      <a class="btn btn-primary btn-block" id="gateLogin" href="/login">Log in</a>
+      <a class="btn btn-ghost btn-block" href="/">Back to shop</a>
     </div>
   </main>
 
-  <main class="dash" id="dashView" hidden>
-    <section class="panel">
-      <div class="panel-head">
-        <h2>Products <span class="pill" id="productCount">0</span></h2>
-        <button class="btn btn-solid btn-sm" id="newBtn">+ New product</button>
+  <main class="app" id="dashView" hidden>
+    <aside class="side">
+      <div class="profile">
+        <span class="avatar">D</span>
+        <strong>devsupplies</strong>
+        <span>Owner</span>
       </div>
-      <ul class="rows" id="rows"></ul>
-      <div class="cart-empty" id="rowsEmpty" hidden>
-        <strong>No products yet</strong>
-        <span>Create your first one with the form.</span>
+      <nav class="side-nav" role="tablist" aria-label="Owner">
+        <button class="side-tab" role="tab" data-tab="analytics">Analytics</button>
+        <button class="side-tab" role="tab" data-tab="products">Products <span class="n" id="productCount"></span></button>
+        <button class="side-tab" role="tab" data-tab="orders">Orders <span class="n" id="orderCount"></span></button>
+        <button class="side-tab" role="tab" data-tab="deposits">Deposits <span class="n" id="depositCount"></span></button>
+        <button class="side-tab" role="tab" data-tab="wallets">Wallets</button>
+      </nav>
+    </aside>
+
+    <!-- Analytics -->
+    <section id="tab-analytics" role="tabpanel" hidden>
+      <div class="page-head"><div><h1>Analytics</h1><p>Sales count paid orders only. Refunds are left out.</p></div></div>
+
+      <div class="kpis">
+        <div class="kpi"><span><i class="live-dot"></i>Online now</span><strong id="kOnline">0</strong><small id="kPages">Updates every 15 seconds</small></div>
+        <div class="kpi"><span>Sales today</span><strong id="kToday">$0.00</strong><small id="kTodayN"></small></div>
+        <div class="kpi"><span>Last 7 days</span><strong id="kWeek">$0.00</strong><small id="kWeekN"></small></div>
+        <div class="kpi"><span>Last 30 days</span><strong id="kMonth">$0.00</strong><small id="kMonthN"></small></div>
+        <div class="kpi"><span>All-time sales</span><strong id="kAll">$0.00</strong><small id="kAllN"></small></div>
+        <div class="kpi"><span>Visitors today</span><strong id="kVisitors">0</strong><small id="kVisitors7"></small></div>
+        <div class="kpi"><span>Customers</span><strong id="kCustomers">0</strong><small>Accounts created</small></div>
+        <div class="kpi"><span>Customer balances</span><strong id="kBalances">$0.00</strong><small id="kPending"></small></div>
+      </div>
+
+      <div class="section">
+        <div class="chart-head">
+          <h2 id="chartTitle">Sales per day</h2>
+          <div class="seg" role="tablist" aria-label="Chart range">
+            <button type="button" data-range="day" aria-selected="true">Daily</button>
+            <button type="button" data-range="week" aria-selected="false">Weekly</button>
+            <button type="button" data-range="month" aria-selected="false">Monthly</button>
+          </div>
+        </div>
+        <div class="box chart-wrap" id="chartWrap">
+          <svg class="chart" id="chart" role="img" aria-labelledby="chartTitle"></svg>
+          <div class="tip" id="tip" hidden></div>
+        </div>
+        <details class="table-view"><summary>Show as table</summary><table class="mini-table" id="chartTable"></table></details>
+      </div>
+
+      <div class="section split">
+        <div class="box">
+          <h2>Top products</h2>
+          <table class="mini-table" id="topProducts"></table>
+        </div>
+        <div class="box">
+          <h2>Where people are right now</h2>
+          <table class="mini-table" id="livePages"></table>
+        </div>
       </div>
     </section>
 
-    <form class="panel editor" id="editor">
-      <div class="panel-head"><h2 id="editorTitle">New product</h2></div>
-      <label class="field"><span>Name</span><input name="name" required maxlength="80"></label>
-      <div class="field-row">
-        <label class="field"><span>Price (USD)</span><input name="price" type="number" min="0" step="0.01" required inputmode="decimal"></label>
-        <label class="field"><span>Category</span><input name="category" maxlength="30" list="catOptions" placeholder="General"></label>
-        <datalist id="catOptions"></datalist>
+    <!-- Products -->
+    <section id="tab-products" role="tabpanel" hidden>
+      <div class="page-head">
+        <div><h1>Products</h1><p>Name, price, picture and description for everything in the shop.</p></div>
+        <button class="btn btn-primary btn-sm" id="newBtn">New product</button>
       </div>
-      <label class="field"><span>Description</span><textarea name="description" rows="4" maxlength="600"></textarea></label>
-      <div class="field">
-        <span>Image</span>
-        <div class="upload">
-          <div class="upload-preview" id="preview"></div>
-          <div class="upload-actions">
-            <label class="btn btn-outline btn-sm">Choose image<input type="file" id="image" accept="image/png,image/jpeg,image/webp,image/gif" hidden></label>
-            <button type="button" class="btn btn-outline btn-sm" id="removeImage" hidden>Remove</button>
-            <small class="muted">PNG, JPG, WEBP or GIF, up to 5 MB</small>
-          </div>
+      <div class="editor-grid">
+        <div>
+          <ul class="rows" id="rows"></ul>
+          <div class="empty" id="rowsEmpty" hidden><strong>No products yet</strong><span>Create your first one with the form.</span></div>
         </div>
+        <form class="box editor" id="editor">
+          <h2 id="editorTitle">New product</h2>
+          <label class="field"><span>Name</span><input name="name" required maxlength="80"></label>
+          <div class="field-row">
+            <label class="field"><span>Price (USD)</span><input name="price" type="number" min="0" step="0.01" required inputmode="decimal"></label>
+            <label class="field"><span>Category</span><input name="category" maxlength="30" list="catOptions" placeholder="General"></label>
+            <datalist id="catOptions"></datalist>
+          </div>
+          <label class="field"><span>Description</span><textarea name="description" rows="4" maxlength="600"></textarea></label>
+          <div class="field">
+            <span>Picture</span>
+            <div class="upload">
+              <div class="upload-preview" id="preview"></div>
+              <div class="upload-actions">
+                <label class="btn btn-ghost btn-sm">Choose picture<input type="file" id="image" accept="image/png,image/jpeg,image/webp,image/gif" hidden></label>
+                <button type="button" class="btn btn-quiet btn-sm" id="removeImage" hidden>Remove</button>
+                <small>PNG, JPG, WEBP or GIF, up to 5 MB</small>
+              </div>
+            </div>
+          </div>
+          <label class="check"><input type="checkbox" name="published" checked><span>Show in the shop</span></label>
+          <p class="error" id="editorError" hidden></p>
+          <div class="editor-actions">
+            <button class="btn btn-primary" id="saveBtn">Create product</button>
+            <button type="button" class="btn btn-ghost" id="cancelBtn" hidden>Cancel</button>
+          </div>
+        </form>
       </div>
-      <label class="check"><input type="checkbox" name="published" checked><span>Visible in the shop</span></label>
-      <p class="error" id="editorError" hidden></p>
-      <div class="editor-actions">
-        <button class="btn btn-solid" id="saveBtn">Create product</button>
-        <button type="button" class="btn btn-outline" id="cancelBtn" hidden>Cancel</button>
-      </div>
-    </form>
+    </section>
+
+    <!-- Orders -->
+    <section id="tab-orders" role="tabpanel" hidden>
+      <div class="page-head"><div><h1>Orders</h1><p>Refunding an order puts the money back on the customer's balance.</p></div></div>
+      <ul class="rows" id="orderRows"></ul>
+      <div class="empty" id="ordersEmpty" hidden><strong>No orders yet</strong><span>Orders show up here when customers check out.</span></div>
+    </section>
+
+    <!-- Deposits -->
+    <section id="tab-deposits" role="tabpanel" hidden>
+      <div class="page-head"><div><h1>Deposits</h1><p>Look up each transaction ID on a block explorer before approving. Approving adds the amount to the customer's balance.</p></div></div>
+      <ul class="rows" id="depositRows"></ul>
+      <div class="empty" id="depositsEmpty" hidden><strong>No deposits yet</strong><span>Customer deposits show up here for you to check.</span></div>
+    </section>
+
+    <!-- Wallets -->
+    <section id="tab-wallets" role="tabpanel" hidden>
+      <div class="page-head"><div><h1>Wallets</h1><p>Customers send crypto to these addresses. Leave a coin empty to hide it.</p></div></div>
+      <form class="form" id="walletForm">
+        <div id="walletFields" class="form"></div>
+        <p class="error" id="walletError" hidden></p>
+        <button class="btn btn-primary">Save wallets</button>
+      </form>
+    </section>
   </main>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="common.js"></script>
   <script src="owner.js"></script>
 </body>
 </html>
