@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>devsupplies.cc — digital products, delivered instantly</title>
+  <meta name="description" content="Digital products for developers. Pay once, download instantly.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header class="top">
+    <a class="logo" href="/"><span class="logo-mark">D</span><span>dev<b>supplies</b></span></a>
+    <nav class="tabs" aria-label="Main">
+      <a class="tab active" href="#shop">Shop</a>
+      <a class="tab" href="#how">How it works</a>
+      <a class="tab" href="#faq">FAQ</a>
+    </nav>
+    <a class="btn btn-outline btn-sm top-right" href="/owner">Owner login</a>
+  </header>
+
+  <main class="layout" id="shop">
+
+    <aside class="panel filters" aria-label="Filters">
+      <div class="panel-head">
+        <h2>Filters</h2>
+        <button class="btn btn-outline btn-xs" id="reset">Reset</button>
+      </div>
+
+      <h3 class="label">Category</h3>
+      <div class="cat-list" id="cats"></div>
+
+      <h3 class="label">Price</h3>
+      <div class="range">
+        <label><span class="sr-only">Minimum price</span><input type="number" id="min" min="0" step="1" placeholder="$ 0" inputmode="decimal"></label>
+        <span>to</span>
+        <label><span class="sr-only">Maximum price</span><input type="number" id="max" min="0" step="1" placeholder="$ Any" inputmode="decimal"></label>
+      </div>
+    </aside>
+
+    <section class="center">
+      <div class="panel hero">
+        <h1>Digital goods for developers.</h1>
+        <p>Pick what you need, pay once, and the files are yours. No subscriptions and no waiting around.</p>
+        <div class="hero-actions">
+          <a class="btn btn-solid" href="#products">Browse products</a>
+          <a class="btn btn-outline" href="#how">How it works</a>
+        </div>
+      </div>
+
+      <div class="toolbar" id="products">
+        <label class="grow"><span class="sr-only">Search products</span><input type="search" id="search" placeholder="Search" autocomplete="off"></label>
+        <label><span class="sr-only">Sort</span>
+          <select id="sort">
+            <option value="new">Newest</option>
+            <option value="low">Lowest price</option>
+            <option value="high">Highest price</option>
+            <option value="name">Name</option>
+          </select>
+        </label>
+      </div>
+      <p class="count" id="count"></p>
+
+      <div class="grid" id="grid"></div>
+      <div class="panel empty" id="empty" hidden>
+        <strong id="emptyTitle"></strong>
+        <span id="emptyText"></span>
+      </div>
+    </section>
+
+    <aside class="panel cart" aria-label="Cart">
+      <div class="panel-head"><h2>Cart</h2><span class="pill" id="cartCount">0</span></div>
+      <ul class="cart-items" id="cartItems"></ul>
+      <div class="cart-empty" id="cartEmpty">
+        <strong>Your cart is empty</strong>
+        <span>Add a product to get started.</span>
+      </div>
+      <div class="cart-total"><span>Total</span><strong id="cartTotal">$0.00</strong></div>
+      <button class="btn btn-solid btn-block" id="checkout" disabled>Checkout</button>
+    </aside>
+
+  </main>
+
+  <section class="below" id="how">
+    <h2>How it works</h2>
+    <ol class="steps">
+      <li class="panel"><span class="num">1</span><h3>Choose</h3><p>Browse the shop and add what you need to your cart.</p></li>
+      <li class="panel"><span class="num">2</span><h3>Pay once</h3><p>One payment per product. Nothing recurring.</p></li>
+      <li class="panel"><span class="num">3</span><h3>Download</h3><p>Your files are delivered as soon as payment clears.</p></li>
+    </ol>
+  </section>
+
+  <section class="below" id="faq">
+    <h2>FAQ</h2>
+    <div class="faq">
+      <details class="panel"><summary>How do I receive my purchase?</summary><p>Digital products are delivered right after checkout.</p></details>
+      <details class="panel"><summary>Is this a subscription?</summary><p>No. Every product is a one-time purchase.</p></details>
+      <details class="panel"><summary>Something went wrong with my order</summary><p>Get in touch and we'll sort it out.</p></details>
+    </div>
+  </section>
+
+  <footer class="foot">© <span id="year"></span> devsupplies.cc</footer>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="app.js"></script>
+</body>
+</html>

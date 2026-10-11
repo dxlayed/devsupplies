@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Owner panel — devsupplies.cc</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header class="top">
+    <a class="logo" href="/"><span class="logo-mark">D</span><span>dev<b>supplies</b></span></a>
+    <nav class="tabs" aria-label="Main">
+      <a class="tab" href="/">Shop</a>
+      <a class="tab active" href="/owner">Owner</a>
+    </nav>
+    <button class="btn btn-outline btn-sm top-right" id="logout" hidden>Log out</button>
+  </header>
+
+  <!-- first run: create the owner account -->
+  <main class="auth" id="setupView" hidden>
+    <form class="panel auth-card" id="setupForm">
+      <h1>Create owner account</h1>
+      <p class="muted">Enter the one-time setup code from <code>data/setup-code.txt</code> (it's also printed when the server starts).</p>
+      <label class="field"><span>Setup code</span><input name="code" required autocomplete="off"></label>
+      <label class="field"><span>Username</span><input name="username" required minlength="3" maxlength="32" autocomplete="username"></label>
+      <label class="field"><span>Password</span><input name="password" type="password" required minlength="8" autocomplete="new-password"></label>
+      <p class="error" id="setupError" hidden></p>
+      <button class="btn btn-solid btn-block">Create account</button>
+    </form>
+  </main>
+
+  <main class="auth" id="loginView" hidden>
+    <form class="panel auth-card" id="loginForm">
+      <h1>Owner login</h1>
+      <p class="muted">Sign in to manage your products.</p>
+      <label class="field"><span>Username</span><input name="username" required autocomplete="username"></label>
+      <label class="field"><span>Password</span><input name="password" type="password" required autocomplete="current-password"></label>
+      <p class="error" id="loginError" hidden></p>
+      <button class="btn btn-solid btn-block">Log in</button>
+    </form>
+  </main>
+
+  <main class="dash" id="dashView" hidden>
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Products <span class="pill" id="productCount">0</span></h2>
+        <button class="btn btn-solid btn-sm" id="newBtn">+ New product</button>
+      </div>
+      <ul class="rows" id="rows"></ul>
+      <div class="cart-empty" id="rowsEmpty" hidden>
+        <strong>No products yet</strong>
+        <span>Create your first one with the form.</span>
+      </div>
+    </section>
+
+    <form class="panel editor" id="editor">
+      <div class="panel-head"><h2 id="editorTitle">New product</h2></div>
+      <label class="field"><span>Name</span><input name="name" required maxlength="80"></label>
+      <div class="field-row">
+        <label class="field"><span>Price (USD)</span><input name="price" type="number" min="0" step="0.01" required inputmode="decimal"></label>
+        <label class="field"><span>Category</span><input name="category" maxlength="30" list="catOptions" placeholder="General"></label>
+        <datalist id="catOptions"></datalist>
+      </div>
+      <label class="field"><span>Description</span><textarea name="description" rows="4" maxlength="600"></textarea></label>
+      <div class="field">
+        <span>Image</span>
+        <div class="upload">
+          <div class="upload-preview" id="preview"></div>
+          <div class="upload-actions">
+            <label class="btn btn-outline btn-sm">Choose image<input type="file" id="image" accept="image/png,image/jpeg,image/webp,image/gif" hidden></label>
+            <button type="button" class="btn btn-outline btn-sm" id="removeImage" hidden>Remove</button>
+            <small class="muted">PNG, JPG, WEBP or GIF, up to 5 MB</small>
+          </div>
+        </div>
+      </div>
+      <label class="check"><input type="checkbox" name="published" checked><span>Visible in the shop</span></label>
+      <p class="error" id="editorError" hidden></p>
+      <div class="editor-actions">
+        <button class="btn btn-solid" id="saveBtn">Create product</button>
+        <button type="button" class="btn btn-outline" id="cancelBtn" hidden>Cancel</button>
+      </div>
+    </form>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="owner.js"></script>
+</body>
+</html>
