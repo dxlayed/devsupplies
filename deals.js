@@ -1,8 +1,12 @@
 // Deals: one-off accounts with their own photos, name, price and description.
 // Each deal sells once. The buyer gets the account details right away and the deal leaves the store.
 const express = require('express');
-const { db, transaction, cents, freshUser } = require('./database');
-const { needsLogin, needsOwner } = require('./auth');
+const fs = require('fs');
+const path = require('path');
+// Works whether this file sits next to database.js or one level up from src/
+const code = name => require(fs.existsSync(path.join(__dirname, name + '.js')) ? './' + name : './src/' + name);
+const { db, transaction, cents, freshUser } = code('database');
+const { needsLogin, needsOwner } = code('auth');
 
 const router = express.Router();
 const MAX_PHOTOS = 8;

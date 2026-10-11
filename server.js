@@ -1,19 +1,24 @@
 // DevSupplies: starts the website. Run with `npm start`.
-// All files live in one folder. Only the pages, style.css and main.js are ever sent
-// to visitors; the server code and the database are never served.
+// Works with either layout: server code in src/ and pages in public/, or everything in one folder.
+// Only the pages, style.css, main.js and deal photos are ever sent to visitors;
+// the server code and the database are never served.
 const express = require('express');
 const path = require('path');
+const fs = require('fs');
 
-const sessions = require('./sessions');
-const auth = require('./auth');
-const shop = require('./shop');
-const deposits = require('./deposits');
-const owner = require('./owner');
-const deals = require('./deals');
+const code = name => require(fs.existsSync(path.join(__dirname, name + '.js')) ? './' + name : './src/' + name);
+const PAGES = fs.existsSync(path.join(__dirname, 'public', 'index.html')) ? path.join(__dirname, 'public') : __dirname;
+
+const sessions = code('sessions');
+const auth = code('auth');
+const shop = code('shop');
+const deposits = code('deposits');
+const owner = code('owner');
+const deals = code('deals');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const file = name => (req, res) => res.sendFile(path.join(__dirname, name));
+const file = name => (req, res) => res.sendFile(path.join(PAGES, name));
 
 app.set('trust proxy', 1); // Railway sits behind a proxy; needed for secure login cookies
 app.use(express.json({ limit: '25mb' })); // room for deal photos (up to 8 per deal)

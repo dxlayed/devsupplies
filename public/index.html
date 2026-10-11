@@ -76,6 +76,15 @@
   </div>
 </div>
 
+<!-- Photo viewer -->
+<div class="lightbox" id="lightbox" onclick="if(event.target===this)closeViewer()">
+  <img id="lb-img" alt="">
+  <button class="lb-btn lb-prev" id="lb-prev" onclick="viewerStep(-1)" aria-label="Previous photo"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M8.5 3L4.5 7l4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+  <button class="lb-btn lb-next" id="lb-next" onclick="viewerStep(1)" aria-label="Next photo"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M5.5 3l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+  <button class="lb-close" onclick="closeViewer()" aria-label="Close">&#x2715;</button>
+  <div class="lb-count" id="lb-count"></div>
+</div>
+
 <script src="/main.js"></script>
 <script>
 let products = [], deals = [], buying = null; // buying = { kind: 'product'|'deal', item }
@@ -116,7 +125,11 @@ async function loadDeals() {
   grid.innerHTML = '<div class="deals-grid">' + deals.map(d => `
     <div class="deal">
       <div class="deal-img">
-        ${d.image ? `<img src="${esc(d.image)}" alt="${esc(d.name)}" loading="lazy">` : '<div class="noimg">DevSupplies.cc</div>'}
+        ${d.images.length ? d.images.map((u, i) => `<img src="${esc(u)}" class="${i ? '' : 'on'}" alt="${esc(d.name)}" loading="lazy" onclick="openViewer(${d.id}, ${i})">`).join('') : '<div class="noimg">DevSupplies.cc</div>'}
+        ${d.images.length > 1 ? `
+          <button class="g-btn g-prev" onclick="slide(this, -1)" aria-label="Previous photo"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M8.5 3L4.5 7l4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <button class="g-btn g-next" onclick="slide(this, 1)" aria-label="Next photo"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M5.5 3l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <div class="g-dots">${d.images.map((_, i) => `<span class="${i ? '' : 'on'}"></span>`).join('')}</div>` : ''}
         <div class="deal-tag">Deal</div>
         <div class="deal-left">1 left</div>
       </div>
@@ -130,6 +143,40 @@ async function loadDeals() {
       </div>
     </div>`).join('') + '</div>';
 }
+
+// Flip through a deal's photos on its card
+function slide(btn, step) {
+  const box = btn.closest('.deal-img');
+  const imgs = [...box.querySelectorAll('img')], dots = [...box.querySelectorAll('.g-dots span')];
+  const cur = imgs.findIndex(i => i.classList.contains('on'));
+  const next = (cur + step + imgs.length) % imgs.length;
+  imgs.forEach((i, n) => i.classList.toggle('on', n === next));
+  dots.forEach((d, n) => d.classList.toggle('on', n === next));
+}
+
+// Full-size photo viewer
+let viewer = { images: [], i: 0 };
+function openViewer(dealId, i) {
+  const d = deals.find(x => x.id === dealId);
+  if (!d) return;
+  viewer = { images: d.images, i };
+  showViewer();
+  $('lightbox').classList.add('open');
+}
+function showViewer() {
+  $('lb-img').src = viewer.images[viewer.i];
+  const many = viewer.images.length > 1;
+  $('lb-prev').hidden = $('lb-next').hidden = !many;
+  $('lb-count').textContent = many ? `${viewer.i + 1} / ${viewer.images.length}` : '';
+}
+function viewerStep(step) { viewer.i = (viewer.i + step + viewer.images.length) % viewer.images.length; showViewer(); }
+function closeViewer() { $('lightbox').classList.remove('open'); }
+document.addEventListener('keydown', e => {
+  if (!$('lightbox').classList.contains('open')) return;
+  if (e.key === 'Escape') closeViewer();
+  if (e.key === 'ArrowLeft') viewerStep(-1);
+  if (e.key === 'ArrowRight') viewerStep(1);
+});
 
 function startBuy(kind, id) {
   if (!me) { location.href = '/login?next=/'; return; }
