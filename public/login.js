@@ -47,5 +47,18 @@ form.addEventListener("submit", async (e) => {
 
 if (location.hash === "#signup") setMode("signup");
 
+// Messages sent back from Google sign-in.
+const GOOGLE_ERRORS = {
+  "google": "Google sign-in didn't work. Please try again.",
+  "google-off": "Google sign-in isn't set up yet. Add your Google keys to data/google.json (see README.txt).",
+  "google-unverified": "That Google account's email isn't verified.",
+};
+const errorKey = new URLSearchParams(location.search).get("error");
+if (GOOGLE_ERRORS[errorKey]) {
+  $("error").textContent = GOOGLE_ERRORS[errorKey];
+  $("error").hidden = false;
+  history.replaceState(null, "", location.pathname + location.hash);
+}
+
 // Already logged in? Skip the form.
 fetch("/api/me").then((r) => r.json()).then((me) => { if (me.user) location.href = "/"; }).catch(() => {});
