@@ -29,6 +29,30 @@
   </div>
 
   <div class="panel">
+    <div class="panel-title" id="deal-form-title">New Deal</div>
+    <div class="deal-editor">
+      <div>
+        <div class="photo-grid" id="photo-grid"></div>
+        <input type="file" id="deal-photo" accept="image/*" multiple hidden>
+        <div class="small" style="margin-top:8px">Up to 8 photos. The first is the cover; click a photo to make it the cover.</div>
+      </div>
+      <div>
+        <div class="field-row">
+          <div class="field"><label class="label" for="deal-name">Name</label><input class="input" id="deal-name" placeholder="TikTok US 25K followers + Live"></div>
+          <div class="field"><label class="label" for="deal-price">Price ($)</label><input class="input" id="deal-price" type="number" step="0.01" min="0" placeholder="49.99"></div>
+        </div>
+        <div class="field"><label class="label" for="deal-desc">Description</label><textarea class="input" id="deal-desc" style="min-height:70px" placeholder="What makes this account worth it"></textarea></div>
+        <div class="field"><label class="label" for="deal-content">Account details (only the buyer sees this, after paying)</label><textarea class="input" id="deal-content" style="min-height:70px" placeholder="username:password:email:emailpass"></textarea></div>
+        <div class="row">
+          <button class="btn btn-white" id="deal-save" onclick="saveDeal()">Post Deal</button>
+          <button class="btn btn-ghost" id="deal-cancel" onclick="resetDealForm()" hidden>Cancel Edit</button>
+        </div>
+      </div>
+    </div>
+    <div style="overflow-x:auto"><table><thead><tr><th>Photo</th><th>Name</th><th>Price</th><th>Status</th><th></th></tr></thead><tbody id="t-deals"></tbody></table></div>
+  </div>
+
+  <div class="panel">
     <div class="panel-title">Products</div>
     <div style="overflow-x:auto"><table><thead><tr><th>Name</th><th>Price</th><th>Stock</th><th>Available</th><th>Visible</th><th></th></tr></thead><tbody id="t-prod"></tbody></table></div>
   </div>
@@ -195,7 +219,128 @@ async function loadDeposits() {
   } catch {}
 }
 
-startPage().then(() => Promise.all([loadStats(), loadProducts(), loadUsers(), loadOrders(), loadDeposits()]));
+
+// Deals
+let ownerDeals = [], editingDeal = null;
+let dealPhotos = []; // [{ id, src }] for saved photos, [{ data, src }] for new ones. First = cover.
+const MAX_PHOTOS = 8;
+
+// Shrink photos before upload so they load fast for customers
+function shrinkImage(file, maxW = 1400) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Could not read that file.'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error(file.name + ' is not an image.'));
+      img.onload = () => {
+        const scale = Math.min(1, maxW / img.width);
+        const c = document.createElement('canvas');
+        c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
+        const ctx = c.getContext('2d'); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, c.width, c.height);
+        ctx.drawImage(img, 0, 0, c.width, c.height);
+        resolve(c.toDataURL('image/jpeg', 0.86));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function renderPhotos() {
+  $('photo-grid').innerHTML = dealPhotos.map((p, i) => `
+    <div class="ph" onclick="makeCover(${i})" title="${i ? 'Make cover' : 'Cover photo'}">
+      <img src="${esc(p.src)}" alt="">
+      ${i === 0 ? '<span class="ph-cover">Cover</span>' : ''}
+      <button class="ph-x" onclick="event.stopPropagation(); removePhoto(${i})" aria-label="Remove photo">&#x2715;</button>
+    </div>`).join('') +
+    (dealPhotos.length < MAX_PHOTOS ? `<label class="ph-add" for="deal-photo">${dealPhotos.length ? '+ Add more' : '+ Add photos'}</label>` : '');
+}
+function makeCover(i) { if (i) { dealPhotos.unshift(dealPhotos.splice(i, 1)[0]); renderPhotos(); } }
+function removePhoto(i) { dealPhotos.splice(i, 1); renderPhotos(); }
+
+$('deal-photo').addEventListener('change', async e => {
+  const files = [...e.target.files];
+  e.target.value = '';
+  const room = MAX_PHOTOS - dealPhotos.length;
+  if (files.length > room) toast(`Only ${MAX_PHOTOS} photos per deal. Added the first ${room}.`);
+  for (const file of files.slice(0, room)) {
+    try { const data = await shrinkImage(file); dealPhotos.push({ data, src: data }); renderPhotos(); }
+    catch (err) { toast(err.message); }
+  }
+});
+
+function resetDealForm() {
+  editingDeal = null; dealPhotos = [];
+  ['deal-name', 'deal-price', 'deal-desc', 'deal-content'].forEach(id => $(id).value = '');
+  renderPhotos();
+  $('deal-form-title').textContent = 'New Deal';
+  $('deal-save').textContent = 'Post Deal';
+  $('deal-cancel').hidden = true;
+}
+
+function editDeal(id) {
+  const d = ownerDeals.find(x => x.id === id);
+  if (!d) return;
+  editingDeal = id;
+  dealPhotos = d.photos.map(p => ({ id: p.id, src: p.url }));
+  $('deal-name').value = d.name; $('deal-price').value = d.price.toFixed(2);
+  $('deal-desc').value = d.description; $('deal-content').value = d.content;
+  renderPhotos();
+  $('deal-form-title').textContent = 'Editing: ' + d.name;
+  $('deal-save').textContent = 'Save Changes';
+  $('deal-cancel').hidden = false;
+  $('deal-form-title').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+async function saveDeal() {
+  const body = {
+    name: $('deal-name').value, price: $('deal-price').value,
+    description: $('deal-desc').value, content: $('deal-content').value,
+    photos: dealPhotos.map(p => p.id || p.data),
+  };
+  const btn = $('deal-save'); btn.disabled = true; btn.textContent = 'Saving...';
+  try {
+    if (editingDeal) await api('PATCH', `/owner/deals/${editingDeal}`, body);
+    else await api('POST', '/owner/deals', body);
+    toast(editingDeal ? 'Deal updated.' : 'Deal posted. It is live on the store.');
+    resetDealForm(); loadDeals();
+  } catch (e) { toast(e.message); btn.textContent = editingDeal ? 'Save Changes' : 'Post Deal'; }
+  finally { btn.disabled = false; }
+}
+
+async function setDealStatus(id, status) {
+  const d = ownerDeals.find(x => x.id === id);
+  try { await api('PATCH', `/owner/deals/${id}`, { status }); toast(status === 'hidden' ? 'Deal hidden.' : 'Deal is live.'); loadDeals(); }
+  catch (e) { toast(e.message); }
+}
+
+async function deleteDeal(id, btn) {
+  if (btn.dataset.sure !== '1') { btn.dataset.sure = '1'; btn.textContent = 'Sure?'; setTimeout(() => { btn.dataset.sure = ''; btn.textContent = 'Delete'; }, 3000); return; }
+  try { await api('DELETE', `/owner/deals/${id}`); toast('Deal deleted.'); if (editingDeal === id) resetDealForm(); loadDeals(); }
+  catch (e) { toast(e.message); }
+}
+
+async function loadDeals() {
+  try {
+    ownerDeals = await api('GET', '/owner/deals');
+    $('t-deals').innerHTML = ownerDeals.length ? ownerDeals.map(d => `
+      <tr>
+        <td>${d.photos.length ? `<img class="deal-thumb" src="${esc(d.photos[0].url)}" alt="">` : '<div class="deal-thumb"></div>'}${d.photos.length > 1 ? `<div style="font-size:9px;color:var(--fg3);margin-top:3px">${d.photos.length} photos</div>` : ''}</td>
+        <td style="color:var(--fg)">${esc(d.name)}</td>
+        <td style="font-variant-numeric:tabular-nums">${money(d.price)}</td>
+        <td>${d.status === 'sold' ? `<span class="badge badge-delivered">Sold${d.buyer ? ' to ' + esc(d.buyer) : ''}</span>`
+             : d.status === 'hidden' ? '<span class="badge badge-pending">Hidden</span>' : '<span class="badge badge-owner">Live</span>'}</td>
+        <td style="white-space:nowrap">${d.status === 'sold' ? `<button class="tog" data-c="${esc(d.content)}" onclick="copyText(this.dataset.c)">Copy Details</button>` : `
+          <button class="tog" onclick="editDeal(${d.id})">Edit</button>
+          <button class="tog" onclick="setDealStatus(${d.id}, '${d.status === 'hidden' ? 'active' : 'hidden'}')">${d.status === 'hidden' ? 'Show' : 'Hide'}</button>
+          <button class="tog" onclick="deleteDeal(${d.id}, this)">Delete</button>`}</td>
+      </tr>`).join('') : emptyRow(5, 'No deals yet. Post one above.');
+  } catch {}
+}
+
+renderPhotos();
+startPage().then(() => Promise.all([loadStats(), loadDeals(), loadProducts(), loadUsers(), loadOrders(), loadDeposits()]));
 </script>
 </body>
 </html>
