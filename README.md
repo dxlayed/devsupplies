@@ -53,6 +53,6 @@ npm start
 Starts on `http://localhost:3000`.
 
 ### 3. Web Pages
-- **Landing Page**: [http://localhost:3000/index.html](http://localhost:3000/index.html)
-- **Checkout**: [http://localhost:3000/checkout.html](http://localhost:3000/checkout.html)
-- **Client Portal**: [http://localhost:3000/dashboard.html](http://localhost:3000/dashboard.html)
+- **Landing Page**: [http://localhost:3000/](http://localhost:3000/)
+- **Checkout**: [http://localhost:3000/checkout](http://localhost:3000/checkout)
+- **Client Portal**: [http://localhost:3000/dashboard](http://localhost:3000/dashboard)

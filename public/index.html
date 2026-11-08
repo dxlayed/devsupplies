@@ -170,8 +170,9 @@
       <a href="#how">How it works</a>
       <a href="#security">Anti-Crack Security</a>
       <a href="#pricing">Pricing</a>
-      <a href="/dashboard.html">Client Portal</a>
-      <a href="/checkout.html" class="btn btn-primary">Get a key</a>
+      <a href="/dashboard">Client Portal</a>
+      <a href="/admin" id="adminNavLink" style="display:none;color:#f0b429;font-weight:700">⚙ Admin Panel</a>
+      <a href="/checkout" class="btn btn-primary">Get a key</a>
     </div>
   </nav>
 </div>
@@ -182,7 +183,7 @@
       <h1>Block the <span class="block">bots</span>.<br>Keep the <span class="pass">players</span>.</h1>
       <p class="lede">Waurks runs 24/7 in the cloud to monitor your Roblox friend requests, bounce spam botnets on sight, and auto-accept real players — without keeping your PC on or installing any extensions.</p>
       <div class="hero-cta">
-        <a href="/checkout.html?tier=weekly" class="btn btn-primary">Get a weekly key ($15)</a>
+        <a href="/checkout?tier=weekly" class="btn btn-primary">Get a weekly key ($15)</a>
         <a href="#how" class="btn btn-ghost">See how it works</a>
       </div>
       <p class="price-tag">100% Cloud-Powered. <b>No browser extensions. No downloads.</b></p>
@@ -259,7 +260,7 @@
           <li><svg viewBox="0 0 24 24" fill="none"><path d="M5 12l4 4 10-11" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>7-day instant key issuance</li>
           <li><svg viewBox="0 0 24 24" fill="none"><path d="M5 12l4 4 10-11" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Crypto & In-game item payment</li>
         </ul>
-        <a href="/checkout.html?tier=weekly" class="btn btn-ghost">Get Weekly Key</a>
+        <a href="/checkout?tier=weekly" class="btn btn-ghost">Get Weekly Key</a>
       </div>
 
       <div class="tier feature">
@@ -272,7 +273,7 @@
           <li><svg viewBox="0 0 24 24" fill="none"><path d="M5 12l4 4 10-11" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Priority threat updates</li>
           <li><svg viewBox="0 0 24 24" fill="none"><path d="M5 12l4 4 10-11" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Continuous background loop</li>
         </ul>
-        <a href="/checkout.html?tier=monthly" class="btn btn-primary">Get Monthly Key</a>
+        <a href="/checkout?tier=monthly" class="btn btn-primary">Get Monthly Key</a>
       </div>
 
       <div class="tier">
@@ -284,7 +285,7 @@
           <li><svg viewBox="0 0 24 24" fill="none"><path d="M5 12l4 4 10-11" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Device switch protection</li>
           <li><svg viewBox="0 0 24 24" fill="none"><path d="M5 12l4 4 10-11" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Direct Discord VIP role</li>
         </ul>
-        <a href="/checkout.html?tier=yearly" class="btn btn-ghost">Get Yearly Key</a>
+        <a href="/checkout?tier=yearly" class="btn btn-ghost">Get Yearly Key</a>
       </div>
     </div>
   </section>
@@ -310,6 +311,11 @@
 </div>
 
 <script>
+  // Show the Admin Panel tab only to admin Discord accounts (the server decides who is admin)
+  fetch('/api/v1/auth/status').then(r => r.json()).then(s => {
+    if (s.isAdmin) document.getElementById('adminNavLink').style.display = 'inline';
+  }).catch(() => {});
+
   const names = [
     { n:'ToddlerPlays22', real:true },
     { n:'FreeRobux_x9981', real:false },

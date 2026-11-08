@@ -165,7 +165,7 @@
       <svg viewBox="0 0 24 24" fill="none"><path d="M12 2l8 3v6c0 5-3.5 8.5-8 11-4.5-2.5-8-6-8-11V5l8-3z" fill="#4d8dff" fill-opacity=".2" stroke="#4d8dff" stroke-width="1.6"/><path d="M8.5 12l2.5 2.5 4.5-5" stroke="#34d17e" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
       Waurks Cloud Command Center
     </div>
-    <a href="/admin.html" id="adminLink" style="display:none;margin-left:auto;margin-right:12px;background:rgba(240,180,41,.15);color:#f0b429;border:1px solid rgba(240,180,41,.3);padding:6px 12px;border-radius:8px;font-size:13px;font-weight:700;text-decoration:none">⚙ Admin panel</a>
+    <a href="/admin" id="adminLink" style="display:none;margin-left:auto;margin-right:12px;background:rgba(240,180,41,.15);color:#f0b429;border:1px solid rgba(240,180,41,.3);padding:6px 12px;border-radius:8px;font-size:13px;font-weight:700;text-decoration:none">⚙ Admin panel</a>
     <div class="user-pill" id="userPill">
       <img src="https://cdn.discordapp.com/embed/avatars/0.png" id="avatarImg" alt="User Avatar">
       <span id="usernameDisplay">Not Connected</span>
@@ -410,7 +410,7 @@
     } catch (e) { user = null; }
     if (!user) {
       localStorage.removeItem('waurks_user');
-      window.location.href = '/checkout.html';
+      window.location.href = '/checkout';
       return;
     }
 

@@ -58,10 +58,6 @@
     <p style="color:var(--muted);font-size:13px;margin-bottom:16px">Sign in with an admin Discord account.</p>
     <a class="btn btn-approve" style="width:100%;padding:10px;justify-content:center" href="/api/v1/auth/discord/login">Sign in with Discord</a>
     <p id="notAdmin" style="display:none;color:var(--block);font-size:13px;margin-top:14px">This Discord account isn't an admin.</p>
-    <details style="margin-top:18px;text-align:left;font-size:12px;color:var(--muted)"><summary>Use admin key instead</summary>
-      <input type="password" id="adminSecretInput" class="input-field" placeholder="ADMIN_KEY from your settings">
-      <button class="btn btn-ghost" onclick="loginWithKey()">Unlock</button>
-    </details>
   </div>
 
   <div id="adminPortal" style="display:none">
@@ -69,7 +65,7 @@
       <div class="brand">Waurks Admin</div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <span class="badge-admin" id="whoami">ADMIN</span>
-        <a class="btn btn-ghost" href="/dashboard.html">Dashboard</a>
+        <a class="btn btn-ghost" href="/dashboard">Dashboard</a>
         <button class="btn btn-ghost" onclick="loadAll()">↻ Refresh</button>
         <button class="btn btn-ghost" onclick="logoutAdmin()">Log out</button>
       </div>
@@ -129,7 +125,6 @@
 <div class="toast" id="toast"></div>
 
 <script>
-  let adminKey = sessionStorage.getItem('waurks_admin_key') || '';
   const $ = id => document.getElementById(id);
   // Escape everything that comes from users (Discord names etc.) so nobody can inject code into this page.
   const esc = v => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -142,7 +137,6 @@
 
   async function api(path, body) {
     const headers = { 'Content-Type': 'application/json' };
-    if (adminKey) headers['x-admin-key'] = adminKey;
     const r = await fetch('/api/v1/admin' + path, { method: body ? 'POST' : 'GET', headers, body: body ? JSON.stringify(body) : undefined });
     const data = await r.json().catch(() => ({}));
     if (r.status === 403) { showLogin(); throw new Error('Not an admin'); }
@@ -168,8 +162,7 @@
     }
   }
 
-  function loginWithKey() { adminKey = $('adminSecretInput').value.trim(); sessionStorage.setItem('waurks_admin_key', adminKey); boot(); }
-  async function logoutAdmin() { sessionStorage.removeItem('waurks_admin_key'); adminKey = ''; await fetch('/api/v1/auth/logout', { method: 'POST' }); showLogin(); }
+  async function logoutAdmin() { await fetch('/api/v1/auth/logout', { method: 'POST' }); showLogin(); }
 
   document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
     document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x === t));

@@ -16,7 +16,16 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, '..', 'public')));
+// Clean URLs: /checkout instead of /checkout.html (old .html links redirect)
+app.use((req, res, next) => {
+  if ((req.method === 'GET' || req.method === 'HEAD') && req.path.endsWith('.html')) {
+    const clean = req.path === '/index.html' ? '/' : req.path.slice(0, -5);
+    const qs = req.originalUrl.slice(req.path.length);
+    return res.redirect(301, clean + qs);
+  }
+  next();
+});
+app.use(express.static(path.join(__dirname, '..', 'public'), { extensions: ['html'] }));
 
 // -------------------------------------------------------------
 // SESSIONS (signed, HttpOnly cookie — the browser can't forge or read it)
@@ -123,7 +132,7 @@ app.get('/api/v1/auth/discord/login', (req, res) => {
   const state = crypto.randomBytes(16).toString('hex');
   const url = discordAuth.getOAuthUrl(state);
   if (!url) {
-    return res.redirect('/checkout.html?error=discord_not_configured');
+    return res.redirect('/checkout?error=discord_not_configured');
   }
   setCookie(res, 'waurks_oauth_state', state, 600);
   res.redirect(url);
@@ -135,15 +144,15 @@ app.get('/api/v1/auth/discord/callback', async (req, res) => {
   const expected = parseCookies(req).waurks_oauth_state;
   setCookie(res, 'waurks_oauth_state', '', 0);
   if (!code || !state || !expected || !safeEqual(state, expected)) {
-    return res.redirect('/checkout.html?error=discord_login_failed');
+    return res.redirect('/checkout?error=discord_login_failed');
   }
   try {
     const user = await discordAuth.loginWithCode(String(code));
     startSession(res, user.id);
-    res.redirect('/checkout.html?login=ok');
+    res.redirect('/checkout?login=ok');
   } catch (err) {
     console.error('[auth] Discord login failed:', err.message);
-    res.redirect('/checkout.html?error=discord_login_failed');
+    res.redirect('/checkout?error=discord_login_failed');
   }
 });
 
@@ -419,10 +428,6 @@ app.post('/api/v1/roblox/disconnect', authMiddleware, async (req, res) => {
 // ADMIN BACKOFFICE API
 // Protected management endpoints for seller/staff
 // -------------------------------------------------------------
-const ADMIN_SECRET = process.env.ADMIN_KEY || '';
-if (ADMIN_SECRET.length < 16) {
-  console.warn('[admin] ADMIN_KEY is not set (or under 16 chars): the admin panel is locked.');
-}
 
 // Discord accounts that get the admin panel just by signing in.
 // Add more in Railway with ADMIN_DISCORD_IDS=id1,id2
@@ -442,11 +447,6 @@ async function adminAuthMiddleware(req, res, next) {
     const user = await getSessionUser(req);
     if (isAdminUser(user)) {
       req.admin = user.username;
-      return next();
-    }
-    const adminKey = req.headers['x-admin-key'];
-    if (ADMIN_SECRET.length >= 16 && adminKey && safeEqual(adminKey, ADMIN_SECRET)) {
-      req.admin = 'admin-key';
       return next();
     }
     return res.status(403).json({ error: 'Forbidden: admins only' });
