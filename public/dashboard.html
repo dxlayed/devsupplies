@@ -137,16 +137,6 @@
         </div>
       </div>
 
-      <div style="margin-top:8px">
-        <label class="setting">
-          <div><b>Decline bots</b><span class="muted">Turn down requests from accounts that look like bots.</span></div>
-          <span class="switch"><input type="checkbox" id="chkDeclineBots" checked onchange="saveProtectionSettings()"><span></span></span>
-        </label>
-        <label class="setting">
-          <div><b>Auto-accept real players</b><span class="muted">Off: you pick them on the Friend requests page. On: we say yes for you.</span></div>
-          <span class="switch"><input type="checkbox" id="chkAcceptPlayers" checked onchange="saveProtectionSettings()"><span></span></span>
-        </label>
-      </div>
     </div>
 
     <div id="accountNotConnectedView" class="connect">
@@ -284,8 +274,6 @@
         document.getElementById('rbxUserId').textContent = `ID ${data.account.robloxId}`;
         document.getElementById('rbxAvatar').src = data.account.avatarUrl || 'https://tr.rbxcdn.com/30DAY-AvatarHeadshot-default/150/150/AvatarHeadshot/Png/isCircular';
 
-        document.getElementById('chkDeclineBots').checked = data.account.autoDeclineBots;
-        document.getElementById('chkAcceptPlayers').checked = data.account.autoAcceptPlayers;
 
         const toggleBtn = document.getElementById('toggleCloudBtn');
         const runState = document.getElementById('runState');

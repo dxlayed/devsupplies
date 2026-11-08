@@ -540,7 +540,7 @@ class RobloxCloudService {
       let status = 'pending';
       if (evaluation.verdict === 'DECLINE') {
         botsCount++;
-        if (account.auto_decline_bots) {
+        {
           if (live) {
             const r = await this.robloxRequest(`https://friends.roblox.com/v1/users/${sid}/decline-friend-request`, 'POST', cookie, null, account.roblox_id);
             if (r.ok) status = 'declined'; else actionErrors.push(`decline ${name}: ${r.status}`);
@@ -598,7 +598,7 @@ class RobloxCloudService {
    *   strict  - only show accounts that clearly look real
    */
   async getRequests(userId) {
-    const account = await db.get(`SELECT filter_level, last_scan_at, last_error, is_active FROM roblox_accounts WHERE user_id = ?`, [userId]);
+    const account = await db.get(`SELECT filter_level, last_scan_at, last_error, is_active, auto_accept_players FROM roblox_accounts WHERE user_id = ?`, [userId]);
     if (!account) return { connected: false };
     const level = account.filter_level || 'normal';
     const rows = await db.all(
@@ -617,9 +617,27 @@ class RobloxCloudService {
       else visible.push(item);
     }
     return {
-      connected: true, level, active: !!account.is_active, lastScanAt: account.last_scan_at, lastError: account.last_error,
+      connected: true, level, active: !!account.is_active, autoAccept: !!account.auto_accept_players,
+      lastScanAt: account.last_scan_at, lastError: account.last_error,
       requests: visible, hidden
     };
+  }
+
+  /**
+   * Auto-accept switch on the Friend requests page. Turning it on also accepts
+   * the waiting requests that clearly look real, right away.
+   */
+  async setAutoAccept(userId, enabled) {
+    await db.run(`UPDATE roblox_accounts SET auto_accept_players = ? WHERE user_id = ?`, [enabled ? 1 : 0, userId]);
+    let accepted = 0;
+    if (enabled) {
+      const rows = await db.all(`SELECT target_id FROM friend_requests WHERE user_id = ? AND status = 'pending' AND verdict = 'ACCEPT'`, [userId]);
+      for (const r of rows) {
+        try { await this.answerRequest(userId, r.target_id, true); accepted++; } catch (e) { /* skip ones Roblox refuses */ }
+        await new Promise(res => setTimeout(res, 300));
+      }
+    }
+    return { success: true, autoAccept: !!enabled, accepted };
   }
 
   async setFilterLevel(userId, level) {

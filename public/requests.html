@@ -33,6 +33,10 @@
   .card .acts .btn{padding:9px 0}
   .card .why{font-size:12px;color:var(--red);margin:6px 0 10px}
   .card.gone{opacity:.4;pointer-events:none}
+  .card a.who{display:flex;flex-direction:column;align-items:center;width:100%;color:inherit}
+  .card a.who:hover .dn{color:var(--purple)}
+  .controls{display:flex;flex-direction:column;align-items:flex-end;gap:10px}
+  .auto{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600;cursor:pointer}
   .linkish{background:none;border:none;color:var(--muted);font:12px "Inter",sans-serif;cursor:pointer;margin-top:8px;text-decoration:underline}
   .linkish:hover{color:var(--text)}
 
@@ -69,7 +73,8 @@
       <h1>Friend requests <span class="count" id="count"></span></h1>
       <div class="status" id="status">Loading...</div>
     </div>
-    <div>
+    <div class="controls">
+      <label class="auto"><span>Auto-accept real people</span><span class="switch"><input type="checkbox" id="autoAccept"><span></span></span></label>
       <div class="seg" role="group" aria-label="Bot filter strength">
         <button data-level="relaxed">Relaxed</button>
         <button data-level="normal">Normal</button>
@@ -111,6 +116,8 @@
     return bits.join(' · ');
   }
 
+  const profileUrl = id => 'https://www.roblox.com/users/' + encodeURIComponent(String(id).replace(/\D/g, '')) + '/profile';
+
   function pic(r) {
     return r.avatar
       ? `<img class="pic" src="${esc(r.avatar)}" alt="" loading="lazy">`
@@ -122,18 +129,22 @@
     if (hiddenMode) {
       const declined = r.status === 'declined';
       return `<div class="card${off}">
-        ${pic(r)}
-        <div class="dn">${esc(r.displayName || r.name)}</div>
-        <div class="un">@${esc(r.name)}</div>
+        <a class="who" href="${profileUrl(r.id)}" target="_blank" rel="noopener" title="Open Roblox profile">
+          ${pic(r)}
+          <div class="dn">${esc(r.displayName || r.name)}</div>
+          <div class="un">@${esc(r.name)}</div>
+        </a>
         <div class="why">${esc((r.reasons || [])[0] || 'Looks like a bot')}</div>
         ${declined ? '<div class="facts">Declined for you</div>'
           : `<div class="acts"><button class="btn btn-line btn-sm" data-act="accept" data-id="${esc(r.id)}">Accept</button><button class="btn btn-line btn-sm" data-act="decline" data-id="${esc(r.id)}">Decline</button></div>`}
       </div>`;
     }
     return `<div class="card${off}">
-      ${pic(r)}
-      <div class="dn">${esc(r.displayName || r.name)}</div>
-      <div class="un">@${esc(r.name)}</div>
+      <a class="who" href="${profileUrl(r.id)}" target="_blank" rel="noopener" title="Open Roblox profile">
+        ${pic(r)}
+        <div class="dn">${esc(r.displayName || r.name)}</div>
+        <div class="un">@${esc(r.name)}</div>
+      </a>
       <div class="facts">${factsLine(r.facts || {})}</div>
       <div class="acts">
         <button class="btn btn-main btn-sm" data-act="accept" data-id="${esc(r.id)}">Accept</button>
@@ -147,6 +158,8 @@
     lastData = d;
     document.querySelectorAll('.seg button').forEach(b => b.classList.toggle('on', b.dataset.level === d.level));
     document.getElementById('segHelp').textContent = HELP[d.level] || '';
+    const sw = document.getElementById('autoAccept');
+    if (document.activeElement !== sw) sw.checked = !!d.autoAccept;
 
     const st = document.getElementById('status');
     if (d.lastError) { st.textContent = 'Problem: ' + d.lastError; st.className = 'status bad'; }
@@ -193,6 +206,20 @@
       await load();
     } catch (e) { notify(e.message || 'Could not change the filter', 'err'); }
   });
+
+  document.getElementById('autoAccept').onchange = async e => {
+    const on = e.target.checked;
+    try {
+      const r = await fetch('/api/v1/roblox/auto-accept', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled: on }) });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error);
+      notify(on ? (d.accepted ? `Auto-accept on. Accepted ${d.accepted} real ${d.accepted === 1 ? 'person' : 'people'}.` : 'Auto-accept on') : 'Auto-accept off', 'ok');
+    } catch (err) {
+      e.target.checked = !on;
+      notify(err.message || 'Could not change that', 'err');
+    }
+    load();
+  };
 
   document.getElementById('toggleHidden').onclick = () => { showHidden = !showHidden; if (lastData) render(lastData); };
 
