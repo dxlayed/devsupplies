@@ -49,6 +49,20 @@
   .pill.wait{color:var(--yellow);background:rgba(255,200,87,.1)}
   .empty{padding:22px;text-align:center;color:var(--muted);font-size:14px}
 
+  /* Extension download & load unpacked guide */
+  .ext-guide{margin-top:16px;background:var(--panel-2);border:1px solid var(--line);border-radius:14px;padding:18px}
+  .ext-guide-title{font-size:15px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+  .ext-steps{display:grid;gap:12px}
+  .ext-step{display:flex;gap:14px;align-items:flex-start}
+  .ext-step-num{width:26px;height:26px;border-radius:50%;background:var(--purple);color:#fff;font-weight:700;font-size:13px;display:grid;place-items:center;flex:none;margin-top:2px}
+  .ext-step-body{flex:1;font-size:14px}
+  .ext-step-body b{color:var(--text);display:block;font-size:14px;margin-bottom:2px}
+  .ext-step-body p{color:var(--muted);margin:0;font-size:13px;line-height:1.5}
+  .ext-copy-bar{display:inline-flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:4px 8px;margin-top:6px}
+  .btn-xs{padding:3px 8px;font-size:11px;border-radius:6px}
+  .link-purple{color:var(--purple);text-decoration:underline}
+  .link-purple:hover{color:#fff}
+
   .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.8);display:none;align-items:center;justify-content:center;z-index:999;padding:20px}
   .modal-overlay.open{display:flex}
   .modal{background:var(--panel);border:1px solid var(--line);border-radius:16px;max-width:540px;width:100%;padding:26px;position:relative;max-height:90vh;overflow:auto}
@@ -110,6 +124,73 @@
       <div>Plan: <b id="keyTierName">-</b></div>
       <div>Time left: <b id="keyCountdown">-</b></div>
       <div>Status: <b id="protectionState">-</b></div>
+    </div>
+  </div>
+
+  <!-- Browser Extension -->
+  <div class="box" id="extensionCard">
+    <div class="box-head">
+      <div>
+        <h2>Browser Extension</h2>
+        <p class="muted">No cookie required. Use our extension to filter friend requests directly through your browser login.</p>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <span class="tag" id="extStatusTag">Ready to install</span>
+        <a href="/api/v1/extension/download" class="btn btn-main btn-sm" download="waurks-extension.zip" style="display:inline-flex;align-items:center;gap:6px">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download Extension (.ZIP)
+        </a>
+      </div>
+    </div>
+
+    <div class="ext-guide">
+      <div class="ext-guide-title">
+        <span>How to install &amp; load unpacked in Chrome, Brave, or Edge:</span>
+        <button class="btn btn-line btn-xs" id="copyExtKeyBtn" onclick="copyExtKey()">Copy my key</button>
+      </div>
+      <div class="ext-steps">
+        <div class="ext-step">
+          <div class="ext-step-num">1</div>
+          <div class="ext-step-body">
+            <b>Download and extract</b>
+            <p>Click <a href="/api/v1/extension/download" class="link-purple" download="waurks-extension.zip">Download Extension (.ZIP)</a> and unzip it anywhere on your computer. You will see a <code class="mono">waurks-extension</code> folder.</p>
+          </div>
+        </div>
+        <div class="ext-step">
+          <div class="ext-step-num">2</div>
+          <div class="ext-step-body">
+            <b>Open Extensions page in your browser</b>
+            <p>In Chrome, Brave, or Edge, copy &amp; paste this into your browser's address bar:
+              <div class="ext-copy-bar">
+                <code class="mono">chrome://extensions</code>
+                <button class="btn btn-line btn-xs" onclick="navigator.clipboard.writeText('chrome://extensions');notify('Copied chrome://extensions to clipboard','ok')">Copy URL</button>
+              </div>
+              <span class="muted" style="display:block;margin-top:4px;font-size:12px">(Brave users: <code class="mono">brave://extensions</code> · Edge users: <code class="mono">edge://extensions</code>)</span>
+            </p>
+          </div>
+        </div>
+        <div class="ext-step">
+          <div class="ext-step-num">3</div>
+          <div class="ext-step-body">
+            <b>Turn on "Developer mode"</b>
+            <p>Turn on the <b>Developer mode</b> switch toggle located in the top-right corner of the Extensions page.</p>
+          </div>
+        </div>
+        <div class="ext-step">
+          <div class="ext-step-num">4</div>
+          <div class="ext-step-body">
+            <b>Click "Load unpacked"</b>
+            <p>Click the <b>Load unpacked</b> button in the top-left corner, and select the unzipped <code class="mono">waurks-extension</code> folder.</p>
+          </div>
+        </div>
+        <div class="ext-step">
+          <div class="ext-step-num">5</div>
+          <div class="ext-step-body">
+            <b>Enter your key &amp; start filtering</b>
+            <p>Click the <b>Waurks</b> shield icon in your browser toolbar (click the puzzle icon if hidden), paste your key (<code class="mono" id="guideKeySnippet">your key</code>), and click <b>Save key</b>. Done! Your requests will now sync to the website in real-time.</p>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -217,11 +298,11 @@
     await loadRobloxAccountStatus();
     await loadReviewQueue();
 
-    // Auto-refresh feed & review queue every 15 seconds
+    // Auto-refresh feed & review queue every 3 seconds for instant updates
     setInterval(async () => {
       await loadRobloxAccountStatus();
       await loadReviewQueue();
-    }, 8000);
+    }, 3000);
   });
 
   async function loadLicenseInfo() {
@@ -234,6 +315,8 @@
       if (data.licenses && data.licenses.length > 0) {
         activeLicense = data.licenses[0];
         document.getElementById('keyCodeText').textContent = activeLicense.key_code;
+        const snippet = document.getElementById('guideKeySnippet');
+        if (snippet) snippet.textContent = activeLicense.key_code;
         const planNames = { weekly: 'Weekly', monthly: 'Monthly', yearly: 'Lifetime' };
         document.getElementById('keyTierName').textContent = planNames[activeLicense.tier] || activeLicense.tier;
         document.getElementById('keyCountdown').textContent = activeLicense.tier === 'yearly' ? 'Forever' : `${activeLicense.daysRemaining} days`;
@@ -278,6 +361,17 @@
         const toggleBtn = document.getElementById('toggleCloudBtn');
         const runState = document.getElementById('runState');
         const isExt = data.account.mode === 'extension';
+        const extTag = document.getElementById('extStatusTag');
+        if (extTag) {
+          if (isExt && data.account.isActive && data.account.extensionOnline) {
+            setTag('extStatusTag', 'Extension Active', 'on');
+          } else if (isExt && (!data.account.extensionOnline || !data.account.isActive)) {
+            setTag('extStatusTag', 'Extension Offline (Open Browser)', 'wait');
+          } else {
+            setTag('extStatusTag', 'Ready to install', '');
+          }
+        }
+
         if (isExt && data.account.isActive && !data.account.extensionOnline) {
           toggleBtn.textContent = 'Pause';
           runState.textContent = 'Browser extension not running. Open your browser to keep filtering.';
@@ -522,6 +616,12 @@
     if (!activeLicense) return;
     navigator.clipboard.writeText(activeLicense.key_code);
     notify('Key copied', 'ok');
+  }
+
+  function copyExtKey() {
+    if (!activeLicense || !activeLicense.key_code) return notify('No active key yet', 'err');
+    navigator.clipboard.writeText(activeLicense.key_code);
+    notify('Key copied to clipboard!', 'ok');
   }
 
   function openCookieGuide() {

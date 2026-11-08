@@ -100,7 +100,7 @@ async function getProfile(id, base = {}, authGet = null) {
 /**
  * Fetch many profiles, a few at a time, so Roblox doesn't rate-limit us.
  */
-async function getProfiles(list, authGet = null, concurrency = 3) {
+async function getProfiles(list, authGet = null, concurrency = 10) {
   const out = new Array(list.length);
   let next = 0;
   async function worker() {

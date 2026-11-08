@@ -9,8 +9,8 @@
  */
 
 const DEFAULT_API = 'https://devsupplies.cc';
-const MAX_PAGES = 8;            // up to 200 requests per sync
-const BADGE_LOOKUPS_PER_SYNC = 16;
+const MAX_PAGES = 50;           // up to 1,250 requests per sync (handles 500+ backlogs instantly)
+const BADGE_LOOKUPS_PER_SYNC = 40;
 
 let running = false;
 let csrfToken = null;
@@ -69,24 +69,31 @@ async function getRequests() {
   return { list: all, complete };
 }
 
-// Badge counts need a login, so the extension looks them up and passes the numbers along.
+// Badge counts need a login, so the extension looks them up in parallel batches.
 async function collectBadges(list) {
   const out = {};
-  let lookups = 0;
+  const toFetch = [];
   for (const r of list) {
     const id = String(r.id ?? r.friendRequest?.senderId ?? '');
     if (!id) continue;
     if (badgeCache.has(id)) { out[id] = badgeCache.get(id); continue; }
-    if (lookups >= BADGE_LOOKUPS_PER_SYNC) continue;
-    lookups++;
-    try {
-      const res = await roblox(`https://badges.roblox.com/v1/users/${id}/badges?limit=25&sortOrder=Desc`);
-      if (res.ok) {
-        const d = await res.json();
-        const n = Array.isArray(d.data) ? d.data.length : null;
-        if (n !== null) { badgeCache.set(id, n); out[id] = n; }
-      }
-    } catch (e) { /* skip */ }
+    if (toFetch.length < BADGE_LOOKUPS_PER_SYNC) toFetch.push(id);
+  }
+
+  // Fetch concurrently in small batches of 6 for rapid speed
+  const BATCH = 6;
+  for (let i = 0; i < toFetch.length; i += BATCH) {
+    const slice = toFetch.slice(i, i + BATCH);
+    await Promise.all(slice.map(async id => {
+      try {
+        const res = await roblox(`https://badges.roblox.com/v1/users/${id}/badges?limit=25&sortOrder=Desc`);
+        if (res.ok) {
+          const d = await res.json();
+          const n = Array.isArray(d.data) ? d.data.length : null;
+          if (n !== null) { badgeCache.set(id, n); out[id] = n; }
+        }
+      } catch (e) { /* skip */ }
+    }));
   }
   return out;
 }
@@ -142,7 +149,8 @@ async function syncOnce() {
     message: reply.paused ? 'Paused on the website' : (reply.checking ? `Checking ${reply.checking} more...` : 'Running'),
     roblox: me.name, waiting: list.length, lastSync: Date.now()
   });
-  return reply.nextMs || 7000;
+  const hasBacklog = (reply.checking && reply.checking > 0) || (!complete && list.length >= 25);
+  return reply.nextMs || (hasBacklog ? 1200 : 7000);
 }
 
 // ---------- keep it running ----------

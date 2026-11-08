@@ -476,13 +476,13 @@ class RobloxCloudService {
     }
     const cookie = this.decrypt(account.encrypted_cookie, account.cookie_iv);
 
-    // 2. Get every waiting friend request (up to 8 pages of 25)
+    // 2. Get every waiting friend request (up to 40 pages of 25 = 1,000 requests)
     const pendingList = [];
     if (isTestCookie(cookie)) {
       pendingList.push(...demoRequests(cookie));
     } else {
       let cursor = '';
-      for (let page = 0; page < 8; page++) {
+      for (let page = 0; page < 40; page++) {
         const res = await this.robloxRequest(
           `https://friends.roblox.com/v1/my/friends/requests?limit=25&sortOrder=Desc${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`,
           'GET', cookie, null, account.roblox_id
@@ -541,9 +541,9 @@ class RobloxCloudService {
     const recent = await db.all(`SELECT target_id, reasons FROM friend_requests WHERE user_id = ? AND checked_at > datetime('now', '-1 hour')`, [userId]);
     // Only skip ones checked by the CURRENT filter (switching Standard <-> MM2 re-checks them)
     const fresh = new Set(recent.filter(r => mm2Filter === /MM2/.test(r.reasons || '')).map(r => String(r.target_id)));
-    // Newest first, at most 40 per pass so new requests show up within seconds even during a flood.
-    // The rest get picked up on the next passes (every few seconds).
-    const MAX_PER_PASS = mm2Filter ? 60 : 16;
+    // Newest first, up to 60-120 per pass so requests show up within seconds even during a massive 500+ flood.
+    // The rest get picked up on the rapid next passes.
+    const MAX_PER_PASS = mm2Filter ? 120 : 60;
     const unchecked = pendingList.filter(a => senderId(a) && !fresh.has(String(senderId(a))));
     const toCheck = unchecked.slice(0, MAX_PER_PASS);
     this.backlog = this.backlog || new Map();
@@ -561,7 +561,7 @@ class RobloxCloudService {
       mm2: a.mm2, online: a.online
     }));
 
-    let profiles, headshots = new Map(), authGet = null;
+    let profiles, headshots = new Map(), authGet = null, allPresences = null;
     if (live) {
       authGet = ext ? null : async url => {
         const r = await this.robloxRequest(url, 'GET', cookie, null, account.roblox_id);
@@ -574,12 +574,18 @@ class RobloxCloudService {
           const r = await this.robloxRequest(url, 'POST', cookie, body, account.roblox_id);
           return r.ok ? r.json() : null;
         };
-      const names = await robloxProfiles.getNames(bases.map(b => b.id), authPost);
+      const idsToCheck = bases.map(b => b.id);
+      const [names, gotHeadshots, presMap] = await Promise.all([
+        robloxProfiles.getNames(idsToCheck, authPost).catch(() => new Map()),
+        robloxProfiles.getHeadshots(idsToCheck).catch(() => new Map()),
+        presence.getUserPresences(idsToCheck, ext ? publicPost : (url, body) => this.robloxRequest(url, 'POST', cookie, body, account.roblox_id)).catch(() => null)
+      ]);
+      headshots = gotHeadshots || new Map();
+      allPresences = presMap;
       for (const b of bases) {
         const n = names.get(String(b.id));
         if (n) { b.name = b.name || n.name; b.displayName = b.displayName || n.displayName; if (n.hasVerifiedBadge) b.hasVerifiedBadge = true; }
       }
-      headshots = await robloxProfiles.getHeadshots(bases.map(b => b.id));
     }
     // Flood shield: how many requests were sent within 15 minutes of each one.
     // Uses Roblox's sent time; if Roblox doesn't give one, a backlog of 100+ waiting counts as a wave.
@@ -592,29 +598,28 @@ class RobloxCloudService {
       return sentTimes.filter(u => u && Math.abs(u - t) <= 15 * 60000).length;
     };
 
-    // Full profiles are fetched 8 at a time, and each request is saved the moment it's scored,
-    // so the page fills up while the rest are still being checked.
-    const CHUNK = 8;
+    // Profiles are fetched in concurrent chunks of 20, and each request is saved the moment it's scored,
+    // so the page fills up instantly while the rest are still being evaluated.
+    const CHUNK = 20;
     profiles = new Array(bases.length);
     const burst = new Array(bases.length).fill(0);
-    // Step 2 (Standard filter): online status, one batch call per chunk. null = couldn't check.
+    // Step 2 (Standard filter): online status from pre-fetched batch presence
     const online = new Array(bases.length).fill(null);
+    bases.forEach((b, k) => {
+      if (!live) {
+        online[k] = b.online === false ? false : true;
+      } else if (allPresences) {
+        const rec = allPresences.get(String(b.id));
+        online[k] = rec ? presence.normalizePresenceStatus(rec) : null;
+      }
+    });
+
     const loadChunk = async start => {
       const part = bases.slice(start, start + CHUNK);
-      const [got, pres] = await Promise.all([
-        (!live || mm2Filter) ? part : robloxProfiles.getProfiles(part, authGet, CHUNK),
-        !live ? new Map(part.map(b => [String(b.id), { userId: b.id, userPresenceType: b.online === false ? 0 : 1 }]))
-          : presence.getUserPresences(part.map(b => b.id),
-              ext ? publicPost : (url, body) => this.robloxRequest(url, 'POST', cookie, body, account.roblox_id)).catch(() => null)
-      ]);
-      part.forEach((b, k) => {
-        if (!pres) return;
-        const rec = pres.get(String(b.id));
-        online[start + k] = rec ? presence.normalizePresenceStatus(rec) : null;
-      });
+      const got = (!live || mm2Filter) ? part : await robloxProfiles.getProfiles(part, authGet, CHUNK);
       got.forEach((p, k) => { profiles[start + k] = p; });
       // Waves of brand-new accounts arriving together
-      const ts = got.map(p => (p.created ? new Date(p.created).getTime() : null));
+      const ts = got.map(p => (p && p.created ? new Date(p.created).getTime() : null));
       const fresh30 = ts.map(t => t !== null && Date.now() - t < 30 * 86400000);
       ts.forEach((t, k) => {
         burst[start + k] = !fresh30[k] ? 0 : ts.filter((u, j) => j !== k && fresh30[j] && Math.abs(u - t) < 3 * 86400000).length;
@@ -729,7 +734,7 @@ class RobloxCloudService {
     const level = account.filter_level || 'normal';
     const rows = await db.all(
       `SELECT * FROM friend_requests WHERE user_id = ? AND (status = 'pending' OR (status = 'declined' AND auto = 1 AND updated_at > datetime('now', '-7 days')))
-       ORDER BY COALESCE(sent_at, checked_at) DESC LIMIT 300`,
+       ORDER BY COALESCE(sent_at, checked_at, updated_at) DESC LIMIT 2000`,
       [userId]
     );
     const visible = [], hidden = [];

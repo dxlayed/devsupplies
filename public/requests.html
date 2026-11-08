@@ -77,7 +77,10 @@
     <div>
       <h1>Friend requests <span class="count" id="count"></span></h1>
       <div class="status" id="status">Loading...</div>
-      <button class="btn btn-line btn-sm" id="scanNow" style="margin-top:10px">Scan now</button>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap">
+        <button class="btn btn-line btn-sm" id="scanNow">Scan now</button>
+        <a href="/api/v1/extension/download" class="btn btn-line btn-sm" download="waurks-extension.zip" title="Download browser extension">Download extension</a>
+      </div>
     </div>
     <div class="controls">
       <label class="auto"><span>Auto-accept real people</span><span class="switch"><input type="checkbox" id="autoAccept"><span></span></span></label>
@@ -291,8 +294,17 @@
     if (s.isAdmin) document.getElementById('adminLink').style.display = '';
   }).catch(() => {});
 
-  load();
-  setInterval(load, 3000);
+  let pollTimeout = null;
+  function schedulePoll() {
+    clearTimeout(pollTimeout);
+    const delay = (lastData && (lastData.checking > 0 || lastData.busy)) ? 1500 : 3000;
+    pollTimeout = setTimeout(async () => {
+      await load();
+      schedulePoll();
+    }, delay);
+  }
+
+  load().then(() => schedulePoll());
 </script>
 </body>
 </html>

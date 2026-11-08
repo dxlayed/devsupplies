@@ -10,6 +10,10 @@ const paymentService = require('./services/paymentService');
 const discordAuth = require('./auth/discord');
 const robloxCloudService = require('./services/robloxCloudService');
 const ltcPayments = require('./services/ltcPayments');
+const zipExtension = require('./services/zipExtension');
+
+// Ensure latest extension zip is bundled and ready for download
+zipExtension.ensureExtensionZip();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -460,6 +464,20 @@ app.post('/api/v1/roblox/review-action', authMiddleware, async (req, res) => {
 
 // ---- Browser extension API (the extension only fetches + clicks; all logic is here) ----
 require('./extApi').mount(app);
+
+// Extension ZIP download endpoints
+app.get(['/api/v1/extension/download', '/download/extension', '/downloads/waurks-extension.zip'], (req, res) => {
+  try {
+    const buf = zipExtension.getExtensionZipBuffer();
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', 'attachment; filename="waurks-extension.zip"');
+    res.setHeader('Content-Length', buf.length);
+    res.setHeader('Cache-Control', 'no-cache');
+    res.end(buf);
+  } catch (err) {
+    res.status(500).json({ error: 'Could not generate extension zip: ' + err.message });
+  }
+});
 
 // ---- Friend requests page ----
 app.get('/api/v1/roblox/requests', authMiddleware, async (req, res) => {

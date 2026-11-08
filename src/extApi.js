@@ -16,7 +16,7 @@ const { keyService } = require('./services/keyService');
 const robloxCloudService = require('./services/robloxCloudService');
 
 const lastSync = new Map(); // licenseId -> time of last sync (rate limit)
-const MAX_REQUESTS_PER_SYNC = 200;
+const MAX_REQUESTS_PER_SYNC = 1200; // supports 500+ backlogs in one go
 
 function cleanId(v) {
   const s = String(v ?? '').replace(/\D/g, '');
@@ -106,7 +106,7 @@ function mount(app) {
         const id = cleanId(r?.id ?? r?.friendRequest?.senderId);
         if (!id) return null;
         const item = {
-          id: Number(id), name: r.name, displayName: r.displayName, description: r.description,
+          id: Number(id), name: r.name || '', displayName: r.displayName || r.name || '', description: r.description || '',
           created: r.created, isBanned: r.isBanned, hasVerifiedBadge: r.hasVerifiedBadge,
           friendRequest: r.friendRequest, mutualFriendsList: r.mutualFriendsList
         };
@@ -115,6 +115,26 @@ function mount(app) {
         return item;
       }).filter(Boolean);
       if (b.complete) list.complete = true;
+
+      // FAST STAGE: Save all incoming requests into SQLite immediately so all 500+ appear on the site instantly!
+      if (list.length > 0) {
+        for (const item of list) {
+          const sid = String(item.id);
+          const fr = item.friendRequest || {};
+          const displayName = item.displayName || item.name || `User ${sid}`;
+          const name = item.name || displayName;
+          db.run(
+            `INSERT INTO friend_requests (user_id, target_id, name, display_name, status, auto, sent_at, updated_at)
+             VALUES (?, ?, ?, ?, 'pending', 0, ?, CURRENT_TIMESTAMP)
+             ON CONFLICT(user_id, target_id) DO UPDATE SET
+               name = CASE WHEN excluded.name != '' THEN excluded.name ELSE friend_requests.name END,
+               display_name = CASE WHEN excluded.display_name != '' THEN excluded.display_name ELSE friend_requests.display_name END,
+               sent_at = COALESCE(excluded.sent_at, friend_requests.sent_at)
+             WHERE friend_requests.status = 'pending'`,
+            [user.id, sid, name, displayName, fr.sentAt || null]
+          ).catch(() => {});
+        }
+      }
 
       let result = { actions: [] };
       robloxCloudService.activeScans = robloxCloudService.activeScans || new Set();
@@ -129,9 +149,9 @@ function mount(app) {
         }
       }
 
-      const behind = robloxCloudService.backlog && robloxCloudService.backlog.get(user.id) > 0;
+      const behind = (robloxCloudService.backlog && robloxCloudService.backlog.get(user.id) > 0) || (!b.complete && list.length >= 25);
       if (account.scan_requested) await db.run(`UPDATE roblox_accounts SET scan_requested = 0 WHERE id = ?`, [account.id]);
-      res.json({ ok: true, actions: actions.concat(result.actions || []), checking: behind ? robloxCloudService.backlog.get(user.id) : 0, nextMs: behind ? 1500 : wait() });
+      res.json({ ok: true, actions: actions.concat(result.actions || []), checking: (robloxCloudService.backlog && robloxCloudService.backlog.get(user.id)) || 0, nextMs: behind ? 1000 : wait() });
     } catch (err) {
       console.error('[ext] sync failed:', err.message);
       res.status(500).json({ error: 'Server error, retrying soon', nextMs: 10000 });
