@@ -44,6 +44,7 @@ function demoRequests(cookie = '') {
     { id: 4958672, name: 'mia_plays', displayName: 'Mia', description: '', created: d(5), badgeCount: 1, friendsCount: 2, avatarAssetCount: 4 },
     { id: 5069783, name: 'qwrtzpls8812', displayName: 'qwrtzpls8812', description: '', created: d(9), badgeCount: 0, friendsCount: 0, avatarAssetCount: 1 },
     { id: 7392016, name: 'old_sleeper', displayName: 'Sleeper', description: '', created: d(900), badgeCount: 25, friendsCount: 40, avatarAssetCount: 9, online: false },
+    { id: 7503127, name: 'afk_trader', displayName: 'AFK', description: '', created: d(600), badgeCount: 25, friendsCount: 30, mm2: true, online: false },
     { id: 7281905, name: 'kev_trades', displayName: 'Kev', description: '', created: d(3), badgeCount: 0, friendsCount: 1, avatarAssetCount: 3, mm2: true },
     { id: 6170894, name: 'skate_jay', displayName: 'Jay', description: 'new here', created: d(2), badgeCount: 0, friendsCount: 0, avatarAssetCount: 3, paidItem: { name: 'Black Beanie', price: 75 } }
   ];
@@ -574,8 +575,7 @@ class RobloxCloudService {
       const part = bases.slice(start, start + CHUNK);
       const [got, pres] = await Promise.all([
         (!live || mm2Filter) ? part : robloxProfiles.getProfiles(part, authGet, CHUNK),
-        mm2Filter ? null
-          : !live ? new Map(part.map(b => [String(b.id), { userId: b.id, userPresenceType: b.online === false ? 0 : 1 }]))
+        !live ? new Map(part.map(b => [String(b.id), { userId: b.id, userPresenceType: b.online === false ? 0 : 1 }]))
           : presence.getUserPresences(part.map(b => b.id),
               (url, body) => this.robloxRequest(url, 'POST', cookie, body, account.roblox_id)).catch(() => null)
       ]);
@@ -609,9 +609,15 @@ class RobloxCloudService {
       if (mm2Filter) {
         // MM2 filter: the badge is the only thing we look at
         mm2 = live ? await robloxProfiles.ownsBadge(sid, MM2_LEVEL10_BADGE, authGet) : !!bases[i].mm2;
-        evaluation = mm2 === true
-          ? { verdict: 'ACCEPT', threatScore: 0, reasons: ['MM2 trades accepted'] }
-          : { verdict: 'DECLINE', threatScore: 100, reasons: [mm2 === null ? 'No MM2 Level 10 badge (inventory private)' : 'No MM2 Level 10 badge'] };
+        if (mm2 !== true) {
+          // Step 1 failed: no badge
+          evaluation = { verdict: 'DECLINE', threatScore: 100, reasons: [mm2 === null ? 'No MM2 Level 10 badge (inventory private)' : 'No MM2 Level 10 badge'] };
+        } else if (online[i] === false) {
+          // Step 2 failed: has the badge but is offline
+          evaluation = { verdict: 'DECLINE', threatScore: 70, reasons: ['Offline (failed step 2)', 'Has MM2 Level 10 badge'] };
+        } else {
+          evaluation = { verdict: 'ACCEPT', threatScore: 0, reasons: ['MM2 trades accepted'] };
+        }
       } else {
         // Standard filter: the full bot checker, no badge check
         evaluation = await detectionEngine.evaluateProfile(profile, {
@@ -704,7 +710,7 @@ class RobloxCloudService {
       };
       if (account.accept_filter === 'mm2') {
         // MM2 filter: only people confirmed to have the Level 10 badge are shown. Everything else is filtered.
-        if (r.status === 'pending' && item.facts.mm2 === true) visible.push(item);
+        if (r.status === 'pending' && item.facts.mm2 === true && r.verdict === 'ACCEPT') visible.push(item);
         else {
           if (r.status === 'pending' && !item.reasons.some(x => /MM2/.test(x))) item.reasons = ['Checking for MM2 badge...'];
           hidden.push(item);
