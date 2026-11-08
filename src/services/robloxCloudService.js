@@ -550,6 +550,17 @@ class RobloxCloudService {
       }
       headshots = await robloxProfiles.getHeadshots(bases.map(b => b.id));
     }
+    // Flood shield: how many requests were sent within 15 minutes of each one.
+    // Uses Roblox's sent time; if Roblox doesn't give one, a backlog of 100+ waiting counts as a wave.
+    const sentTimes = pendingList.map(a => Date.parse(a.friendRequest?.sentAt || a.sentAt || '') || null);
+    const haveTimes = sentTimes.filter(Boolean).length >= Math.min(10, pendingList.length);
+    const waveOf = item => {
+      if (!haveTimes) return pendingList.length >= 100 ? pendingList.length : 0;
+      const t = Date.parse(item.friendRequest?.sentAt || item.sentAt || '');
+      if (!t) return 0;
+      return sentTimes.filter(u => u && Math.abs(u - t) <= 15 * 60000).length;
+    };
+
     // Full profiles are fetched 8 at a time, and each request is saved the moment it's scored,
     // so the page fills up while the rest are still being checked.
     const CHUNK = 8;
@@ -592,7 +603,8 @@ class RobloxCloudService {
           forUserId: userId,
           mutualFriends: mutuals,
           metInGame: !!fr.sourceUniverseId || /ingame/i.test(String(fr.originSourceType || '')),
-          burstSiblings: burst[i]
+          burstSiblings: burst[i],
+          wave: waveOf(toCheck[i])
         });
       }
 

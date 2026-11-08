@@ -157,6 +157,22 @@ class DetectionEngine {
     if (IMPERSONATION.test(displayName) && !IMPERSONATION.test(name)) bot('content', 30, `Display name "${displayName}" pretends to be official`);
     else if (IMPERSONATION.test(name)) bot('content', 20, 'Name pretends to be official');
 
+    // ---- Flood shield ----
+    // Bot farms send hundreds of requests at the same moment, often from old, bought or stolen
+    // accounts that look normal one by one. If this request is part of a big wave, it's a bot
+    // unless there's real proof it's someone you know.
+    if ((ctx.wave || 0) >= 25) {
+      const mutualsNow = ctx.mutualFriends || 0;
+      let knownReal = mutualsNow >= 1 || !!ctx.metInGame;
+      if (!knownReal) {
+        const n = await this.networkInfo(id, bio, ctx.forUserId);
+        knownReal = n.humanReports >= 1;
+      }
+      if (!knownReal) {
+        return result('DECLINE', 95, [`Part of a flood of ${ctx.wave} requests sent at the same time`]);
+      }
+    }
+
     // ---- Paid avatar items: bots don't spend Robux on clothes ----
     // Instant accept, unless the profile itself is a scam (scam bio/name/fake official name).
     if (p.paidItem && !botGroups.has('content')) {
@@ -171,8 +187,15 @@ class DetectionEngine {
       else if (age < 3) bot('age', 25, `Only ${Math.floor(age)} day${Math.floor(age) === 1 ? '' : 's'} old`);
       else if (age < 7) bot('age', 18, `Only ${Math.floor(age)} days old`);
       else if (age < 30) { score += 8; reasons.push(`${Math.floor(age)} days old`); }
-      else if (age > 730) human(25, `${Math.floor(age / 365)} years old`);
-      else if (age > 365) human(15, 'Over a year old');
+      else if (age > 365) {
+        // An old account is only a good sign if it was actually played on.
+        // Bought/stolen bot accounts are old but have no badges and few friends.
+        const badges = p.badgeCount, friends = p.friendsCount;
+        const used = (badges !== null && badges !== undefined && badges >= 3) || (friends !== null && friends !== undefined && friends >= 25);
+        const neverUsed = badges === 0 && (friends === null || friends === undefined || friends < 15);
+        if (neverUsed) bot('age', 40, `${Math.floor(age / 365)} year old account that never played`);
+        else if (used) human(age > 730 ? 25 : 15, age > 730 ? `${Math.floor(age / 365)} years old` : 'Over a year old');
+      }
     }
 
     // ---- 3. Activity ----

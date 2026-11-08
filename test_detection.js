@@ -42,6 +42,15 @@ const cases = [
     P({ name: 'tom', created: days(10) })],
 ];
 
+// Aged bot accounts (old, bought/stolen) and floods
+cases.push(
+  ['5 year old account that never played', 'DECLINE',
+    P({ name: 'dodfixase', created: days(1900), badgeCount: 0, friendsCount: 6, groupsCount: 0, avatarAssetCount: 2 })],
+  // 8 friends makes it less certain: hidden on Normal/Strict (score 40+), not auto-declined
+  ['8 year old never-played account, 8 friends', 'REVIEW',
+    P({ name: 'Twwetygirrll', created: days(3000), badgeCount: 0, friendsCount: 8, avatarAssetCount: 3, groupsCount: 0 })],
+);
+
 const notDecline = [
   ['New account but met in a game together', { metInGame: true },
     P({ name: 'skater_kid', created: days(2), badgeCount: 0, friendsCount: 0, avatarAssetCount: 3 })],
@@ -64,6 +73,20 @@ const notDecline = [
     show(label, r);
     if (r.verdict === 'DECLINE') { failed++; console.log('    FAIL: should not be declined'); }
   }
+
+  // Flood: an active-looking account that's part of a wave of 300 requests
+  const fl = await engine.evaluateProfile(P({ name: 'Aquasama21', created: days(400), badgeCount: 25, friendsCount: 24, avatarAssetCount: 6 }), { wave: 300 });
+  show('Normal-looking account inside a flood of 300', fl);
+  if (fl.verdict !== 'DECLINE') { failed++; console.log('    FAIL: flood not caught'); }
+  const flPaid = await engine.evaluateProfile(P({ name: 'rich_bot', created: days(900), badgeCount: 25, friendsCount: 40, paidItem: { name: 'Hat', price: 100 } }), { wave: 300 });
+  show('Paid item but inside a flood', flPaid);
+  if (flPaid.verdict !== 'DECLINE') { failed++; console.log('    FAIL: flood with paid item not caught'); }
+  const flFriend = await engine.evaluateProfile(P({ name: 'my_real_friend', created: days(900), badgeCount: 25, friendsCount: 40 }), { wave: 300, mutualFriends: 2 });
+  show('Inside a flood but has mutual friends', flFriend);
+  if (flFriend.verdict === 'DECLINE') { failed++; console.log('    FAIL: real friend declined in a flood'); }
+  const flGame = await engine.evaluateProfile(P({ name: 'met_in_mm2', created: days(30), badgeCount: 5, friendsCount: 10 }), { wave: 300, metInGame: true });
+  show('Inside a flood but met in a game', flGame);
+  if (flGame.verdict === 'DECLINE') { failed++; console.log('    FAIL: in-game friend declined in a flood'); }
 
   // Bot farm: same bio copied on several fresh accounts. The 3rd one should be caught
   // even though each account alone only looks "new and empty".
