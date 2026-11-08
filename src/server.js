@@ -461,8 +461,10 @@ app.post('/api/v1/roblox/review-action', authMiddleware, async (req, res) => {
 app.post('/api/v1/roblox/scan-now', authMiddleware, async (req, res) => {
   try {
     const result = await robloxCloudService.runCloudScan(req.user.id);
+    await robloxCloudService.setScanError(req.user.id, null);
     res.json({ success: true, ...result });
   } catch (err) {
+    await robloxCloudService.setScanError(req.user.id, err.message).catch(() => {});
     res.status(400).json({ error: err.message });
   }
 });
@@ -774,7 +776,7 @@ if (require.main === module) {
   app.listen(PORT, () => {
     console.log(`[Waurks] Cloud Anti-Bot Server running on http://localhost:${PORT}`);
     // Start background cloud daemon
-    robloxCloudService.startDaemon(60);
+    robloxCloudService.startDaemon(10);
     // Watch the LTC wallet and issue keys automatically when payments confirm
     ltcPayments.start(orderId => paymentService.completeOrder(orderId), 30);
     // Lifetime keys: make older "yearly" keys never expire too

@@ -115,7 +115,7 @@
   <!-- Roblox account -->
   <div class="box">
     <div class="box-head">
-      <div><h2>Roblox account</h2><p class="muted">Link your Roblox so we can handle your friend requests.</p></div>
+      <div><h2>Roblox account</h2><p class="muted">Link your Roblox and we handle your friend requests by ourselves. No need to press anything.</p></div>
       <button class="btn btn-line btn-sm" onclick="openCookieGuide()">Where do I find my cookie?</button>
     </div>
 
@@ -230,7 +230,7 @@
     setInterval(async () => {
       await loadRobloxAccountStatus();
       await loadReviewQueue();
-    }, 15000);
+    }, 8000);
   });
 
   async function loadLicenseInfo() {
@@ -288,9 +288,13 @@
 
         const toggleBtn = document.getElementById('toggleCloudBtn');
         const runState = document.getElementById('runState');
-        if (data.account.isActive) {
+        if (data.account.isActive && data.account.lastError) {
           toggleBtn.textContent = 'Pause';
-          runState.textContent = 'Running';
+          runState.textContent = 'Problem: ' + data.account.lastError;
+          runState.style.color = 'var(--red)';
+        } else if (data.account.isActive) {
+          toggleBtn.textContent = 'Pause';
+          runState.textContent = 'Running, checks every few seconds';
           runState.style.color = 'var(--green)';
         } else {
           toggleBtn.textContent = 'Turn back on';
@@ -304,7 +308,7 @@
         document.getElementById('statAccepted').textContent = data.stats.playersAccepted;
 
         if (data.account.lastScanAt) {
-          document.getElementById('lastScanTime').textContent = 'Last checked ' + new Date(data.account.lastScanAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+          document.getElementById('lastScanTime').textContent = 'Last checked ' + new Date(String(data.account.lastScanAt).replace(' ', 'T') + 'Z').toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
         }
 
         // Logs

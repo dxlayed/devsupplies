@@ -28,6 +28,10 @@ const cases = [
     P({ name: 'coolguy_ben', created: days(1200), badgeCount: 25, friendsCount: 14, avatarAssetCount: 1, groupsCount: 0 })],
   ['Big creator with followers', 'ACCEPT',
     P({ name: 'BuildWithNova', description: 'I make obbies! check my games', created: days(1500), badgeCount: 25, friendsCount: 200, followersCount: 5400, groupsCount: 9, avatarAssetCount: 15 })],
+  ['New account wearing a paid hat', 'ACCEPT',
+    P({ name: 'kxqz_new', created: days(1), badgeCount: 0, friendsCount: 0, avatarAssetCount: 3, paidItem: { name: 'Pirate Captain\'s Hat', price: 2000 } })],
+  ['Scam bio even with a paid item', 'DECLINE',
+    P({ name: 'helper_1', description: 'free robux at rbx-win.xyz', created: days(2), badgeCount: 0, friendsCount: 0, paidItem: { name: 'Cap', price: 50 } })],
   ['Verified account', 'ACCEPT',
     P({ name: 'SomeStar', hasVerifiedBadge: true, created: days(3) })],
 

@@ -17,6 +17,11 @@ db.run(`CREATE TABLE IF NOT EXISTS profile_cache (
   fetched_at DATETIME DEFAULT CURRENT_TIMESTAMP
 )`).catch(() => {});
 
+db.run(`CREATE TABLE IF NOT EXISTS asset_prices (
+  asset_id TEXT PRIMARY KEY, name TEXT, price INTEGER, is_limited INTEGER, creator_id TEXT,
+  fetched_at DATETIME DEFAULT CURRENT_TIMESTAMP
+)`).catch(() => {});
+
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 // GET JSON with a timeout and a polite retry when Roblox says "slow down" (429)
@@ -48,7 +53,7 @@ async function getProfile(id, base = {}, authGet = null) {
   if (cached) return { ...JSON.parse(cached.data), ...pickDefined(base) };
 
   const [user, friends, followers, followings, badges, groups, avatar, names] = await Promise.all([
-    base.created && base.description !== undefined ? null : getJson(`https://users.roblox.com/v1/users/${id}`),
+    base.created && base.description !== undefined && base.name ? null : getJson(`https://users.roblox.com/v1/users/${id}`),
     getJson(`https://friends.roblox.com/v1/users/${id}/friends/count`),
     getJson(`https://friends.roblox.com/v1/users/${id}/followers/count`),
     getJson(`https://friends.roblox.com/v1/users/${id}/followings/count`),
@@ -75,7 +80,8 @@ async function getProfile(id, base = {}, authGet = null) {
     groupsCount: Array.isArray(groups?.data) ? groups.data.length : null,
     // How many items the avatar wears. 0-2 usually means the default avatar nobody customized.
     avatarAssetCount: Array.isArray(avatar?.assets) ? avatar.assets.length : null,
-    nameChanges: Array.isArray(names?.data) ? names.data.length : null
+    nameChanges: Array.isArray(names?.data) ? names.data.length : null,
+    paidItem: await findPaidItem(id, avatar?.assets)
   };
 
   db.run(
@@ -102,6 +108,31 @@ async function getProfiles(list, authGet = null, concurrency = 3) {
   }
   await Promise.all(Array.from({ length: Math.min(concurrency, list.length) }, worker));
   return out;
+}
+
+/**
+ * Is this account wearing something that cost Robux? Returns the first paid item or null.
+ * Paid = price above 0, or a classic Limited. Free items (including free UGC limiteds) don't count,
+ * and neither do items the account made itself (creators own their own items for free).
+ * Prices are cached for 7 days since they rarely change.
+ */
+async function findPaidItem(userId, assets) {
+  if (!Array.isArray(assets)) return null;
+  for (const a of assets.slice(0, 20)) {
+    const aid = String(a.id);
+    let row = await db.get(`SELECT * FROM asset_prices WHERE asset_id = ? AND fetched_at > datetime('now', '-7 days')`, [aid]).catch(() => null);
+    if (!row) {
+      const d = await getJson(`https://economy.roblox.com/v2/assets/${aid}/details`, 2);
+      if (!d) continue;
+      row = { asset_id: aid, name: d.Name || a.name, price: Number(d.PriceInRobux) || 0, is_limited: d.IsLimited ? 1 : 0, creator_id: String(d.Creator?.Id ?? '') };
+      db.run(`INSERT INTO asset_prices (asset_id, name, price, is_limited, creator_id, fetched_at) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(asset_id) DO UPDATE SET name = excluded.name, price = excluded.price, is_limited = excluded.is_limited, creator_id = excluded.creator_id, fetched_at = excluded.fetched_at`,
+        [row.asset_id, row.name, row.price, row.is_limited, row.creator_id]).catch(() => {});
+    }
+    if (row.creator_id && row.creator_id === String(userId)) continue;
+    if (row.price > 0 || row.is_limited) return { id: aid, name: row.name, price: row.price, limited: !!row.is_limited };
+  }
+  return null;
 }
 
 function numOrNull(v) { return typeof v === 'number' ? v : null; }

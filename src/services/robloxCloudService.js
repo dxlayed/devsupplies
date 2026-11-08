@@ -2,6 +2,8 @@ const crypto = require('crypto');
 const db = require('../database');
 const detectionEngine = require('./detectionEngine');
 const robloxProfiles = require('./robloxProfiles');
+db.run(`ALTER TABLE roblox_accounts ADD COLUMN last_error TEXT`).catch(() => {});
+db.run(`ALTER TABLE roblox_accounts ADD COLUMN last_error_at DATETIME`).catch(() => {});
 const { keyService } = require('./keyService');
 
 const ENCRYPTION_SECRET = process.env.ENCRYPTION_SECRET || 'waurks-cloud-roblox-vault-secret-key-32b';
@@ -213,6 +215,7 @@ class RobloxCloudService {
         customBlacklist: account.custom_blacklist || '',
         customWhitelist: account.custom_whitelist || '',
         lastScanAt: account.last_scan_at,
+        lastError: account.last_error || null,
         licenseKey: account.key_code,
         licenseTier: account.tier,
         keyExpiresAt: account.key_expires_at
@@ -387,8 +390,7 @@ class RobloxCloudService {
     );
 
     if (!activeLicense) {
-      await db.run(`UPDATE roblox_accounts SET is_active = 0 WHERE id = ?`, [account.id]);
-      throw new Error('Active Waurks subscription required. Please purchase or renew your key to continue cloud protection.');
+      throw new Error('You need an active key. Get one on the Get a key page.');
     }
 
     // Ensure account is linked to the active license
@@ -415,9 +417,9 @@ class RobloxCloudService {
     if (!requestsRes.ok) {
       if (requestsRes.status === 401) {
         await db.run(`UPDATE roblox_accounts SET is_active = 0 WHERE id = ?`, [account.id]);
-        throw new Error('Roblox cookie expired. Please reconnect your Roblox account on the dashboard.');
+        throw new Error('Your Roblox login expired. Unlink and paste a fresh cookie.');
       }
-      throw new Error(`Roblox Friends API HTTP ${requestsRes.status}`);
+      throw new Error(`Roblox said no when we asked for your friend requests (error ${requestsRes.status}). Try again in a minute.`);
     }
 
     const requestsData = await requestsRes.json();
@@ -465,6 +467,7 @@ class RobloxCloudService {
     const burst = createdAt.map((t, i) => !isNew[i] ? 0
       : createdAt.filter((u, j) => j !== i && isNew[j] && Math.abs(u - t) < 3 * 86400000).length);
 
+    const actionErrors = [];
     for (let i = 0; i < toCheck.length; i++) {
       const applicant = { ...toCheck[i], id: senderId(toCheck[i]), name: profiles[i].name || toCheck[i].name, displayName: profiles[i].displayName || toCheck[i].displayName };
       const profile = profiles[i];
@@ -506,37 +509,30 @@ class RobloxCloudService {
         }
       }
 
-      // Custom Minimum Account Age check
-      if (account.min_account_age_days && profile.created) {
-        const ageDays = (Date.now() - new Date(profile.created).getTime()) / 86400000;
-        if (ageDays < account.min_account_age_days && evaluation.verdict !== 'DECLINE') {
-          evaluation.verdict = 'DECLINE';
-          evaluation.threatScore = Math.max(evaluation.threatScore, 85);
-          evaluation.reasons = [`Account is younger than custom filter (${Math.floor(ageDays)}d < ${account.min_account_age_days}d)`];
-        }
-      }
 
       // Execute action on Roblox
       if (evaluation.verdict === 'DECLINE') {
         if (account.auto_decline_bots) {
-          await this.robloxRequest(
+          const r = await this.robloxRequest(
             `https://friends.roblox.com/v1/users/${applicant.id}/decline-friend-request`,
             'POST',
             cookie,
             null,
             account.roblox_id
           );
+          if (!r.ok) actionErrors.push(`decline ${applicant.name}: ${r.status}`);
         }
         botsCount++;
       } else if (evaluation.verdict === 'ACCEPT') {
         if (account.auto_accept_players) {
-          await this.robloxRequest(
+          const r = await this.robloxRequest(
             `https://friends.roblox.com/v1/users/${applicant.id}/accept-friend-request`,
             'POST',
             cookie,
             null,
             account.roblox_id
           );
+          if (!r.ok) actionErrors.push(`accept ${applicant.name}: ${r.status}`);
         }
         playersCount++;
       } else {
@@ -569,6 +565,9 @@ class RobloxCloudService {
     });
 
     await db.run(`UPDATE roblox_accounts SET last_scan_at = CURRENT_TIMESTAMP WHERE id = ?`, [account.id]);
+    if (actionErrors.length) {
+      throw new Error(`Roblox blocked ${actionErrors.length} accept/decline action(s) (${actionErrors.slice(0, 2).join(', ')}). Your cookie may need refreshing.`);
+    }
 
     return {
       scanned: toCheck.length,
@@ -627,27 +626,62 @@ class RobloxCloudService {
   /**
    * Starts the 24/7 background worker loop
    */
-  startDaemon(intervalSeconds = 60) {
+  /**
+   * Real-time watcher. Every few seconds it asks Roblox "how many friend requests
+   * are waiting?" (one cheap call per account) and only runs a full check when that
+   * number goes up or new ones show up. Errors are saved so the account page can show them.
+   */
+  startDaemon(intervalSeconds = 10) {
     if (this.isDaemonRunning) return;
     this.isDaemonRunning = true;
-    console.log(`[Waurks Cloud Daemon] Started 24/7 background bot scanner (checking every ${intervalSeconds}s)...`);
+    this.scanning = new Set();
+    this.lastCounts = new Map();
+    console.log(`[watcher] checking friend requests every ${intervalSeconds}s`);
 
-    this.daemonInterval = setInterval(async () => {
+    const tick = async () => {
+      let accounts = [];
       try {
-        const activeAccounts = await db.all(
-          `SELECT DISTINCT user_id FROM roblox_accounts WHERE is_active = 1`
-        );
-        for (const row of activeAccounts) {
-          try {
-            await this.runCloudScan(row.user_id);
-          } catch (e) {
-            // Silently ignore or log per-account scan tick
-          }
-        }
-      } catch (e) {
-        console.error('[Waurks Cloud Daemon Error]:', e.message);
+        accounts = await db.all(`SELECT * FROM roblox_accounts WHERE is_active = 1`);
+      } catch (e) { return; }
+      for (const acc of accounts) {
+        if (this.scanning.has(acc.user_id)) continue;
+        this.scanning.add(acc.user_id);
+        this.watchOne(acc).finally(() => this.scanning.delete(acc.user_id));
       }
-    }, intervalSeconds * 1000);
+    };
+    this.daemonInterval = setInterval(tick, intervalSeconds * 1000);
+    setTimeout(tick, 2000);
+  }
+
+  async watchOne(acc) {
+    try {
+      const cookie = this.decrypt(acc.encrypted_cookie, acc.cookie_iv);
+      const isTest = cookie.startsWith('TEST_COOKIE_') || cookie.startsWith('DEMO_');
+      let count = null;
+      if (!isTest) {
+        const r = await this.robloxRequest('https://friends.roblox.com/v1/my/friends/requests/count', 'GET', cookie, null, acc.roblox_id);
+        if (r.status === 401) throw new Error('Your Roblox login expired. Unlink and paste a fresh cookie.');
+        if (r.ok) count = (await r.json()).count ?? null;
+      }
+      // Only do the full check when something changed, or at least once a minute
+      const prev = this.lastCounts.get(acc.user_id);
+      const stale = !acc.last_scan_at || Date.now() - new Date(String(acc.last_scan_at).replace(' ', 'T') + 'Z').getTime() > 60000;
+      if (isTest ? !stale : (count === 0 || (count === prev && !stale))) {
+        if (count !== null) this.lastCounts.set(acc.user_id, count);
+        await this.setScanError(acc.user_id, null);
+        return;
+      }
+      await this.runCloudScan(acc.user_id);
+      this.lastCounts.set(acc.user_id, count);
+      await this.setScanError(acc.user_id, null);
+    } catch (e) {
+      await this.setScanError(acc.user_id, e.message);
+    }
+  }
+
+  async setScanError(userId, message) {
+    await db.run(`UPDATE roblox_accounts SET last_error = ?, last_error_at = CASE WHEN ? IS NULL THEN last_error_at ELSE CURRENT_TIMESTAMP END WHERE user_id = ?`,
+      [message, message, userId]).catch(() => {});
   }
 
   /**

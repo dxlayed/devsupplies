@@ -157,6 +157,13 @@ class DetectionEngine {
     if (IMPERSONATION.test(displayName) && !IMPERSONATION.test(name)) bot('content', 30, `Display name "${displayName}" pretends to be official`);
     else if (IMPERSONATION.test(name)) bot('content', 20, 'Name pretends to be official');
 
+    // ---- Paid avatar items: bots don't spend Robux on clothes ----
+    // Instant accept, unless the profile itself is a scam (scam bio/name/fake official name).
+    if (p.paidItem && !botGroups.has('content')) {
+      const it = p.paidItem;
+      return result('ACCEPT', 0, [`Wearing ${it.name}${it.price ? ` (${it.price} Robux)` : ' (Limited)'}`]);
+    }
+
     // ---- 2. Account age ----
     const age = ageDays(p.created);
     if (age !== null) {
