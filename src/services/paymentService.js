@@ -3,24 +3,16 @@ const db = require('../database');
 const { keyService, TIER_CONFIG } = require('./keyService');
 const discordNotification = require('./discordNotification');
 
-// Demo deposit wallet addresses for crypto display
-const CRYPTO_WALLETS = {
-  USDT: 'TYDzsYUEWv863p6p2hK14XqNmsY8vG7c1Q (TRC20)',
-  USDC: '0x71C...4e8 (ERC20 / Polygon)',
-  BTC: 'bc1q9w8z7y6x5w4v3u2t1s0r9q8p7o6n5m4l3k2j1',
-  ETH: '0x89205A3A3b2A69De6Dbf7f01ED13B2108B2c43e7',
-  SOL: '9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM',
-  LTC: 'LTC3w98v7u6t5s4r3q2p1o0n9m8l7k6j5h4g',
-  TRX: 'TYDzsYUEWv863p6p2hK14XqNmsY8vG7c1Q',
-  BNB: '0x71C...4e8 (BEP20)',
-  DOGE: 'D8v9w8z7y6x5w4v3u2t1s0r9q8p7o6n5m'
-};
+const ltcPayments = require('./ltcPayments');
+
+// Orders being completed right now, so a key is never issued twice for one order
+const completing = new Set();
 
 class PaymentService {
   /**
    * Creates a new pending order
    */
-  async createOrder({ userId, tier, paymentMethod, cryptoCurrency = 'USDT' }) {
+  async createOrder({ userId, tier, paymentMethod }) {
     const config = TIER_CONFIG[tier];
     if (!config) throw new Error(`Invalid tier: ${tier}`);
 
@@ -29,17 +21,35 @@ class PaymentService {
 
     let tradeTicketId = null;
     let cryptoAddress = null;
+    let cryptoCurrency = null;
+    let ltc = null;
 
     if (paymentMethod === 'crypto') {
-      cryptoAddress = CRYPTO_WALLETS[cryptoCurrency] || CRYPTO_WALLETS.USDT;
+      // Litecoin only. Reuse the customer's still-valid quote for the same plan instead of making a new one.
+      const existing = await db.get(
+        `SELECT * FROM orders WHERE user_id = ? AND tier = ? AND status = 'pending' AND payment_method = 'crypto'
+           AND ltc_txid IS NULL AND ltc_expires_at > datetime('now', '+5 minutes') ORDER BY id DESC LIMIT 1`,
+        [userId, tier]
+      );
+      if (existing) return this.describe(existing);
+      const open = await db.get(
+        `SELECT COUNT(*) AS n FROM orders WHERE user_id = ? AND status = 'pending' AND payment_method = 'crypto' AND ltc_expires_at > datetime('now')`,
+        [userId]
+      );
+      if (open.n >= 3) throw new Error('You already have 3 open payments. Finish or wait for one to expire.');
+      ltc = await ltcPayments.quote(amountUsd);
+      cryptoAddress = ltc.address;
+      cryptoCurrency = 'LTC';
     } else if (paymentMethod === 'items') {
       tradeTicketId = `TRADE-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
     }
 
     await db.run(
-      `INSERT INTO orders (order_id, user_id, tier, amount_usd, payment_method, crypto_currency, crypto_address, trade_ticket_id, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
-      [orderId, userId, tier, amountUsd, paymentMethod, cryptoCurrency, cryptoAddress, tradeTicketId]
+      `INSERT INTO orders (order_id, user_id, tier, amount_usd, payment_method, crypto_currency, crypto_address, trade_ticket_id, status,
+         ltc_amount_sats, ltc_rate, ltc_expires_at, ltc_index)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)`,
+      [orderId, userId, tier, amountUsd, paymentMethod, cryptoCurrency, cryptoAddress, tradeTicketId,
+       ltc ? ltc.sats : null, ltc ? ltc.rate : null, ltc ? ltc.expiresAtDb : null, ltc ? ltc.index : null]
     );
 
     if (paymentMethod === 'items') {
@@ -53,17 +63,43 @@ class PaymentService {
       }).catch(() => {});
     }
 
-    return {
-      orderId,
-      tier,
-      tierName: config.name,
-      amountUsd,
-      paymentMethod,
-      cryptoCurrency,
-      cryptoAddress,
-      tradeTicketId,
-      status: 'pending'
+    return this.describe(await db.get(`SELECT * FROM orders WHERE order_id = ?`, [orderId]));
+  }
+
+  /**
+   * What the customer's checkout page needs to know about an order
+   */
+  describe(order, keyCode = null) {
+    const cfg = TIER_CONFIG[order.tier] || {};
+    const out = {
+      orderId: order.order_id,
+      tier: order.tier,
+      tierName: cfg.name,
+      amountUsd: order.amount_usd,
+      paymentMethod: order.payment_method,
+      tradeTicketId: order.trade_ticket_id,
+      status: order.status,
+      keyCode: order.status === 'completed' ? keyCode : null
     };
+    if (order.payment_method === 'crypto' && order.ltc_amount_sats) {
+      const expired = !order.ltc_txid && new Date(order.ltc_expires_at.replace(' ', 'T') + 'Z') < new Date();
+      Object.assign(out, {
+        cryptoCurrency: 'LTC',
+        cryptoAddress: order.crypto_address,
+        ltcAmount: ltcPayments.satsToLtc(order.ltc_amount_sats),
+        ltcRate: order.ltc_rate,
+        expiresAt: new Date(order.ltc_expires_at.replace(' ', 'T') + 'Z').toISOString(),
+        txid: order.ltc_txid,
+        ltcReceived: ltcPayments.satsToLtc(order.ltc_received_sats || 0),
+        confirmations: order.ltc_confirmations || 0,
+        confirmationsRequired: ltcPayments.REQUIRED_CONFS,
+        paymentState: order.status === 'completed' ? 'paid'
+          : order.status === 'cancelled' ? 'cancelled'
+          : order.ltc_txid ? 'confirming'
+          : expired ? 'expired' : 'waiting'
+      });
+    }
+    return out;
   }
 
   /**
@@ -72,14 +108,23 @@ class PaymentService {
   async completeOrder(orderId) {
     const order = await db.get(`SELECT * FROM orders WHERE order_id = ?`, [orderId]);
     if (!order) throw new Error('Order not found');
+    if (completing.has(orderId)) throw new Error('Order is already being completed');
     if (order.status === 'completed') {
       // Already completed, return existing key
       const lic = await db.get(`SELECT * FROM licenses WHERE id = ?`, [order.license_id]);
       return { order, license: lic };
     }
 
-    // Issue key
-    const license = await keyService.issueKey(order.user_id, order.tier);
+    completing.add(orderId);
+    let license;
+    try {
+      // Re-check inside the lock so two callers can't both issue a key
+      const fresh = await db.get(`SELECT status FROM orders WHERE order_id = ?`, [orderId]);
+      if (fresh.status === 'completed') {
+        const done = await db.get(`SELECT * FROM orders WHERE order_id = ?`, [orderId]);
+        return { order: done, license: await db.get(`SELECT * FROM licenses WHERE id = ?`, [done.license_id]) };
+      }
+      license = await keyService.issueKey(order.user_id, order.tier);
 
     // Update order status
     await db.run(
@@ -88,6 +133,9 @@ class PaymentService {
        WHERE order_id = ?`,
       [license.licenseId, orderId]
     );
+    } finally {
+      completing.delete(orderId);
+    }
 
     // Dispatch Discord Webhook sale alert
     const user = await db.get(`SELECT username FROM users WHERE id = ?`, [order.user_id]);

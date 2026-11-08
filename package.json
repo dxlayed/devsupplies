@@ -12,6 +12,9 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@noble/hashes": "^1.7.1",
+    "@scure/base": "^1.2.4",
+    "@scure/bip32": "^1.6.2",
     "cors": "^2.8.6",
     "dotenv": "^18.0.9",
     "express": "^5.3.0",

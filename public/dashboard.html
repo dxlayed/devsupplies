@@ -438,8 +438,8 @@
       if (data.licenses && data.licenses.length > 0) {
         activeLicense = data.licenses[0];
         document.getElementById('keyCodeText').textContent = activeLicense.key_code;
-        document.getElementById('keyTierName').textContent = activeLicense.tier.toUpperCase();
-        document.getElementById('keyCountdown').textContent = `${activeLicense.daysRemaining} days remaining`;
+        document.getElementById('keyTierName').textContent = activeLicense.tier === 'yearly' ? 'LIFETIME' : activeLicense.tier.toUpperCase();
+        document.getElementById('keyCountdown').textContent = activeLicense.tier === 'yearly' ? 'Never expires' : `${activeLicense.daysRemaining} days remaining`;
 
         if (activeLicense.isExpired) {
           document.getElementById('tierBadge').textContent = 'EXPIRED';

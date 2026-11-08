@@ -157,6 +157,15 @@
     .plans{grid-template-columns:1fr}
     .methods{grid-template-columns:1fr}
   }
+  .mrow{display:flex;justify-content:space-between;margin-bottom:8px;font-size:14px}
+  .mrow span:first-child{color:var(--muted)}
+  .mlabel{font-size:11px;text-transform:uppercase;color:var(--muted);margin:12px 0 6px;letter-spacing:.04em}
+  .copybox{display:flex;align-items:center;gap:8px;background:var(--surface-2);border:1px solid var(--line-solid);border-radius:10px;padding:10px 12px;cursor:pointer}
+  .copybox:hover{border-color:var(--guard)}
+  .copyhint{margin-left:auto;font-size:11px;color:var(--guard);font-weight:600;flex:none}
+  .paystatus{background:rgba(77,141,255,.1);border:1px solid rgba(77,141,255,.3);color:#cfe0ff;border-radius:10px;padding:12px;font-size:14px;font-weight:600;text-align:center}
+  .paystatus.seen{background:rgba(52,209,126,.12);border-color:rgba(52,209,126,.35);color:var(--pass)}
+  .paystatus.bad{background:rgba(255,77,94,.1);border-color:rgba(255,77,94,.3);color:#ffb3bb}
 </style>
 </head>
 <body>
@@ -198,7 +207,7 @@
   <!-- Step 2: Payment method -->
   <div class="methods">
     <div class="method active" id="mCrypto" onclick="setMethod('crypto')">
-      <span class="ic" style="background:#f7931a">₿</span> Instant Crypto
+      <span class="ic" style="background:#345d9d">Ł</span> Litecoin (LTC)
     </div>
     <div class="method" id="mItems" onclick="setMethod('items')">
       <span class="ic" style="background:#3a4257">🎮</span> In-Game Items (Middleman Trade)
@@ -229,12 +238,12 @@
         <div class="save">Save $45</div>
       </div>
 
-      <div class="plan best" id="planYearly" data-tier="yearly" data-amt="115" data-label="Yearly (365 Days)" onclick="selectPlan(this)">
+      <div class="plan best" id="planYearly" data-tier="yearly" data-amt="115" data-label="Lifetime (forever)" onclick="selectPlan(this)">
         <div class="tick"><svg viewBox="0 0 24 24" fill="none"><path d="M5 12l4 4 10-11" stroke="#1a2234" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
         <span class="deal best">BEST DEAL</span>
-        <div class="len">Yearly</div>
+        <div class="len">Lifetime</div>
         <div class="price">$115 <span class="was">$230</span></div>
-        <div class="note">Full 365 days (~$2.20/week)</div>
+        <div class="note">Pay once, yours forever</div>
         <div class="save">Save $115</div>
       </div>
     </div>
@@ -243,16 +252,7 @@
   <!-- Payment Details Selector -->
   <div class="card">
     <div id="cryptoPanel">
-      <p class="coins-note">Select your preferred cryptocurrency:</p>
-      <div class="coins">
-        <div class="coin-chip selected" onclick="selectCoin('USDT', this)"><span class="b" style="background:#26a17b">T</span>USDT (TRC20)</div>
-        <div class="coin-chip" onclick="selectCoin('USDC', this)"><span class="b" style="background:#2775ca">$</span>USDC</div>
-        <div class="coin-chip" onclick="selectCoin('SOL', this)"><span class="b" style="background:#14f195;color:#000">◎</span>Solana (SOL)</div>
-        <div class="coin-chip" onclick="selectCoin('BTC', this)"><span class="b" style="background:#f7931a">₿</span>Bitcoin (BTC)</div>
-        <div class="coin-chip" onclick="selectCoin('ETH', this)"><span class="b" style="background:#627eea">◆</span>Ethereum (ETH)</div>
-        <div class="coin-chip" onclick="selectCoin('LTC', this)"><span class="b" style="background:#345d9d">Ł</span>Litecoin (LTC)</div>
-        <div class="coin-chip" onclick="selectCoin('DOGE', this)"><span class="b" style="background:#c2a633">Ð</span>Dogecoin (DOGE)</div>
-      </div>
+      <p class="coins-note"><b style="color:#fff">Pay with Litecoin (LTC).</b> You'll get an exact amount and address. Your key is issued automatically about 3 minutes after you send.</p>
     </div>
 
     <div class="items-panel" id="itemsPanel">
@@ -284,30 +284,24 @@
       <h3 class="modal-title" id="mOrderTitle">Complete Your Payment</h3>
       <p style="color:var(--muted);font-size:14px;margin-bottom:18px" id="mOrderSub">Send payment to generate your key immediately.</p>
 
-      <div style="background:#090d15;border:1px solid var(--line-solid);border-radius:12px;padding:16px;margin-bottom:18px;">
-        <div style="display:flex;justify-content:space-between;margin-bottom:8px">
-          <span style="color:var(--muted)">Order ID:</span>
-          <span style="font-family:monospace;font-weight:700" id="mOrderId">ORD-XXXX</span>
+      <div style="background:#090d15;border:1px solid var(--line-solid);border-radius:12px;padding:16px;margin-bottom:14px;">
+        <div class="mrow"><span>Order</span><span style="font-family:monospace;font-weight:700" id="mOrderId">ORD-XXXX</span></div>
+        <div class="mrow"><span>Price</span><span style="font-weight:700" id="mOrderTotal">$0.00</span></div>
+        <div id="mLtcBlock">
+          <div class="mlabel">Send exactly</div>
+          <div class="copybox" onclick="copyText('mLtcAmount')"><b id="mLtcAmount" style="color:var(--pass);font-size:20px">0.00000000</b> <span>LTC</span><span class="copyhint">copy</span></div>
+          <div class="mlabel">To this Litecoin address</div>
+          <div class="copybox" onclick="copyText('mDepositAddress')"><span id="mDepositAddress" style="font-family:monospace;font-size:12px;word-break:break-all;color:#4d8dff">—</span><span class="copyhint">copy</span></div>
+          <a id="mWalletLink" href="#" style="display:inline-block;font-size:12px;color:var(--guard);margin-top:6px">Open in my wallet app →</a>
         </div>
-        <div style="display:flex;justify-content:space-between;margin-bottom:8px">
-          <span style="color:var(--muted)">Total Due:</span>
-          <span style="font-weight:700;color:var(--pass)" id="mOrderTotal">$0.00</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;margin-bottom:8px" id="mAddressRow">
-          <span style="color:var(--muted)">Deposit Address:</span>
-          <span style="font-family:monospace;font-size:11px;color:#4d8dff;word-break:break-all;max-width:300px;text-align:right" id="mDepositAddress">0x...</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;display:none" id="mTicketRow">
-          <span style="color:var(--muted)">Trade Ticket:</span>
-          <span style="font-family:monospace;font-weight:700;color:var(--gold)" id="mTradeTicket">TRADE-XXXX</span>
-        </div>
+        <div class="mrow" style="display:none" id="mTicketRow"><span>Trade ticket</span><span style="font-family:monospace;font-weight:700;color:var(--gold)" id="mTradeTicket">TRADE-XXXX</span></div>
       </div>
 
-      <!-- Instant Simulation Button for Dev/Demo -->
-      <button class="pay-btn" style="width:100%;margin-bottom:10px" onclick="simulatePaymentApproval()">
-        ⚡ Simulate Instant Payment Confirmation
-      </button>
-      <p style="font-size:11px;color:var(--muted);text-align:center">Instant mock validation enabled for seamless testing.</p>
+      <div id="mPayStatus" class="paystatus">⏳ Waiting for your payment…</div>
+      <p id="mPayNote" style="font-size:12px;color:var(--muted);margin-top:10px;line-height:1.5">
+        This address is only for this order. Send the full amount: if less arrives, your key won't unlock. If you send from an exchange, add a little for their fee. Price is locked for <span id="mCountdown">30:00</span>.
+      </p>
+      <button class="pay-btn" id="simBtn" style="width:100%;margin-top:10px;display:none" onclick="simulatePaymentApproval()">⚡ Simulate payment (test mode)</button>
     </div>
 
     <!-- Key Issued Success View -->
@@ -337,7 +331,7 @@
   let currentUser = JSON.parse(localStorage.getItem('waurks_user') || 'null');
   let selectedPlan = null;
   let paymentMethod = 'crypto';
-  let selectedCoin = 'USDT';
+  let pollTimer = null, countdownTimer = null;
   let currentOrderId = null;
 
   // Initialize URL query params (e.g. ?tier=monthly)
@@ -349,6 +343,7 @@
       if (currentUser) localStorage.setItem('waurks_user', JSON.stringify(currentUser));
       else localStorage.removeItem('waurks_user');
       document.getElementById('devLoginBtn').style.display = s.devLogin ? '' : 'none';
+      document.getElementById('simBtn').style.display = s.devLogin ? 'block' : 'none';
     } catch (e) { currentUser = null; }
     const err = new URLSearchParams(window.location.search).get('error');
     if (err === 'discord_not_configured') alert('Discord login is not set up on the server yet.');
@@ -419,12 +414,6 @@
     refreshBar();
   }
 
-  function selectCoin(coin, el) {
-    selectedCoin = coin;
-    document.querySelectorAll('.coin-chip').forEach(c => c.classList.remove('selected'));
-    el.classList.add('selected');
-  }
-
   function selectPlan(el) {
     document.querySelectorAll('.plan').forEach(p => p.classList.remove('sel'));
     el.classList.add('sel');
@@ -443,7 +432,7 @@
 
     if (selectedPlan) {
       amtEl.textContent = '$' + selectedPlan.amt;
-      lblEl.textContent = selectedPlan.label + ' · ' + (paymentMethod === 'crypto' ? 'Crypto' : 'In-game items');
+      lblEl.textContent = selectedPlan.label + ' · ' + (paymentMethod === 'crypto' ? 'Litecoin' : 'In-game items');
     } else {
       amtEl.textContent = '$—';
       lblEl.textContent = 'Select a plan to start';
@@ -457,7 +446,7 @@
       btn.textContent = 'Pick a plan to continue';
     } else {
       btn.disabled = false;
-      btn.textContent = paymentMethod === 'crypto' ? `Pay $${selectedPlan.amt} with Crypto` : `Open Middleman Trade Ticket`;
+      btn.textContent = paymentMethod === 'crypto' ? `Pay ${selectedPlan.amt} with LTC` : `Open Middleman Trade Ticket`;
     }
   }
 
@@ -468,13 +457,11 @@
       const resp = await fetch('/api/v1/orders/create', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'x-user-id': currentUser.id
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           tier: selectedPlan.tier,
-          paymentMethod,
-          cryptoCurrency: selectedCoin
+          paymentMethod
         })
       });
 
@@ -486,12 +473,18 @@
       document.getElementById('mOrderTotal').textContent = '$' + data.order.amountUsd + ' USD';
 
       if (paymentMethod === 'crypto') {
-        document.getElementById('mAddressRow').style.display = 'flex';
+        document.getElementById('mLtcBlock').style.display = 'block';
         document.getElementById('mTicketRow').style.display = 'none';
-        document.getElementById('mDepositAddress').textContent = data.order.cryptoAddress;
-        document.getElementById('mOrderTitle').textContent = `Pay with ${data.order.cryptoCurrency}`;
+        document.getElementById('mPayStatus').style.display = 'block';
+        document.getElementById('mPayNote').style.display = 'block';
+        document.getElementById('mOrderTitle').textContent = 'Pay with Litecoin';
+        document.getElementById('mOrderSub').textContent = 'Your key appears here automatically once the payment confirms. Keep this window open, or check your dashboard later.';
+        showLtcOrder(data.order);
+        startPolling();
       } else {
-        document.getElementById('mAddressRow').style.display = 'none';
+        document.getElementById('mLtcBlock').style.display = 'none';
+        document.getElementById('mPayStatus').style.display = 'none';
+        document.getElementById('mPayNote').style.display = 'none';
         document.getElementById('mTicketRow').style.display = 'flex';
         document.getElementById('mTradeTicket').textContent = data.order.tradeTicketId;
         document.getElementById('mOrderTitle').textContent = 'Item Escrow Ticket Created';
@@ -526,6 +519,60 @@
     }
   }
 
+  function showLtcOrder(o) {
+    document.getElementById('mLtcAmount').textContent = o.ltcAmount;
+    document.getElementById('mDepositAddress').textContent = o.cryptoAddress;
+    document.getElementById('mWalletLink').href = 'litecoin:' + o.cryptoAddress + '?amount=' + o.ltcAmount;
+    clearInterval(countdownTimer);
+    const end = new Date(o.expiresAt).getTime();
+    const tick = () => {
+      const left = Math.max(0, end - Date.now());
+      document.getElementById('mCountdown').textContent = Math.floor(left / 60000) + ':' + String(Math.floor(left / 1000) % 60).padStart(2, '0');
+    };
+    tick(); countdownTimer = setInterval(tick, 1000);
+    renderPayState(o);
+  }
+
+  function renderPayState(o) {
+    const el = document.getElementById('mPayStatus');
+    el.className = 'paystatus';
+    if (o.paymentState === 'paid' && o.keyCode) {
+      clearInterval(pollTimer); clearInterval(countdownTimer);
+      document.getElementById('modalOrderView').style.display = 'none';
+      document.getElementById('modalSuccessView').style.display = 'block';
+      document.getElementById('issuedKeyDisplay').textContent = o.keyCode;
+    } else if (o.paymentState === 'confirming') {
+      el.classList.add('seen');
+      el.textContent = '✅ Payment received! Waiting for the network to confirm (' + o.confirmations + '/' + o.confirmationsRequired + ')…';
+    } else if (o.paymentState === 'expired' || o.paymentState === 'cancelled') {
+      clearInterval(countdownTimer);
+      el.classList.add('bad');
+      el.textContent = '⌛ This price expired. Close this and click Pay again for a new one. Already sent? Contact support with your order ID.';
+    } else {
+      el.textContent = '⏳ Waiting for your payment…';
+    }
+  }
+
+  function startPolling() {
+    clearInterval(pollTimer);
+    pollTimer = setInterval(async () => {
+      if (!currentOrderId) return;
+      try {
+        const r = await fetch('/api/v1/orders/' + encodeURIComponent(currentOrderId));
+        const d = await r.json();
+        if (d.order) renderPayState(d.order);
+      } catch (e) {}
+    }, 10000);
+  }
+
+  function copyText(id) {
+    const t = document.getElementById(id).textContent;
+    navigator.clipboard.writeText(t).then(() => {
+      const el = document.getElementById(id).parentElement.querySelector('.copyhint');
+      if (el) { el.textContent = 'copied!'; setTimeout(() => el.textContent = 'copy', 1500); }
+    }).catch(() => {});
+  }
+
   function copyIssuedKey() {
     const key = document.getElementById('issuedKeyDisplay').textContent;
     navigator.clipboard.writeText(key);
@@ -533,6 +580,7 @@
   }
 
   function closeModal() {
+    clearInterval(pollTimer); clearInterval(countdownTimer);
     document.getElementById('checkoutModal').classList.remove('open');
   }
 </script>

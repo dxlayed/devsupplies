@@ -16,12 +16,14 @@ const TIER_CONFIG = {
     durationMs: 30 * 24 * 60 * 60 * 1000,
     prefix: 'WAURKS-M30'
   },
+  // Stored as 'yearly' in the database for compatibility, but sold as a Lifetime key (never expires)
   yearly: {
-    name: 'Yearly',
+    name: 'Lifetime',
     price: 115.00,
-    days: 365,
-    durationMs: 365 * 24 * 60 * 60 * 1000,
-    prefix: 'WAURKS-Y1Y'
+    days: 36500,
+    lifetime: true,
+    durationMs: 36500 * 24 * 60 * 60 * 1000,
+    prefix: 'WAURKS-LIFE'
   }
 };
 
@@ -131,6 +133,7 @@ class KeyService {
       valid: true,
       licenseId: license.id,
       tier: license.tier,
+      lifetime: license.tier === 'yearly',
       expiresAt: license.expires_at,
       daysRemaining,
       hoursRemaining,

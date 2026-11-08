@@ -9,6 +9,7 @@ const detectionEngine = require('./services/detectionEngine');
 const paymentService = require('./services/paymentService');
 const discordAuth = require('./auth/discord');
 const robloxCloudService = require('./services/robloxCloudService');
+const ltcPayments = require('./services/ltcPayments');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -25,6 +26,57 @@ app.use((req, res, next) => {
   }
   next();
 });
+
+// -------------------------------------------------------------
+// MAINTENANCE MODE (switched on/off from the admin panel)
+// -------------------------------------------------------------
+const siteSettings = { maintenance: false, maintenanceMessage: '' };
+db.run(`CREATE TABLE IF NOT EXISTS site_settings (key TEXT PRIMARY KEY, value TEXT)`)
+  .then(() => db.all(`SELECT key, value FROM site_settings`))
+  .then(rows => {
+    for (const r of rows) {
+      if (r.key === 'maintenance') siteSettings.maintenance = r.value === '1';
+      if (r.key === 'maintenanceMessage') siteSettings.maintenanceMessage = r.value || '';
+    }
+  })
+  .catch(err => console.error('[settings]', err.message));
+
+async function saveSetting(key, value) {
+  await db.run(
+    `INSERT INTO site_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+    [key, value]
+  );
+}
+
+function maintenancePage(message) {
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Waurks — Maintenance</title>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@900&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0a0e16;color:#e8edf6;font-family:Inter,sans-serif;padding:20px;text-align:center}
+.card{max-width:460px;background:#121826;border:1px solid #263044;border-radius:18px;padding:36px 28px}
+.ic{width:60px;height:60px;border-radius:50%;background:rgba(240,180,41,.15);color:#f0b429;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:28px}
+h1{font-family:Archivo,sans-serif;font-size:28px;margin:0 0 10px}p{color:#8b97ad;font-size:15px;line-height:1.6;margin:0}
+a{display:inline-block;margin-top:24px;color:#4d8dff;font-size:12px;text-decoration:none}</style></head>
+<body><div class="card"><div class="ic">🛠</div><h1>Maintenance mode</h1>
+<p>${esc(message || "Waurks is down for maintenance. We'll be back shortly.")}</p>
+<a href="/api/v1/auth/discord/login">Staff sign in</a></div></body></html>`;
+}
+
+app.use(async (req, res, next) => {
+  if (!siteSettings.maintenance) return next();
+  // Always reachable: login, the admin panel and its API, health checks
+  const p = req.path;
+  if (p.startsWith('/api/v1/auth/') || p === '/admin' || p.startsWith('/api/v1/admin/') || p === '/health') return next();
+  try {
+    if (isAdminUser(await getSessionUser(req))) return next();
+  } catch (e) { /* fall through to the maintenance page */ }
+  if (p.startsWith('/api/')) {
+    return res.status(503).json({ error: 'maintenance', message: siteSettings.maintenanceMessage || 'Down for maintenance' });
+  }
+  res.status(503).set('Retry-After', '600').type('html').send(maintenancePage(siteSettings.maintenanceMessage));
+});
+
 app.use(express.static(path.join(__dirname, '..', 'public'), { extensions: ['html'] }));
 
 // -------------------------------------------------------------
@@ -170,7 +222,7 @@ app.get('/api/v1/tiers', (req, res) => {
 // -------------------------------------------------------------
 app.post('/api/v1/orders/create', authMiddleware, async (req, res) => {
   try {
-    const { tier, paymentMethod, cryptoCurrency } = req.body;
+    const { tier, paymentMethod } = req.body;
     if (!['weekly', 'monthly', 'yearly'].includes(tier)) {
       return res.status(400).json({ error: 'Invalid tier' });
     }
@@ -181,8 +233,7 @@ app.post('/api/v1/orders/create', authMiddleware, async (req, res) => {
     const order = await paymentService.createOrder({
       userId: req.user.id,
       tier,
-      paymentMethod,
-      cryptoCurrency
+      paymentMethod
     });
 
     res.json({ success: true, order });
@@ -191,11 +242,12 @@ app.post('/api/v1/orders/create', authMiddleware, async (req, res) => {
   }
 });
 
-app.get('/api/v1/orders/:orderId', async (req, res) => {
+// Customers can only see their own orders (this used to show anyone's key to anyone with the order ID)
+app.get('/api/v1/orders/:orderId', authMiddleware, async (req, res) => {
   try {
     const order = await paymentService.getOrder(req.params.orderId);
-    if (!order) return res.status(404).json({ error: 'Order not found' });
-    res.json({ order });
+    if (!order || order.user_id !== req.user.id) return res.status(404).json({ error: 'Order not found' });
+    res.json({ order: paymentService.describe(order, order.key_code) });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -468,6 +520,30 @@ app.get('/api/v1/admin/me', adminAuthMiddleware, (req, res) => {
   res.json({ admin: req.admin });
 });
 
+// ---- Site settings: maintenance mode + payment status ----
+app.get('/api/v1/admin/settings', adminAuthMiddleware, (req, res) => {
+  res.json({
+    maintenance: siteSettings.maintenance,
+    maintenanceMessage: siteSettings.maintenanceMessage,
+    ltc: ltcPayments.status()
+  });
+});
+
+app.post('/api/v1/admin/maintenance', adminAuthMiddleware, async (req, res) => {
+  try {
+    const enabled = !!req.body.enabled;
+    const message = String(req.body.message || '').slice(0, 300);
+    siteSettings.maintenance = enabled;
+    siteSettings.maintenanceMessage = message;
+    await saveSetting('maintenance', enabled ? '1' : '0');
+    await saveSetting('maintenanceMessage', message);
+    await logAdmin(req, enabled ? 'MAINTENANCE_ON' : 'MAINTENANCE_OFF', enabled ? `site closed: ${message || '(default message)'}` : 'site reopened');
+    res.json({ success: true, maintenance: enabled, maintenanceMessage: message });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ---- Users ----
 app.get('/api/v1/admin/users', adminAuthMiddleware, async (req, res) => {
   try {
@@ -699,6 +775,10 @@ if (require.main === module) {
     console.log(`[Waurks] Cloud Anti-Bot Server running on http://localhost:${PORT}`);
     // Start background cloud daemon
     robloxCloudService.startDaemon(60);
+    // Watch the LTC wallet and issue keys automatically when payments confirm
+    ltcPayments.start(orderId => paymentService.completeOrder(orderId), 30);
+    // Lifetime keys: make older "yearly" keys never expire too
+    db.run(`UPDATE licenses SET expires_at = '2126-01-01T00:00:00.000Z' WHERE tier = 'yearly' AND status != 'revoked' AND expires_at < '2100'`).catch(() => {});
   });
 }
 

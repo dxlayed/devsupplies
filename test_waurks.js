@@ -22,14 +22,13 @@ async function runTests() {
   console.log('▶ TEST 2: Pricing Tiers & Order Creation ($15, $45, $115)');
   const tiers = ['weekly', 'monthly', 'yearly'];
   const expectedPrices = { weekly: 15.00, monthly: 45.00, yearly: 115.00 };
-  const expectedDays = { weekly: 7, monthly: 30, yearly: 365 };
+  const expectedDays = { weekly: 7, monthly: 30, yearly: 36500 };
 
   for (const tier of tiers) {
     const order = await paymentService.createOrder({
       userId: user.id,
       tier,
-      paymentMethod: 'crypto',
-      cryptoCurrency: 'USDT'
+      paymentMethod: 'items'
     });
     assert.strictEqual(order.amountUsd, expectedPrices[tier], `Price for ${tier} should match`);
     assert.ok(order.orderId.startsWith('ORD-'), 'Order ID format valid');
