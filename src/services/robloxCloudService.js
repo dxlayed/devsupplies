@@ -18,6 +18,14 @@ const MM2_LEVEL10_BADGE = '196198137'; // Murder Mystery 2 "Level 10"
 
 db.run(`ALTER TABLE roblox_accounts ADD COLUMN last_check_at DATETIME`).catch(() => {});
 
+db.run(`ALTER TABLE roblox_accounts ADD COLUMN mode TEXT DEFAULT 'cloud'`).catch(() => {});
+db.run(`ALTER TABLE licenses ADD COLUMN roblox_id TEXT`).catch(() => {});
+// Accept/decline clicks from the website, waiting for the customer's extension to carry them out
+db.run(`CREATE TABLE IF NOT EXISTS ext_actions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, target_id TEXT NOT NULL, action TEXT NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP, done INTEGER DEFAULT 0
+)`).catch(() => {});
+
 const isTestCookie = c => c.startsWith('TEST_COOKIE_') || c.startsWith('DEMO_');
 const toMs = d => new Date(String(d).replace(' ', 'T') + (/[zZ]|[+-]\d\d:?\d\d$/.test(String(d)) ? '' : 'Z')).getTime();
 const safeJson = (v, dflt) => { try { return JSON.parse(v); } catch (e) { return dflt; } };
@@ -494,8 +502,18 @@ class RobloxCloudService {
    * Scores waiting requests, declines/accepts on Roblox if the customer's switches say so,
    * and saves each one so the Friend requests page can show it.
    */
-  async processRequests(userId, account, activeLicense, pendingList, cookie) {
-    const live = !isTestCookie(cookie);
+  async processRequests(userId, account, activeLicense, pendingList, cookie, opts = {}) {
+    // Extension mode: the customer's browser fetched the list and will do the clicking.
+    // The server still makes every decision; accepts come back as instructions.
+    const ext = !!opts.ext;
+    const live = ext || !isTestCookie(cookie || '');
+    const instructions = [];
+    const publicPost = async (url, body) => {
+      try {
+        return await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0 waurks' },
+          body: JSON.stringify(body), signal: AbortSignal.timeout(10000) });
+      } catch (e) { return null; }
+    };
     // MM2 filter = only check for the MM2 "Level 10" badge. No bot checks, nothing declined or hidden.
     const mm2Filter = account.accept_filter === 'mm2';
     const senderId = a => a.id ?? a.friendRequest?.senderId;
@@ -524,7 +542,7 @@ class RobloxCloudService {
     this.backlog.set(userId, Math.max(0, unchecked.length - toCheck.length) + (pendingList.complete ? 0 : 1));
     if (toCheck.length === 0) {
       await db.run(`UPDATE roblox_accounts SET last_scan_at = CURRENT_TIMESTAMP WHERE id = ?`, [account.id]);
-      return { scanned: 0, botsDeclined: 0, playersAccepted: 0, heldReview: 0, message: 'Nothing new to check.' };
+      return { scanned: 0, botsDeclined: 0, playersAccepted: 0, heldReview: 0, message: 'Nothing new to check.', actions: [] };
     }
 
     const bases = toCheck.map(a => ({
@@ -537,15 +555,17 @@ class RobloxCloudService {
 
     let profiles, headshots = new Map(), authGet = null;
     if (live) {
-      authGet = async url => {
+      authGet = ext ? null : async url => {
         const r = await this.robloxRequest(url, 'GET', cookie, null, account.roblox_id);
         return r.ok ? r.json() : null;
       };
       // The request list sometimes comes back without names, so fill them in with one batch call
-      const authPost = async (url, body) => {
-        const r = await this.robloxRequest(url, 'POST', cookie, body, account.roblox_id);
-        return r.ok ? r.json() : null;
-      };
+      const authPost = ext
+        ? async (url, body) => { const r = await publicPost(url, body); return r && r.ok ? r.json() : null; }
+        : async (url, body) => {
+          const r = await this.robloxRequest(url, 'POST', cookie, body, account.roblox_id);
+          return r.ok ? r.json() : null;
+        };
       const names = await robloxProfiles.getNames(bases.map(b => b.id), authPost);
       for (const b of bases) {
         const n = names.get(String(b.id));
@@ -577,7 +597,7 @@ class RobloxCloudService {
         (!live || mm2Filter) ? part : robloxProfiles.getProfiles(part, authGet, CHUNK),
         !live ? new Map(part.map(b => [String(b.id), { userId: b.id, userPresenceType: b.online === false ? 0 : 1 }]))
           : presence.getUserPresences(part.map(b => b.id),
-              (url, body) => this.robloxRequest(url, 'POST', cookie, body, account.roblox_id)).catch(() => null)
+              ext ? publicPost : (url, body) => this.robloxRequest(url, 'POST', cookie, body, account.roblox_id)).catch(() => null)
       ]);
       part.forEach((b, k) => {
         if (!pres) return;
@@ -643,7 +663,10 @@ class RobloxCloudService {
       } else if (evaluation.verdict === 'ACCEPT') {
         playersCount++;
         if (account.auto_accept_players && (!mm2Filter || mm2 === true)) {
-          if (live) {
+          if (ext) {
+            instructions.push({ id: sid, do: 'accept' });
+            status = 'accepted';
+          } else if (live) {
             const r = await this.robloxRequest(`https://friends.roblox.com/v1/users/${sid}/accept-friend-request`, 'POST', cookie, null, account.roblox_id);
             if (r.ok) status = 'accepted'; else actionErrors.push(`accept ${name}: ${r.status}`);
           } else status = 'accepted';
@@ -675,7 +698,7 @@ class RobloxCloudService {
         [userId, account.roblox_id, sid, name, evaluation.verdict, evaluation.threatScore, evaluation.reasons[0] || '']
       );
 
-      if (live && status !== 'pending') await new Promise(r => setTimeout(r, 150));
+      if (live && !ext && status !== 'pending') await new Promise(r => setTimeout(r, 150));
     }
 
     await keyService.recordStats(activeLicense.id, { filtered: toCheck.length, blocked: botsCount, accepted: playersCount });
@@ -683,7 +706,7 @@ class RobloxCloudService {
     if (actionErrors.length) {
       throw new Error(`Roblox blocked ${actionErrors.length} accept/decline action(s) (${actionErrors.slice(0, 2).join(', ')}). Your cookie may need refreshing.`);
     }
-    return { scanned: toCheck.length, botsDeclined: botsCount, playersAccepted: playersCount, heldReview: reviewCount, simulated: !live || undefined };
+    return { scanned: toCheck.length, botsDeclined: botsCount, playersAccepted: playersCount, heldReview: reviewCount, simulated: !live || undefined, actions: instructions };
   }
 
   /**
@@ -770,13 +793,17 @@ class RobloxCloudService {
     if (!row) throw new Error('That request is gone');
     const account = await db.get(`SELECT * FROM roblox_accounts WHERE user_id = ?`, [userId]);
     if (!account) throw new Error('Link your Roblox account first');
-    const cookie = this.decrypt(account.encrypted_cookie, account.cookie_iv);
-    if (!isTestCookie(cookie)) {
-      const r = await this.robloxRequest(
-        `https://friends.roblox.com/v1/users/${row.target_id}/${accept ? 'accept' : 'decline'}-friend-request`,
-        'POST', cookie, null, account.roblox_id
-      );
-      if (!r.ok && r.status !== 400) throw new Error(`Roblox didn't allow that (error ${r.status}). Try again.`);
+    if (account.mode === 'extension') {
+      await db.run(`INSERT INTO ext_actions (user_id, target_id, action) VALUES (?, ?, ?)`, [userId, row.target_id, accept ? 'accept' : 'decline']);
+    } else {
+      const cookie = this.decrypt(account.encrypted_cookie, account.cookie_iv);
+      if (!isTestCookie(cookie)) {
+        const r = await this.robloxRequest(
+          `https://friends.roblox.com/v1/users/${row.target_id}/${accept ? 'accept' : 'decline'}-friend-request`,
+          'POST', cookie, null, account.roblox_id
+        );
+        if (!r.ok && r.status !== 400) throw new Error(`Roblox didn't allow that (error ${r.status}). Try again.`);
+      }
     }
     await db.run(`UPDATE friend_requests SET status = ?, auto = 0, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND target_id = ?`,
       [accept ? 'accepted' : 'declined', userId, row.target_id]);
@@ -816,7 +843,7 @@ class RobloxCloudService {
     const tick = async () => {
       let accounts = [];
       try {
-        accounts = await db.all(`SELECT * FROM roblox_accounts WHERE is_active = 1`);
+        accounts = await db.all(`SELECT * FROM roblox_accounts WHERE is_active = 1 AND COALESCE(mode, 'cloud') = 'cloud'`);
       } catch (e) { return; }
       const now = Date.now();
       for (const acc of accounts) {

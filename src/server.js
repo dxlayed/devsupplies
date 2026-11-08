@@ -458,6 +458,9 @@ app.post('/api/v1/roblox/review-action', authMiddleware, async (req, res) => {
   }
 });
 
+// ---- Browser extension API (the extension only fetches + clicks; all logic is here) ----
+require('./extApi').mount(app);
+
 // ---- Friend requests page ----
 app.get('/api/v1/roblox/requests', authMiddleware, async (req, res) => {
   try {

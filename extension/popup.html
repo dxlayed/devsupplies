@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  :root{--bg:#09080c;--panel:#121017;--line:#272233;--text:#f3f1f7;--muted:#9b94a8;--purple:#9b5cff;--green:#3ddc84;--red:#ff5470;--yellow:#ffc857}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{width:300px;background:var(--bg);color:var(--text);font:14px/1.5 system-ui,-apple-system,Segoe UI,sans-serif;padding:16px}
+  .top{display:flex;align-items:center;gap:8px;font-weight:700;font-size:17px;margin-bottom:14px}
+  .mark{width:26px;height:26px;border-radius:8px;background:var(--purple);display:grid;place-items:center;color:#fff;font-size:14px}
+  .box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px}
+  label{font-size:12px;color:var(--muted);display:block;margin-bottom:6px}
+  input{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--text);font:13px ui-monospace,Consolas,monospace;outline:none}
+  input:focus{border-color:var(--purple)}
+  button,a.btn{display:block;width:100%;text-align:center;margin-top:8px;padding:9px;border-radius:8px;border:none;font:600 13px system-ui,sans-serif;cursor:pointer;text-decoration:none}
+  .main{background:var(--purple);color:#fff}
+  .line{background:transparent;color:var(--text);border:1px solid var(--line)}
+  .state{font-weight:600}
+  .ok{color:var(--green)} .bad{color:var(--red)} .wait{color:var(--yellow)}
+  .row{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-top:4px}
+  .row b{color:var(--text);font-weight:600}
+  .adv{font-size:11px;color:var(--muted);margin-top:10px}
+  .adv summary{cursor:pointer}
+</style>
+</head>
+<body>
+  <div class="top"><span class="mark">W</span>Waurks</div>
+
+  <div class="box">
+    <div class="state" id="state">Loading...</div>
+    <div class="row"><span>Roblox account</span><b id="rbx">-</b></div>
+    <div class="row"><span>Waiting requests</span><b id="waiting">-</b></div>
+    <div class="row"><span>Last check</span><b id="last">-</b></div>
+  </div>
+
+  <div class="box">
+    <label for="key">Your key</label>
+    <input id="key" placeholder="WAURKS-..." autocomplete="off" spellcheck="false">
+    <button class="main" id="save">Save key</button>
+    <div id="keyMsg" class="row" style="justify-content:flex-start"></div>
+  </div>
+
+  <a class="btn line" id="openSite" target="_blank" rel="noopener">Open my friend requests</a>
+
+  <details class="adv">
+    <summary>Advanced</summary>
+    <label for="api" style="margin-top:8px">Server</label>
+    <input id="api" placeholder="https://devsupplies.cc">
+    <button class="line" id="saveApi">Save server</button>
+  </details>
+
+  <script src="popup.js"></script>
+</body>
+</html>
