@@ -162,7 +162,7 @@
     <div class="box-head"><div><h2>So far</h2></div></div>
     <div class="nums">
       <div class="num-box"><div class="n" id="statScanned">0</div><div class="l">Requests checked</div></div>
-      <div class="num-box"><div class="n" id="statDeclined" style="color:var(--red)">0</div><div class="l">Bots declined</div></div>
+      <div class="num-box"><div class="n" id="statDeclined" style="color:var(--red)">0</div><div class="l">Bots filtered</div></div>
       <div class="num-box"><div class="n" id="statAccepted" style="color:var(--green)">0</div><div class="l">Players accepted</div></div>
     </div>
   </div>
@@ -368,7 +368,7 @@
       const isDecline = log.verdict === 'DECLINE';
       const isAccept = log.verdict === 'ACCEPT';
       const pillClass = isDecline ? 'no' : (isAccept ? 'yes' : 'wait');
-      const pillText = isDecline ? 'Declined' : (isAccept ? 'Accepted' : 'Your call');
+      const pillText = isDecline ? 'Filtered' : (isAccept ? 'Accepted' : 'Your call');
       const time = new Date(String(log.created_at).replace(' ', 'T') + (String(log.created_at).includes('Z') ? '' : 'Z')).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
       return `

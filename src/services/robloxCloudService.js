@@ -611,13 +611,8 @@ class RobloxCloudService {
       // Act on Roblox when the customer's switches say so
       let status = 'pending';
       if (evaluation.verdict === 'DECLINE') {
+        // Bots are only filtered (hidden on the Friend requests page), never declined on Roblox
         botsCount++;
-        {
-          if (live) {
-            const r = await this.robloxRequest(`https://friends.roblox.com/v1/users/${sid}/decline-friend-request`, 'POST', cookie, null, account.roblox_id);
-            if (r.ok) status = 'declined'; else actionErrors.push(`decline ${name}: ${r.status}`);
-          } else status = 'declined';
-        }
       } else if (evaluation.verdict === 'ACCEPT') {
         playersCount++;
         if (account.auto_accept_players && (!mm2Filter || mm2 === true)) {
