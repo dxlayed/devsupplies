@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const db = require('../database');
 const detectionEngine = require('./detectionEngine');
+const robloxProfiles = require('./robloxProfiles');
 const { keyService } = require('./keyService');
 
 const ENCRYPTION_SECRET = process.env.ENCRYPTION_SECRET || 'waurks-cloud-roblox-vault-secret-key-32b';
@@ -273,6 +274,7 @@ class RobloxCloudService {
         );
       }
       await db.run(`UPDATE review_queue SET status = 'accepted' WHERE id = ?`, [reviewId]);
+      await detectionEngine.recordReport(item.target_id, userId, false);
       await db.run(
         `INSERT INTO scan_activity_logs (user_id, roblox_id, target_id, target_username, verdict, threat_score, reason)
          VALUES (?, ?, ?, ?, 'ACCEPT', ?, 'Approved manually via Dashboard Review Tray')`,
@@ -289,6 +291,7 @@ class RobloxCloudService {
         );
       }
       await db.run(`UPDATE review_queue SET status = 'declined' WHERE id = ?`, [reviewId]);
+      await detectionEngine.recordReport(item.target_id, userId, true);
       await db.run(
         `INSERT INTO scan_activity_logs (user_id, roblox_id, target_id, target_username, verdict, threat_score, reason)
          VALUES (?, ?, ?, ?, 'DECLINE', ?, 'Declined manually via Dashboard Review Tray')`,
@@ -434,19 +437,46 @@ class RobloxCloudService {
     let playersCount = 0;
     let reviewCount = 0;
 
-    for (const applicant of pendingList) {
-      // Gather user profile details
-      let profile = { id: applicant.id, name: applicant.name, displayName: applicant.displayName };
-      try {
-        const pRes = await fetch(`https://users.roblox.com/v1/users/${applicant.id}`);
-        if (pRes.ok) {
-          const pData = await pRes.json();
-          profile = { ...profile, description: pData.description, created: pData.created, isBanned: pData.isBanned };
-        }
-      } catch (e) {}
+    // Don't re-check accounts already waiting in this customer's "Not sure" list
+    const waiting = new Set((await db.all(
+      `SELECT target_id FROM review_queue WHERE user_id = ? AND status = 'pending'`, [userId]
+    )).map(r => String(r.target_id)));
+    const senderId = a => a.id ?? a.friendRequest?.senderId;
+    const toCheck = pendingList.filter(a => senderId(a) && !waiting.has(String(senderId(a))));
+    if (toCheck.length === 0) {
+      await db.run(`UPDATE roblox_accounts SET last_scan_at = CURRENT_TIMESTAMP WHERE id = ?`, [account.id]);
+      return { scanned: 0, botsDeclined: 0, playersAccepted: 0, message: 'Nothing new to check.' };
+    }
 
-      // Evaluate profile through Waurks threat heuristics
-      const evaluation = await detectionEngine.evaluateProfile(profile);
+    // Pull full public profiles (badges, friends, groups, avatar, name history...). Cached for 12h.
+    const bases = toCheck.map(a => ({
+      id: senderId(a), name: a.name, displayName: a.displayName, description: a.description,
+      created: a.created, isBanned: a.isBanned, hasVerifiedBadge: a.hasVerifiedBadge
+    }));
+    const authGet = async url => {
+      const r = await this.robloxRequest(url, 'GET', cookie, null, account.roblox_id);
+      return r.ok ? r.json() : null;
+    };
+    const profiles = await robloxProfiles.getProfiles(bases, authGet);
+
+    // Waves of brand-new accounts: how many OTHER new requesters were made within 3 days of this one
+    const createdAt = profiles.map(p => (p.created ? new Date(p.created).getTime() : null));
+    const isNew = createdAt.map(t => t !== null && Date.now() - t < 30 * 86400000);
+    const burst = createdAt.map((t, i) => !isNew[i] ? 0
+      : createdAt.filter((u, j) => j !== i && isNew[j] && Math.abs(u - t) < 3 * 86400000).length);
+
+    for (let i = 0; i < toCheck.length; i++) {
+      const applicant = { ...toCheck[i], id: senderId(toCheck[i]), name: profiles[i].name || toCheck[i].name, displayName: profiles[i].displayName || toCheck[i].displayName };
+      const profile = profiles[i];
+      const fr = toCheck[i].friendRequest || {};
+
+      // Score it with all the checks
+      const evaluation = await detectionEngine.evaluateProfile(profile, {
+        forUserId: userId,
+        mutualFriends: Array.isArray(toCheck[i].mutualFriendsList) ? toCheck[i].mutualFriendsList.length : 0,
+        metInGame: !!fr.sourceUniverseId || /ingame/i.test(String(fr.originSourceType || '')),
+        burstSiblings: burst[i]
+      });
 
       // Custom Blacklist Keywords check
       if (account.custom_blacklist) {
@@ -527,13 +557,13 @@ class RobloxCloudService {
         [userId, account.roblox_id, String(applicant.id), applicant.name, evaluation.verdict, evaluation.threatScore, evaluation.reasons[0] || '']
       );
 
-      // Throttling to respect Roblox API limits
-      await new Promise(r => setTimeout(r, 1500));
+      // Small pause between accept/decline calls so Roblox doesn't rate-limit us
+      await new Promise(r => setTimeout(r, 400));
     }
 
     // Update stats
     await keyService.recordStats(activeLicense.id, {
-      filtered: pendingList.length,
+      filtered: toCheck.length,
       blocked: botsCount,
       accepted: playersCount
     });
@@ -541,7 +571,7 @@ class RobloxCloudService {
     await db.run(`UPDATE roblox_accounts SET last_scan_at = CURRENT_TIMESTAMP WHERE id = ?`, [account.id]);
 
     return {
-      scanned: pendingList.length,
+      scanned: toCheck.length,
       botsDeclined: botsCount,
       playersAccepted: playersCount,
       heldReview: reviewCount
@@ -564,7 +594,7 @@ class RobloxCloudService {
     let reviewCount = 0;
 
     for (const applicant of demoRequesters) {
-      const evaluation = await detectionEngine.evaluateProfile(applicant);
+      const evaluation = await detectionEngine.evaluateProfile(applicant, { forUserId: userId });
 
       if (evaluation.verdict === 'DECLINE') botsCount++;
       else if (evaluation.verdict === 'ACCEPT') playersCount++;

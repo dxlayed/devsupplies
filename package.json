@@ -5,7 +5,8 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "test": "node test_waurks.js"
+    "test": "node test_waurks.js && node test_detection.js",
+    "test:detection": "node test_detection.js"
   },
   "keywords": [],
   "author": "",
