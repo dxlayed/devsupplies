@@ -76,6 +76,10 @@ function mount(app) {
           [robloxId, robloxName, license.id, account.id]);
       }
       account = await db.get(`SELECT * FROM roblox_accounts WHERE user_id = ?`, [user.id]);
+      if (!account.avatar_url) {
+        const pics = await require('./services/robloxProfiles').getHeadshots([robloxId]).catch(() => new Map());
+        if (pics.get(robloxId)) await db.run(`UPDATE roblox_accounts SET avatar_url = ? WHERE id = ?`, [pics.get(robloxId), account.id]);
+      }
 
       // 5) Results of last time's instructions: a failed accept goes back to waiting
       for (const d of Array.isArray(b.done) ? b.done.slice(0, 100) : []) {

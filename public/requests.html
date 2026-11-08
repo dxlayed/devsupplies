@@ -15,6 +15,7 @@
   .head h1 .count{color:var(--muted);font-weight:500}
   .status{font-size:13px;color:var(--muted);margin-top:4px}
   .status.bad{color:var(--red)}
+  .status.warnline{color:var(--yellow)}
 
   .seg{display:inline-flex;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:3px}
   .seg button{background:none;border:none;color:var(--muted);font:600 13px "Inter",sans-serif;padding:8px 14px;border-radius:8px;cursor:pointer}
@@ -185,8 +186,9 @@
     else if (!d.active) { st.textContent = 'Paused. Turn it back on from My account.'; st.className = 'status'; }
     else {
       const t = d.lastScanAt ? new Date(String(d.lastScanAt).replace(' ', 'T') + 'Z').toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' }) : null;
-      st.textContent = (d.checking ? `Checking ${d.checking > 1 ? d.checking + ' more' : 'more'} requests...` : 'Updates by itself') + (t ? ` · last checked ${t}` : '');
-      st.className = 'status';
+      const how = d.mode === 'extension' ? (d.extensionOnline ? 'Connected in your browser' : 'Browser extension not running') : 'Updates by itself';
+      st.textContent = (d.checking ? `Checking ${d.checking > 1 ? d.checking + ' more' : 'more'} requests...` : how) + (t ? ` · last checked ${t}` : '');
+      st.className = 'status' + (d.mode === 'extension' && !d.extensionOnline ? ' warnline' : '');
     }
 
     const reqs = d.requests || [];

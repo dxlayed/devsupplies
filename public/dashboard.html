@@ -277,7 +277,16 @@
 
         const toggleBtn = document.getElementById('toggleCloudBtn');
         const runState = document.getElementById('runState');
-        if (data.account.isActive && data.account.lastError) {
+        const isExt = data.account.mode === 'extension';
+        if (isExt && data.account.isActive && !data.account.extensionOnline) {
+          toggleBtn.textContent = 'Pause';
+          runState.textContent = 'Browser extension not running. Open your browser to keep filtering.';
+          runState.style.color = 'var(--yellow)';
+        } else if (isExt && data.account.isActive && !data.account.lastError) {
+          toggleBtn.textContent = 'Pause';
+          runState.textContent = 'Connected in your browser';
+          runState.style.color = 'var(--green)';
+        } else if (data.account.isActive && data.account.lastError) {
           toggleBtn.textContent = 'Pause';
           runState.textContent = 'Problem: ' + data.account.lastError;
           runState.style.color = 'var(--red)';

@@ -269,6 +269,10 @@ class RobloxCloudService {
         customWhitelist: account.custom_whitelist || '',
         lastScanAt: account.last_scan_at,
         lastError: account.last_error || null,
+        mode: account.mode || 'cloud',
+        extensionOnline: account.mode === 'extension' && !!account.last_check_at
+          && Date.now() - new Date(String(account.last_check_at).replace(' ', 'T') + 'Z').getTime() < 45000,
+        lastCheckAt: account.last_check_at || null,
         licenseKey: account.key_code,
         licenseTier: account.tier,
         keyExpiresAt: account.key_expires_at
@@ -716,7 +720,7 @@ class RobloxCloudService {
    *   strict  - only show accounts that clearly look real
    */
   async getRequests(userId) {
-    const account = await db.get(`SELECT filter_level, last_scan_at, last_check_at, last_error, is_active, auto_accept_players, accept_filter FROM roblox_accounts WHERE user_id = ?`, [userId]);
+    const account = await db.get(`SELECT filter_level, last_scan_at, last_check_at, last_error, is_active, auto_accept_players, accept_filter, mode FROM roblox_accounts WHERE user_id = ?`, [userId]);
     if (!account) return { connected: false };
     const level = account.filter_level || 'normal';
     const rows = await db.all(
@@ -745,6 +749,9 @@ class RobloxCloudService {
     }
     return {
       connected: true, level, active: !!account.is_active, autoAccept: !!account.auto_accept_players,
+      mode: account.mode || 'cloud',
+      extensionOnline: account.mode === 'extension' && !!account.last_check_at
+        && Date.now() - new Date(String(account.last_check_at).replace(' ', 'T') + 'Z').getTime() < 45000,
       acceptFilter: account.accept_filter || 'standard',
       lastScanAt: [account.last_check_at, account.last_scan_at].filter(Boolean).sort().pop() || null, lastError: account.last_error,
       checking: (this.backlog && this.backlog.get(userId)) || 0, busy: !!(this.activeScans && this.activeScans.has(userId)),
