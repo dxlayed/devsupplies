@@ -87,6 +87,7 @@
       <div class="tab" data-p="orders">Orders</div>
       <div class="tab" data-p="keys">Keys</div>
       <div class="tab" data-p="blacklist">Blacklist</div>
+      <div class="tab" data-p="reqs">Requests</div>
       <div class="tab" data-p="audit">Activity log</div>
       <div class="tab" data-p="site">Site</div>
     </div>
@@ -125,6 +126,18 @@
 
       <div class="sec-title" style="margin-top:28px"><span>Litecoin payments</span><span id="ltcBadge" class="badge-admin">—</span></div>
       <div id="ltcInfo" style="font-size:13px;color:var(--muted);line-height:1.8"></div>
+    </div>
+
+    <div class="pane section" id="p-reqs">
+      <div class="sec-title">
+        <div style="display:flex;gap:6px">
+          <button class="tab on" id="rqAccepted" type="button">Auto-accepted <span id="rqAccCount"></span></button>
+          <button class="tab" id="rqFiltered" type="button">Filtered bots <span id="rqFilCount"></span></button>
+        </div>
+        <input class="input-field search" id="qReqs" placeholder="Search name, Roblox ID or customer">
+      </div>
+      <p id="rqSub" style="color:var(--muted);font-size:13px;margin:-4px 0 12px"></p>
+      <div style="overflow-x:auto"><table><thead><tr><th>Roblox account</th><th>For customer</th><th id="rqWhyHead">Why</th><th>Info</th><th>When</th></tr></thead><tbody id="tReqs"></tbody></table></div>
     </div>
 
     <div class="pane section" id="p-audit">
@@ -183,15 +196,15 @@
 
   async function logoutAdmin() { await fetch('/api/v1/auth/logout', { method: 'POST' }); showLogin(); }
 
-  document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
-    document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x === t));
+  document.querySelectorAll('.tab[data-p]').forEach(t => t.onclick = () => {
+    document.querySelectorAll('.tab[data-p]').forEach(x => x.classList.toggle('on', x === t));
     document.querySelectorAll('.pane').forEach(p => p.classList.toggle('on', p.id === 'p-' + t.dataset.p));
   });
   const debounce = fn => { let h; return () => { clearTimeout(h); h = setTimeout(fn, 250); }; };
   $('qUsers').oninput = debounce(() => loadUsers()); $('qKeys').oninput = debounce(() => loadKeys());
 
   const safe = fn => (...a) => fn(...a).catch(e => toast(e.message));
-  function loadAll() { loadStats(); loadUsers(); loadOrders(); loadKeys(); loadBlacklist(); loadAudit(); loadSite(); }
+  function loadAll() { loadStats(); loadUsers(); loadOrders(); loadKeys(); loadBlacklist(); loadAudit(); loadSite(); loadReqs(); }
 
   let maintenanceOn = false;
   const loadSite = safe(async () => {
@@ -319,6 +332,46 @@
     $('tAudit').innerHTML = logs.length ? logs.map(l => `<tr><td class="nowrap">${when(l.created_at)}</td><td class="mono">${esc(l.action)}</td><td>${esc(l.details)}</td></tr>`).join('')
       : empty(3, 'Nothing yet');
   });
+
+  // ---- Requests log ----
+  let rqType = 'accepted';
+  const rqFacts = f => {
+    const b = [];
+    if (f.paidItem) b.push('wears ' + esc(f.paidItem));
+    if (f.mutuals) b.push(+f.mutuals + ' mutual');
+    if (f.ageDays !== null && f.ageDays !== undefined) b.push(f.ageDays >= 365 ? Math.floor(f.ageDays / 365) + ' yr old' : f.ageDays + ' days old');
+    if (f.badges !== null && f.badges !== undefined) b.push((f.badges >= 25 ? '25+' : +f.badges) + ' badges');
+    if (f.friends !== null && f.friends !== undefined) b.push(+f.friends + ' friends');
+    return b.join(' · ');
+  };
+  const loadReqs = safe(async () => {
+    const d = await api('/requests?type=' + rqType + '&q=' + encodeURIComponent($('qReqs').value));
+    $('rqAccCount').textContent = '(' + d.counts.accepted + ')';
+    $('rqFilCount').textContent = '(' + d.counts.filtered + ')';
+    $('rqSub').textContent = rqType === 'accepted'
+      ? d.counts.accepted24 + ' accepted for customers in the last 24 hours.'
+      : d.counts.filtered24 + ' bots filtered in the last 24 hours.';
+    $('rqWhyHead').textContent = rqType === 'accepted' ? 'Why it looked real' : 'Why it was filtered';
+    $('tReqs').innerHTML = d.rows.length ? d.rows.map(r => {
+      const url = 'https://www.roblox.com/users/' + encodeURIComponent(String(r.id).replace(/\D/g, '')) + '/profile';
+      const pic = r.avatar ? '<img src="' + esc(r.avatar) + '" alt="" style="width:36px;height:36px;border-radius:50%;background:var(--surface-2);flex:none">'
+        : '<span style="width:36px;height:36px;border-radius:50%;background:var(--surface-2);display:inline-grid;place-items:center;font-weight:700;color:var(--muted);flex:none">' + esc((r.displayName || r.name || '?').charAt(0).toUpperCase()) + '</span>';
+      const why = (r.reasons || []).slice(0, 2).map(esc).join('<br>') || '-';
+      const tag = rqType === 'filtered' ? '<div style="font-size:11px;color:var(--muted)">' + (r.status === 'declined' ? 'Declined' : r.status === 'accepted' ? 'Customer accepted anyway' : 'Hidden') + ' · score ' + (+r.score) + '</div>' : '';
+      return '<tr>' +
+        '<td><a href="' + url + '" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:10px;color:inherit">' + pic +
+          '<span><b>' + esc(r.displayName || r.name) + '</b><br><span style="font-size:12px;color:var(--muted)">@' + esc(r.name) + ' · ' + esc(r.id) + '</span></span></a></td>' +
+        '<td>' + esc(r.customer) + '</td>' +
+        '<td style="font-size:12px;color:' + (rqType === 'filtered' ? 'var(--block)' : 'var(--pass)') + '">' + why + tag + '</td>' +
+        '<td style="font-size:12px;color:var(--muted)">' + rqFacts(r.facts || {}) + '</td>' +
+        '<td class="nowrap" style="font-size:12px">' + when(r.at) + '</td></tr>';
+    }).join('') : empty(5, rqType === 'accepted' ? 'Nothing auto-accepted yet' : 'No bots filtered yet');
+  });
+  $('rqAccepted').onclick = () => { rqType = 'accepted'; $('rqAccepted').classList.add('on'); $('rqFiltered').classList.remove('on'); loadReqs(); };
+  $('rqFiltered').onclick = () => { rqType = 'filtered'; $('rqFiltered').classList.add('on'); $('rqAccepted').classList.remove('on'); loadReqs(); };
+  $('qReqs').oninput = debounce(() => loadReqs());
+  // keep the Requests tab fresh while it's open
+  setInterval(() => { if (document.getElementById('p-reqs').classList.contains('on')) loadReqs(); }, 10000);
 
   boot();
 </script>

@@ -644,6 +644,43 @@ app.post('/api/v1/admin/users/:id/unban', adminAuthMiddleware, async (req, res) 
   }
 });
 
+// ---- Friend request logs: auto-accepted people and filtered bots, across all customers ----
+app.get('/api/v1/admin/requests', adminAuthMiddleware, async (req, res) => {
+  try {
+    const type = req.query.type === 'filtered' ? 'filtered' : 'accepted';
+    const q = `%${String(req.query.q || '').trim()}%`;
+    const where = type === 'accepted'
+      ? `fr.status = 'accepted' AND fr.auto = 1`
+      : `fr.verdict = 'DECLINE'`;
+    const rows = await db.all(
+      `SELECT fr.target_id, fr.name, fr.display_name, fr.avatar_url, fr.verdict, fr.score, fr.reasons, fr.facts, fr.status,
+              fr.updated_at, u.username AS customer, u.discord_id AS customer_discord
+       FROM friend_requests fr JOIN users u ON u.id = fr.user_id
+       WHERE ${where} AND (fr.name LIKE ? OR fr.display_name LIKE ? OR fr.target_id LIKE ? OR u.username LIKE ?)
+       ORDER BY fr.updated_at DESC LIMIT 200`,
+      [q, q, q, q]
+    );
+    const counts = await db.get(
+      `SELECT SUM(status = 'accepted' AND auto = 1) AS accepted, SUM(verdict = 'DECLINE') AS filtered,
+              SUM(status = 'accepted' AND auto = 1 AND updated_at > datetime('now', '-1 day')) AS accepted24,
+              SUM(verdict = 'DECLINE' AND updated_at > datetime('now', '-1 day')) AS filtered24
+       FROM friend_requests`
+    );
+    const parse = v => { try { return JSON.parse(v); } catch (e) { return null; } };
+    res.json({
+      type,
+      counts: { accepted: counts?.accepted || 0, filtered: counts?.filtered || 0, accepted24: counts?.accepted24 || 0, filtered24: counts?.filtered24 || 0 },
+      rows: rows.map(r => ({
+        id: r.target_id, name: r.name, displayName: r.display_name, avatar: r.avatar_url,
+        score: r.score, reasons: parse(r.reasons) || [], facts: parse(r.facts) || {}, status: r.status,
+        at: r.updated_at, customer: r.customer, customerDiscord: r.customer_discord
+      }))
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ---- Admin activity log ----
 app.get('/api/v1/admin/audit', adminAuthMiddleware, async (req, res) => {
   try {
