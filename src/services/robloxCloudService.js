@@ -584,7 +584,7 @@ class RobloxCloudService {
         mm2 = live ? await robloxProfiles.ownsBadge(sid, MM2_LEVEL10_BADGE, authGet) : !!bases[i].mm2;
         evaluation = mm2 === true
           ? { verdict: 'ACCEPT', threatScore: 0, reasons: ['MM2 trades accepted'] }
-          : { verdict: 'REVIEW', threatScore: 0, reasons: [mm2 === null ? 'Inventory is private, could not check' : 'No MM2 Level 10 badge'] };
+          : { verdict: 'DECLINE', threatScore: 100, reasons: [mm2 === null ? 'No MM2 Level 10 badge (inventory private)' : 'No MM2 Level 10 badge'] };
       } else {
         // Standard filter: the full bot checker, no badge check
         evaluation = await detectionEngine.evaluateProfile(profile, {

@@ -869,6 +869,8 @@ if (require.main === module) {
       return db.run(`UPDATE roblox_accounts SET auto_accept_players = 0`)
         .then(() => saveSetting('migr_autoaccept_off', '1'));
     }).catch(() => {});
+    // Requests left waiting by the old MM2 rule get re-checked (now: no badge = filtered as a bot)
+    db.run(`UPDATE friend_requests SET checked_at = NULL WHERE status = 'pending' AND reasons LIKE '%No MM2 Level 10 badge%'`).catch(() => {});
     // Lifetime keys: make older "yearly" keys never expire too
     db.run(`UPDATE licenses SET expires_at = '2126-01-01T00:00:00.000Z' WHERE tier = 'yearly' AND status != 'revoked' AND expires_at < '2100'`).catch(() => {});
   });
