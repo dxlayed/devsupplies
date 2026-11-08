@@ -15,6 +15,8 @@ db.run(`CREATE TABLE IF NOT EXISTS friend_requests (
 db.run(`ALTER TABLE roblox_accounts ADD COLUMN accept_filter TEXT DEFAULT 'standard'`).catch(() => {});
 const MM2_LEVEL10_BADGE = '196198137'; // Murder Mystery 2 "Level 10"
 
+db.run(`ALTER TABLE roblox_accounts ADD COLUMN last_check_at DATETIME`).catch(() => {});
+
 const isTestCookie = c => c.startsWith('TEST_COOKIE_') || c.startsWith('DEMO_');
 const toMs = d => new Date(String(d).replace(' ', 'T') + (/[zZ]|[+-]\d\d:?\d\d$/.test(String(d)) ? '' : 'Z')).getTime();
 const safeJson = (v, dflt) => { try { return JSON.parse(v); } catch (e) { return dflt; } };
@@ -406,7 +408,22 @@ class RobloxCloudService {
   /**
    * Scans an account and executes real-time bot filtering in the cloud
    */
-  async runCloudScan(userId) {
+  async runCloudScan(userId, opts = {}) {
+    // One check at a time per account (the automatic watcher and the Scan now button can overlap)
+    this.activeScans = this.activeScans || new Set();
+    if (this.activeScans.has(userId)) {
+      if (opts.force) throw new Error('Already checking, give it a few seconds');
+      return { scanned: 0, botsDeclined: 0, playersAccepted: 0, heldReview: 0 };
+    }
+    this.activeScans.add(userId);
+    try {
+      return await this._runCloudScan(userId, opts);
+    } finally {
+      this.activeScans.delete(userId);
+    }
+  }
+
+  async _runCloudScan(userId, opts = {}) {
     const account = await db.get(
       `SELECT ra.*, l.key_code, l.id as license_id, l.expires_at, l.status as license_status 
        FROM roblox_accounts ra
@@ -459,6 +476,7 @@ class RobloxCloudService {
         if (!cursor) break;
       }
     }
+    if (opts.force) await db.run(`UPDATE friend_requests SET checked_at = NULL WHERE user_id = ? AND status = 'pending'`, [userId]);
     return await this.processRequests(userId, account, activeLicense, pendingList, cookie);
   }
 
@@ -616,7 +634,7 @@ class RobloxCloudService {
    *   strict  - only show accounts that clearly look real
    */
   async getRequests(userId) {
-    const account = await db.get(`SELECT filter_level, last_scan_at, last_error, is_active, auto_accept_players, accept_filter FROM roblox_accounts WHERE user_id = ?`, [userId]);
+    const account = await db.get(`SELECT filter_level, last_scan_at, last_check_at, last_error, is_active, auto_accept_players, accept_filter FROM roblox_accounts WHERE user_id = ?`, [userId]);
     if (!account) return { connected: false };
     const level = account.filter_level || 'normal';
     const rows = await db.all(
@@ -637,7 +655,7 @@ class RobloxCloudService {
     return {
       connected: true, level, active: !!account.is_active, autoAccept: !!account.auto_accept_players,
       acceptFilter: account.accept_filter || 'standard',
-      lastScanAt: account.last_scan_at, lastError: account.last_error,
+      lastScanAt: [account.last_check_at, account.last_scan_at].filter(Boolean).sort().pop() || null, lastError: account.last_error,
       requests: visible, hidden
     };
   }
@@ -750,22 +768,25 @@ class RobloxCloudService {
     try {
       const cookie = this.decrypt(acc.encrypted_cookie, acc.cookie_iv);
       const isTest = cookie.startsWith('TEST_COOKIE_') || cookie.startsWith('DEMO_');
-      let count = null;
+      // Roblox's "request count" is often wrong (it can say 0 with a full list), so look at the
+      // newest requests themselves: if any ID is new since last time, run the full check.
+      let ids = null;
       if (!isTest) {
-        const r = await this.robloxRequest('https://friends.roblox.com/v1/my/friends/requests/count', 'GET', cookie, null, acc.roblox_id);
+        const r = await this.robloxRequest('https://friends.roblox.com/v1/my/friends/requests?limit=25&sortOrder=Desc', 'GET', cookie, null, acc.roblox_id);
         if (r.status === 401) throw new Error('Your Roblox login expired. Unlink and paste a fresh cookie.');
-        if (r.ok) count = (await r.json()).count ?? null;
+        if (r.ok) {
+          const data = await r.json();
+          ids = (data.data || []).map(a => String(a.id ?? a.friendRequest?.senderId)).sort().join(',');
+        }
       }
-      // Only do the full check when something changed, or at least once a minute
       const prev = this.lastCounts.get(acc.user_id);
       const stale = !acc.last_scan_at || Date.now() - new Date(String(acc.last_scan_at).replace(' ', 'T') + 'Z').getTime() > 60000;
-      if (isTest ? !stale : (count === 0 || (count === prev && !stale))) {
-        if (count !== null) this.lastCounts.set(acc.user_id, count);
-        await this.setScanError(acc.user_id, null);
-        return;
+      const changed = ids === null || ids !== prev;
+      if (changed || stale) {
+        await this.runCloudScan(acc.user_id);
+        if (ids !== null) this.lastCounts.set(acc.user_id, ids);
       }
-      await this.runCloudScan(acc.user_id);
-      this.lastCounts.set(acc.user_id, count);
+      await db.run(`UPDATE roblox_accounts SET last_check_at = CURRENT_TIMESTAMP WHERE id = ?`, [acc.id]).catch(() => {});
       await this.setScanError(acc.user_id, null);
     } catch (e) {
       await this.setScanError(acc.user_id, e.message);

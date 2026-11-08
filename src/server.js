@@ -505,7 +505,8 @@ app.post('/api/v1/roblox/filter', authMiddleware, async (req, res) => {
 
 app.post('/api/v1/roblox/scan-now', authMiddleware, async (req, res) => {
   try {
-    const result = await robloxCloudService.runCloudScan(req.user.id);
+    const result = await robloxCloudService.runCloudScan(req.user.id, { force: true });
+    await db.run(`UPDATE roblox_accounts SET last_check_at = CURRENT_TIMESTAMP WHERE user_id = ?`, [req.user.id]).catch(() => {});
     await robloxCloudService.setScanError(req.user.id, null);
     res.json({ success: true, ...result });
   } catch (err) {
