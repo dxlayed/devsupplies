@@ -120,21 +120,39 @@ async function syncOnce() {
   const { list, complete } = await getRequests();
   const badges = await collectBadges(list);
 
+  // Clean and trim requests to prevent oversized payloads
+  const cleanRequests = list.map(r => ({
+    id: r.id ?? r.friendRequest?.senderId,
+    name: r.name,
+    displayName: r.displayName,
+    description: (r.description || '').slice(0, 300),
+    created: r.created,
+    isBanned: r.isBanned,
+    hasVerifiedBadge: r.hasVerifiedBadge,
+    friendRequest: r.friendRequest ? {
+      senderId: r.friendRequest.senderId,
+      sentAt: r.friendRequest.sentAt,
+      sourceUniverseId: r.friendRequest.sourceUniverseId,
+      originSourceType: r.friendRequest.originSourceType
+    } : null,
+    mutualFriendsList: Array.isArray(r.mutualFriendsList) ? r.mutualFriendsList.slice(0, 5) : []
+  }));
+
   let reply;
   try {
     const r = await fetch(apiBase + '/api/v1/ext/sync', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key, device, roblox: me, requests: list, complete, badges, done: lastDone })
+      body: JSON.stringify({ key, device, roblox: me, requests: cleanRequests, complete, badges, done: lastDone })
     });
     reply = await r.json().catch(() => ({}));
     if (!r.ok) {
       await setStatus({ state: 'error', message: reply.error || ('Server error ' + r.status), roblox: me.name });
-      return reply.nextMs || 15000;
+      return reply.nextMs || 5000;
     }
   } catch (e) {
     await setStatus({ state: 'error', message: "Can't reach Waurks right now", roblox: me.name });
-    return 15000;
+    return 5000;
   }
 
   // Do exactly what the server said

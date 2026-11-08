@@ -57,9 +57,9 @@ function mount(app) {
       const user = await db.get(`SELECT * FROM users WHERE id = ?`, [license.user_id]);
       if (!user || user.banned) return res.status(403).json({ error: 'This account is banned.' });
 
-      // 3) Rate limit: at most one sync per second per key
+      // 3) Rate limit: at most one sync per 500ms per key
       const now = Date.now();
-      if (now - (lastSync.get(license.id) || 0) < 1000) return res.status(429).json({ error: 'Too fast', nextMs: 2000 });
+      if (now - (lastSync.get(license.id) || 0) < 500) return res.status(429).json({ error: 'Too fast', nextMs: 1000 });
       lastSync.set(license.id, now);
 
       // 4) Make sure this customer has an "extension" account row (the website pages read from it)
@@ -116,24 +116,31 @@ function mount(app) {
       }).filter(Boolean);
       if (b.complete) list.complete = true;
 
-      // FAST STAGE: Save all incoming requests into SQLite immediately so all 500+ appear on the site instantly!
+      // FAST STAGE: Save all incoming requests into SQLite immediately in a transaction
       if (list.length > 0) {
-        for (const item of list) {
-          const sid = String(item.id);
-          const fr = item.friendRequest || {};
-          const displayName = item.displayName || item.name || `User ${sid}`;
-          const name = item.name || displayName;
-          db.run(
-            `INSERT INTO friend_requests (user_id, target_id, name, display_name, status, auto, sent_at, updated_at)
-             VALUES (?, ?, ?, ?, 'pending', 0, ?, CURRENT_TIMESTAMP)
-             ON CONFLICT(user_id, target_id) DO UPDATE SET
-               name = CASE WHEN excluded.name != '' THEN excluded.name ELSE friend_requests.name END,
-               display_name = CASE WHEN excluded.display_name != '' THEN excluded.display_name ELSE friend_requests.display_name END,
-               sent_at = COALESCE(excluded.sent_at, friend_requests.sent_at)
-             WHERE friend_requests.status = 'pending'`,
-            [user.id, sid, name, displayName, fr.sentAt || null]
-          ).catch(() => {});
-        }
+        await new Promise(resolve => {
+          db.db.serialize(() => {
+            db.db.run('BEGIN TRANSACTION');
+            const stmt = db.db.prepare(
+              `INSERT INTO friend_requests (user_id, target_id, name, display_name, status, auto, sent_at, updated_at)
+               VALUES (?, ?, ?, ?, 'pending', 0, ?, CURRENT_TIMESTAMP)
+               ON CONFLICT(user_id, target_id) DO UPDATE SET
+                 name = CASE WHEN excluded.name != '' THEN excluded.name ELSE friend_requests.name END,
+                 display_name = CASE WHEN excluded.display_name != '' THEN excluded.display_name ELSE friend_requests.display_name END,
+                 sent_at = COALESCE(excluded.sent_at, friend_requests.sent_at)
+               WHERE friend_requests.status = 'pending'`
+            );
+            for (const item of list) {
+              const sid = String(item.id);
+              const fr = item.friendRequest || {};
+              const displayName = item.displayName || item.name || `User ${sid}`;
+              const name = item.name || displayName;
+              stmt.run([user.id, sid, name, displayName, fr.sentAt || null]);
+            }
+            stmt.finalize();
+            db.db.run('COMMIT', () => resolve());
+          });
+        });
       }
 
       let result = { actions: [] };

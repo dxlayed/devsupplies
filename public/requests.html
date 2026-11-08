@@ -195,10 +195,13 @@
     }
 
     const reqs = d.requests || [];
+    const hid = d.hidden || [];
     document.getElementById('count').textContent = reqs.length ? `(${reqs.length})` : '';
     document.getElementById('list').innerHTML = reqs.length
       ? `<div class="grid">${reqs.map(r => card(r, false)).join('')}</div>`
-      : `<div class="empty">No friend requests from real people right now.<br>New ones show up here by themselves.</div>`;
+      : (d.mode === 'extension' && !d.extensionOnline && hid.length === 0
+          ? `<div class="empty"><h2 style="font-size:18px;margin-bottom:8px">Waiting for browser extension...</h2><p class="muted" style="margin-bottom:18px">Make sure the Waurks extension is loaded in your browser and your key is saved.<br>Your Roblox friend requests will appear here automatically.</p><div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap"><a href="/api/v1/extension/download" class="btn btn-main btn-sm" download="waurks-extension.zip">Download Extension (.ZIP)</a><a href="/dashboard" class="btn btn-line btn-sm">Setup Guide</a></div></div>`
+          : `<div class="empty">No friend requests from real people right now.<br>New ones show up here by themselves.</div>`);
 
     const hid = d.hidden || [];
     document.getElementById('hiddenBar').style.display = hid.length ? 'flex' : 'none';
@@ -216,7 +219,16 @@
       const d = await r.json();
       if (!d.connected) {
         document.getElementById('status').textContent = '';
-        document.getElementById('list').innerHTML = `<div class="empty">Link your Roblox account first.<br><br><a href="/dashboard" class="btn btn-main">Go to My account</a></div>`;
+        document.getElementById('list').innerHTML = `
+          <div class="empty">
+            <h2 style="font-size:18px;margin-bottom:8px">No Roblox account connected yet</h2>
+            <p class="muted" style="margin-bottom:18px">You can either install the lightweight browser extension (no cookie needed) or connect directly on your account page.</p>
+            <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+              <a href="/api/v1/extension/download" class="btn btn-main" download="waurks-extension.zip">Download Extension (.ZIP)</a>
+              <a href="/dashboard" class="btn btn-line">Go to My account</a>
+            </div>
+          </div>
+        `;
         return;
       }
       render(d);

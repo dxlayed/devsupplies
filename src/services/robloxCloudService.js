@@ -627,6 +627,20 @@ class RobloxCloudService {
       });
     };
 
+    const mm2BadgeMap = new Map();
+    if (live && mm2Filter) {
+      const idsToCheck = bases.map(b => b.id);
+      const BATCH = 10;
+      for (let i = 0; i < idsToCheck.length; i += BATCH) {
+        const slice = idsToCheck.slice(i, i + BATCH);
+        await Promise.all(slice.map(async id => {
+          const sid = String(id);
+          const has = await robloxProfiles.ownsBadge(sid, MM2_LEVEL10_BADGE, authGet);
+          mm2BadgeMap.set(sid, has);
+        }));
+      }
+    }
+
     let botsCount = 0, playersCount = 0, reviewCount = 0;
     const actionErrors = [];
 
@@ -642,7 +656,7 @@ class RobloxCloudService {
       let evaluation, mm2 = null;
       if (mm2Filter) {
         // MM2 filter: only checks the MM2 Level 10 badge (no online check)
-        mm2 = live ? await robloxProfiles.ownsBadge(sid, MM2_LEVEL10_BADGE, authGet) : !!bases[i].mm2;
+        mm2 = live ? mm2BadgeMap.get(sid) : !!bases[i].mm2;
         if (mm2 !== true) {
           evaluation = { verdict: 'DECLINE', threatScore: 100, reasons: [mm2 === null ? 'No MM2 Level 10 badge (inventory private)' : 'No MM2 Level 10 badge'] };
         } else {
@@ -726,7 +740,21 @@ class RobloxCloudService {
    *   strict  - only show accounts that clearly look real
    */
   async getRequests(userId) {
-    const account = await db.get(`SELECT filter_level, last_scan_at, last_check_at, last_error, is_active, auto_accept_players, accept_filter, mode FROM roblox_accounts WHERE user_id = ?`, [userId]);
+    let account = await db.get(`SELECT filter_level, last_scan_at, last_check_at, last_error, is_active, auto_accept_players, accept_filter, mode FROM roblox_accounts WHERE user_id = ?`, [userId]);
+    if (!account) {
+      // Check if user has an active license or friend requests
+      const lic = await db.get(`SELECT * FROM licenses WHERE user_id = ? AND status = 'active' ORDER BY id DESC LIMIT 1`, [userId]);
+      const hasReqs = await db.get(`SELECT COUNT(*) as count FROM friend_requests WHERE user_id = ?`, [userId]);
+      if (lic || (hasReqs && hasReqs.count > 0)) {
+        const robloxId = lic?.roblox_id || '0';
+        await db.run(
+          `INSERT INTO roblox_accounts (user_id, license_id, roblox_id, roblox_username, avatar_url, encrypted_cookie, cookie_iv, is_active, auto_accept_players, mode)
+           VALUES (?, ?, ?, ?, NULL, '', '', 1, 0, 'extension')`,
+          [userId, lic?.id || null, robloxId, `User ${robloxId}`]
+        ).catch(() => {});
+        account = await db.get(`SELECT filter_level, last_scan_at, last_check_at, last_error, is_active, auto_accept_players, accept_filter, mode FROM roblox_accounts WHERE user_id = ?`, [userId]);
+      }
+    }
     if (!account) return { connected: false };
     const level = account.filter_level || 'normal';
     const rows = await db.all(
