@@ -468,6 +468,8 @@ class RobloxCloudService {
    */
   async processRequests(userId, account, activeLicense, pendingList, cookie) {
     const live = !isTestCookie(cookie);
+    // MM2 filter = only check for the MM2 "Level 10" badge. No bot checks, nothing declined or hidden.
+    const mm2Filter = account.accept_filter === 'mm2';
     const senderId = a => a.id ?? a.friendRequest?.senderId;
     const ids = new Set(pendingList.map(a => String(senderId(a))).filter(Boolean));
 
@@ -511,7 +513,7 @@ class RobloxCloudService {
         const n = names.get(String(b.id));
         if (n) { b.name = b.name || n.name; b.displayName = b.displayName || n.displayName; if (n.hasVerifiedBadge) b.hasVerifiedBadge = true; }
       }
-      profiles = await robloxProfiles.getProfiles(bases, authGet);
+      profiles = mm2Filter ? bases : await robloxProfiles.getProfiles(bases, authGet);
       headshots = await robloxProfiles.getHeadshots(bases.map(b => b.id));
     } else {
       profiles = bases;
@@ -523,7 +525,7 @@ class RobloxCloudService {
     const burst = createdAt.map((t, i) => !isNew[i] ? 0
       : createdAt.filter((u, j) => j !== i && isNew[j] && Math.abs(u - t) < 3 * 86400000).length);
 
-    let botsCount = 0, playersCount = 0, reviewCount = 0, reviewCountFix = 0;
+    let botsCount = 0, playersCount = 0, reviewCount = 0;
     const actionErrors = [];
 
     for (let i = 0; i < toCheck.length; i++) {
@@ -534,23 +536,21 @@ class RobloxCloudService {
       const fr = toCheck[i].friendRequest || {};
       const mutuals = Array.isArray(toCheck[i].mutualFriendsList) ? toCheck[i].mutualFriendsList.length : 0;
 
-      const evaluation = await detectionEngine.evaluateProfile(profile, {
-        forUserId: userId,
-        mutualFriends: mutuals,
-        metInGame: !!fr.sourceUniverseId || /ingame/i.test(String(fr.originSourceType || '')),
-        burstSiblings: burst[i]
-      });
-
-      // MM2 auto-accept filter: only people with the MM2 "Level 10" badge get auto-accepted
-      const mm2Filter = account.accept_filter === 'mm2';
-      let mm2 = null;
+      let evaluation, mm2 = null;
       if (mm2Filter) {
+        // MM2 filter: the badge is the only thing we look at
         mm2 = live ? await robloxProfiles.ownsBadge(sid, MM2_LEVEL10_BADGE, authGet) : !!bases[i].mm2;
-        if (mm2 === true && !(evaluation.groups || []).includes('content') && !/banned|block list|blocked pattern/i.test(evaluation.reasons[0] || '')) {
-          if (evaluation.verdict !== 'ACCEPT') { reviewCountFix++; }
-          evaluation.verdict = 'ACCEPT';
-          evaluation.reasons = ['MM2 trades accepted', ...evaluation.reasons.filter(r => r !== 'MM2 trades accepted')];
-        }
+        evaluation = mm2 === true
+          ? { verdict: 'ACCEPT', threatScore: 0, reasons: ['MM2 trades accepted'] }
+          : { verdict: 'REVIEW', threatScore: 0, reasons: [mm2 === null ? 'Inventory is private, could not check' : 'No MM2 Level 10 badge'] };
+      } else {
+        // Standard filter: the full bot checker, no badge check
+        evaluation = await detectionEngine.evaluateProfile(profile, {
+          forUserId: userId,
+          mutualFriends: mutuals,
+          metInGame: !!fr.sourceUniverseId || /ingame/i.test(String(fr.originSourceType || '')),
+          burstSiblings: burst[i]
+        });
       }
 
       // Act on Roblox when the customer's switches say so
@@ -606,7 +606,7 @@ class RobloxCloudService {
     if (actionErrors.length) {
       throw new Error(`Roblox blocked ${actionErrors.length} accept/decline action(s) (${actionErrors.slice(0, 2).join(', ')}). Your cookie may need refreshing.`);
     }
-    return { scanned: toCheck.length, botsDeclined: botsCount, playersAccepted: playersCount, heldReview: Math.max(0, reviewCount - reviewCountFix), simulated: !live || undefined };
+    return { scanned: toCheck.length, botsDeclined: botsCount, playersAccepted: playersCount, heldReview: reviewCount, simulated: !live || undefined };
   }
 
   /**
@@ -631,7 +631,7 @@ class RobloxCloudService {
         verdict: r.verdict, score: r.score, reasons: safeJson(r.reasons, []), facts: safeJson(r.facts, {}),
         status: r.status, sentAt: r.sent_at
       };
-      if (r.status === 'declined' || isHidden(level, r.verdict, r.score)) hidden.push(item);
+      if (r.status === 'declined' || (account.accept_filter !== 'mm2' && isHidden(level, r.verdict, r.score))) hidden.push(item);
       else visible.push(item);
     }
     return {

@@ -37,6 +37,10 @@
   .card a.who:hover .dn{color:var(--purple)}
   .controls{display:flex;flex-direction:column;align-items:flex-end;gap:10px}
   .auto{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600;cursor:pointer}
+  .warn{display:none;align-items:center;gap:8px;background:rgba(255,200,87,.1);border:1px solid rgba(255,200,87,.4);color:var(--yellow);
+    border-radius:10px;padding:8px 12px;font-size:13px;font-weight:600}
+  .warn.show{display:inline-flex}
+  .warn svg{width:16px;height:16px;flex:none}
   .linkish{background:none;border:none;color:var(--muted);font:12px "Inter",sans-serif;cursor:pointer;margin-top:8px;text-decoration:underline}
   .linkish:hover{color:var(--text)}
 
@@ -78,6 +82,10 @@
       <div class="seg" id="acceptFilter" role="group" aria-label="Auto-accept filter">
         <button data-filter="standard">Standard filter</button>
         <button data-filter="mm2">MM2 filter</button>
+      </div>
+      <div class="warn" id="mm2Warn" role="note">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+        Only recommended for MM2
       </div>
       <div class="seg" role="group" aria-label="Bot filter strength">
         <button data-level="relaxed">Relaxed</button>
@@ -166,6 +174,10 @@
     if (document.activeElement !== sw) sw.checked = !!d.autoAccept;
     document.querySelectorAll('#acceptFilter button').forEach(b => b.classList.toggle('on', b.dataset.filter === (d.acceptFilter || 'standard')));
     document.getElementById('acceptFilter').style.opacity = d.autoAccept ? '1' : '.5';
+    const isMm2 = d.acceptFilter === 'mm2';
+    document.getElementById('mm2Warn').classList.toggle('show', isMm2);
+    document.querySelector('.seg:not(#acceptFilter)').style.display = isMm2 ? 'none' : '';
+    document.getElementById('segHelp').style.display = isMm2 ? 'none' : '';
 
     const st = document.getElementById('status');
     if (d.lastError) { st.textContent = 'Problem: ' + d.lastError; st.className = 'status bad'; }
