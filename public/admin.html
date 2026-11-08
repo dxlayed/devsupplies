@@ -144,6 +144,14 @@
   const when = d => d ? toDate(d).toLocaleString() : '—';
   const empty = (cols, msg) => `<tr><td colspan="${cols}" style="text-align:center;color:var(--muted)">${msg}</td></tr>`;
 
+  function confirmTwice(el, label) {
+    if (!el) return true;
+    if (el.dataset.armed === '1') { el.dataset.armed = ''; el.textContent = el.dataset.orig; return true; }
+    el.dataset.orig = el.textContent; el.dataset.armed = '1';
+    el.textContent = label || 'Click again to confirm';
+    setTimeout(() => { if (el.dataset.armed === '1') { el.dataset.armed = ''; el.textContent = el.dataset.orig; } }, 4000);
+    return false;
+  }
   function toast(msg) { const t = $('toast'); t.textContent = msg; t.style.display = 'block'; clearTimeout(t._h); t._h = setTimeout(() => t.style.display = 'none', 3500); }
 
   async function api(path, body) {
@@ -206,7 +214,7 @@
   });
   $('mtBtn').onclick = safe(async () => {
     const turnOn = !maintenanceOn;
-    if (turnOn && !confirm('Close the site for everyone except admins?')) return;
+    if (turnOn && !confirmTwice($('mtBtn'), 'Click again to close the site')) return;
     await post('/maintenance', { enabled: turnOn, message: $('mtMessage').value.trim() });
     toast(turnOn ? 'Site is in maintenance mode' : 'Site is open again');
     loadSite(); loadAudit();
@@ -238,7 +246,7 @@
       try { await navigator.clipboard.writeText(r.license.keyCode); } catch (_) {}
       toast('Key issued (copied): ' + r.license.keyCode);
     } else if (act === 'ban') {
-      if (!confirm('Ban this user? Their keys are revoked and their cloud scanning stops.')) return;
+      if (!confirmTwice(b, 'Click again to ban')) return;
       await post(`/users/${id}/ban`); toast('Banned');
     } else if (act === 'unban') {
       await post(`/users/${id}/unban`); toast('Unbanned. Give them a key if they need one.');
@@ -259,10 +267,10 @@
     const b = e.target.closest('button[data-act]'); if (!b) return;
     const id = encodeURIComponent(b.dataset.id);
     if (b.dataset.act === 'approve') {
-      if (!confirm('Mark this order as paid and issue the key?')) return;
+      if (!confirmTwice(b, 'Click again to approve')) return;
       const r = await post(`/orders/${id}/approve`); toast('Key issued: ' + r.result.license.keyCode);
     } else {
-      if (!confirm('Cancel this order?')) return;
+      if (!confirmTwice(b, 'Click again to cancel')) return;
       await post(`/orders/${id}/cancel`);
     }
     loadAll();
@@ -285,7 +293,7 @@
     if (act === 'copy') { try { await navigator.clipboard.writeText(el.dataset.key); toast('Copied'); } catch (_) {} return; }
     if (act === 'extend') { await post(`/licenses/${id}/extend`, { days: +el.dataset.days }); toast('Added ' + el.dataset.days + ' days'); }
     if (act === 'hwid') { await post(`/licenses/${id}/reset-hwid`); toast('Device lock cleared'); }
-    if (act === 'revoke') { if (!confirm('Revoke this key? It stops working right away.')) return; await post(`/licenses/${id}/revoke`); }
+    if (act === 'revoke') { if (!confirmTwice(el, 'Click again to revoke')) return; await post(`/licenses/${id}/revoke`); }
     loadKeys(); loadStats(); loadAudit();
   });
 

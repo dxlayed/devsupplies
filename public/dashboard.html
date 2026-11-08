@@ -158,6 +158,35 @@
 </style>
 </head>
 <body>
+<style>
+  #wkToast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,20px);opacity:0;pointer-events:none;z-index:9999;
+    background:#1a2234;color:#e8edf6;border:1px solid #263044;border-radius:12px;padding:12px 18px;font:600 14px Inter,sans-serif;
+    box-shadow:0 10px 30px rgba(0,0,0,.4);transition:opacity .2s,transform .2s;max-width:min(92vw,520px);text-align:center}
+  #wkToast.show{opacity:1;transform:translate(-50%,0)}
+  #wkToast.err{border-color:rgba(255,77,94,.5);color:#ffb3bb}
+  #wkToast.ok{border-color:rgba(52,209,126,.5);color:#34d17e}
+</style>
+<div id="wkToast" role="status" aria-live="polite"></div>
+<script>
+  // Small notice at the bottom of the page instead of a browser popup
+  function notify(msg, kind) {
+    const t = document.getElementById('wkToast');
+    t.textContent = String(msg);
+    t.className = 'show' + (kind ? ' ' + kind : (/error|fail|invalid|could not|please/i.test(msg) ? ' err' : ''));
+    clearTimeout(t._h); t._h = setTimeout(() => { t.className = ''; }, 3500);
+  }
+  // Risky buttons: first click arms the button, second click (within 4s) confirms. No popup.
+  function confirmTwice(el, label) {
+    if (!el) return true;
+    if (el.dataset.armed === '1') { el.dataset.armed = ''; el.textContent = el.dataset.orig; return true; }
+    el.dataset.orig = el.textContent; el.dataset.armed = '1';
+    el.textContent = label || 'Click again to confirm';
+    setTimeout(() => { if (el.dataset.armed === '1') { el.dataset.armed = ''; el.textContent = el.dataset.orig; } }, 4000);
+    return false;
+  }
+  window.alert = msg => notify(msg);
+</script>
+
 
 <div class="wrap">
   <header>
@@ -562,7 +591,7 @@
       await loadReviewQueue();
       await loadRobloxAccountStatus();
     } catch (e) {
-      alert('Error: ' + e.message);
+      notify('Error: ' + e.message, 'err');
     }
   }
 
@@ -598,7 +627,7 @@
   async function connectRobloxAccount() {
     const cookie = document.getElementById('robloxCookieInput').value.trim();
     if (!cookie) {
-      alert('Please enter your Roblox cookie.');
+      notify('Please enter your Roblox cookie.', 'err');
       return;
     }
 
@@ -613,13 +642,13 @@
       });
       const data = await resp.json();
       if (data.success) {
-        alert('Roblox account connected successfully! 24/7 Cloud botting is now active.');
+        notify('Roblox account connected', 'ok');
         await loadRobloxAccountStatus();
       } else {
-        alert('Connection error: ' + data.error);
+        notify('Connection error: ' + data.error, 'err');
       }
     } catch (e) {
-      alert('Error: ' + e.message);
+      notify('Error: ' + e.message, 'err');
     }
   }
 
@@ -642,7 +671,7 @@
       });
       await loadRobloxAccountStatus();
     } catch (e) {
-      alert('Error: ' + e.message);
+      notify('Error: ' + e.message, 'err');
     }
   }
 
@@ -676,9 +705,9 @@
           customBlacklist: document.getElementById('filterBlacklist').value
         })
       });
-      alert('Custom filtering rules saved!');
+      notify('Filters saved', 'ok');
     } catch (e) {
-      alert('Error saving filters: ' + e.message);
+      notify('Error saving filters: ' + e.message, 'err');
     }
   }
 
@@ -695,13 +724,13 @@
       const data = await resp.json();
 
       if (data.success) {
-        alert(`Cloud scan complete!\nScanned: ${data.scanned}\nBots Blocked: ${data.botsDeclined}\nPlayers Accepted: ${data.playersAccepted}`);
+        notify(`Scan done: ${data.scanned} checked, ${data.botsDeclined} bots blocked, ${data.playersAccepted} players accepted`, 'ok');
         await loadRobloxAccountStatus();
       } else {
-        alert('Scan error: ' + data.error);
+        notify('Scan error: ' + data.error, 'err');
       }
     } catch (e) {
-      alert('Error: ' + e.message);
+      notify('Error: ' + e.message, 'err');
     } finally {
       btn.disabled = false;
       btn.textContent = '⚡ Scan & Clean Now';
@@ -709,7 +738,7 @@
   }
 
   async function disconnectRoblox() {
-    if (!confirm('Are you sure you want to disconnect your Roblox account from Waurks Cloud?')) return;
+    if (!confirmTwice(window.event && window.event.target.closest('button'), 'Click again to disconnect')) return;
     try {
       await fetch('/api/v1/roblox/disconnect', {
         method: 'POST',
@@ -717,14 +746,14 @@
       });
       await loadRobloxAccountStatus();
     } catch (e) {
-      alert('Error: ' + e.message);
+      notify('Error: ' + e.message, 'err');
     }
   }
 
   function copyKey() {
     if (!activeLicense) return;
     navigator.clipboard.writeText(activeLicense.key_code);
-    alert('Key copied: ' + activeLicense.key_code);
+    notify('Key copied', 'ok');
   }
 
   function openCookieGuide() {

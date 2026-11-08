@@ -169,6 +169,35 @@
 </style>
 </head>
 <body>
+<style>
+  #wkToast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,20px);opacity:0;pointer-events:none;z-index:9999;
+    background:#1a2234;color:#e8edf6;border:1px solid #263044;border-radius:12px;padding:12px 18px;font:600 14px Inter,sans-serif;
+    box-shadow:0 10px 30px rgba(0,0,0,.4);transition:opacity .2s,transform .2s;max-width:min(92vw,520px);text-align:center}
+  #wkToast.show{opacity:1;transform:translate(-50%,0)}
+  #wkToast.err{border-color:rgba(255,77,94,.5);color:#ffb3bb}
+  #wkToast.ok{border-color:rgba(52,209,126,.5);color:#34d17e}
+</style>
+<div id="wkToast" role="status" aria-live="polite"></div>
+<script>
+  // Small notice at the bottom of the page instead of a browser popup
+  function notify(msg, kind) {
+    const t = document.getElementById('wkToast');
+    t.textContent = String(msg);
+    t.className = 'show' + (kind ? ' ' + kind : (/error|fail|invalid|could not|please/i.test(msg) ? ' err' : ''));
+    clearTimeout(t._h); t._h = setTimeout(() => { t.className = ''; }, 3500);
+  }
+  // Risky buttons: first click arms the button, second click (within 4s) confirms. No popup.
+  function confirmTwice(el, label) {
+    if (!el) return true;
+    if (el.dataset.armed === '1') { el.dataset.armed = ''; el.textContent = el.dataset.orig; return true; }
+    el.dataset.orig = el.textContent; el.dataset.armed = '1';
+    el.textContent = label || 'Click again to confirm';
+    setTimeout(() => { if (el.dataset.armed === '1') { el.dataset.armed = ''; el.textContent = el.dataset.orig; } }, 4000);
+    return false;
+  }
+  window.alert = msg => notify(msg);
+</script>
+
 
 <div class="wrap">
   <header>
@@ -346,8 +375,8 @@
       document.getElementById('simBtn').style.display = s.devLogin ? 'block' : 'none';
     } catch (e) { currentUser = null; }
     const err = new URLSearchParams(window.location.search).get('error');
-    if (err === 'discord_not_configured') alert('Discord login is not set up on the server yet.');
-    if (err === 'discord_login_failed') alert('Discord login failed. Please try again.');
+    if (err === 'discord_not_configured') notify('Discord login is not set up on the server yet.', 'err');
+    if (err === 'discord_login_failed') notify('Discord login failed. Please try again.', 'err');
     updateAuthDisplay();
     const params = new URLSearchParams(window.location.search);
     const tierParam = params.get('tier') || 'monthly';
@@ -374,7 +403,7 @@
   }
 
   async function startDevLogin() {
-    const name = prompt('Enter Discord Display Name for Demo Sign-in:', 'RobloxGamer_99');
+    const name = 'TestUser';
     if (!name) return;
 
     try {
@@ -390,7 +419,7 @@
         updateAuthDisplay();
       }
     } catch (e) {
-      alert('Login error: ' + e.message);
+      notify('Login error: ' + e.message, 'err');
     }
   }
 
@@ -494,7 +523,7 @@
       document.getElementById('modalSuccessView').style.display = 'none';
       document.getElementById('checkoutModal').classList.add('open');
     } catch (e) {
-      alert('Checkout error: ' + e.message);
+      notify(e.message, 'err');
     }
   }
 
@@ -512,10 +541,10 @@
         document.getElementById('modalSuccessView').style.display = 'block';
         document.getElementById('issuedKeyDisplay').textContent = data.result.license.keyCode;
       } else {
-        alert('Payment confirmation error: ' + (data.error || 'Unknown'));
+        notify('Payment error: ' + (data.error || 'Unknown'), 'err');
       }
     } catch (e) {
-      alert('Error confirming payment: ' + e.message);
+      notify('Payment error: ' + e.message, 'err');
     }
   }
 
@@ -576,7 +605,7 @@
   function copyIssuedKey() {
     const key = document.getElementById('issuedKeyDisplay').textContent;
     navigator.clipboard.writeText(key);
-    alert('Key copied to clipboard: ' + key);
+    notify('Key copied', 'ok');
   }
 
   function closeModal() {
