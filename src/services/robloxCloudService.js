@@ -27,8 +27,14 @@ function isHidden(level, verdict, score) {
   return false; // relaxed
 }
 // Fake requests for test accounts (no real Roblox login)
-function demoRequests() {
+function demoRequests(cookie = '') {
   const d = n => new Date(Date.now() - n * 86400000).toISOString();
+  // TEST_COOKIE_FLOOD...: 60 fake requests, to test how a bot flood is handled
+  if (cookie.includes('FLOOD')) {
+    return Array.from({ length: 60 }, (_, i) => i % 4 === 0
+      ? { id: 8100000 + i, name: 'player_' + i, displayName: 'Player ' + i, description: '', created: d(500 + i), badgeCount: 20, friendsCount: 30 }
+      : { id: 8100000 + i, name: 'bot' + i + 'xqz', displayName: 'bot' + i, description: 'free robux at rbx-win.xyz', created: d(1), badgeCount: 0, friendsCount: 0 });
+  }
   return [
     { id: 9817263, name: 'ClaimRobux_x882', displayName: 'Robux Giveaway', description: 'Visit giftcard.gg/free for 10,000 robux!', created: d(1), badgeCount: 0, friendsCount: 0 },
     { id: 1827364, name: 'BlockyGamer_Ethan', displayName: 'Ethan', description: 'Builder and anime fan', created: d(400), badgeCount: 22, friendsCount: 30 },
@@ -412,7 +418,7 @@ class RobloxCloudService {
     // One check at a time per account (the automatic watcher and the Scan now button can overlap)
     this.activeScans = this.activeScans || new Set();
     if (this.activeScans.has(userId)) {
-      if (opts.force) throw new Error('Already checking, give it a few seconds');
+      if (opts.force) { const e = new Error('Already checking, give it a few seconds'); e.busy = true; throw e; }
       return { scanned: 0, botsDeclined: 0, playersAccepted: 0, heldReview: 0 };
     }
     this.activeScans.add(userId);
@@ -454,7 +460,7 @@ class RobloxCloudService {
     // 2. Get every waiting friend request (up to 8 pages of 25)
     const pendingList = [];
     if (isTestCookie(cookie)) {
-      pendingList.push(...demoRequests());
+      pendingList.push(...demoRequests(cookie));
     } else {
       let cursor = '';
       for (let page = 0; page < 8; page++) {
@@ -473,9 +479,10 @@ class RobloxCloudService {
         const data = await res.json();
         pendingList.push(...(data.data || []));
         cursor = data.nextPageCursor;
-        if (!cursor) break;
+        if (!cursor) { pendingList.complete = true; break; }
       }
     }
+    if (isTestCookie(cookie)) pendingList.complete = true;
     if (opts.force) await db.run(`UPDATE friend_requests SET checked_at = NULL WHERE user_id = ? AND status = 'pending'`, [userId]);
     return await this.processRequests(userId, account, activeLicense, pendingList, cookie);
   }
@@ -494,14 +501,23 @@ class RobloxCloudService {
     // Requests that disappeared from Roblox (accepted/declined in the Roblox app) are marked gone
     const rows = await db.all(`SELECT target_id, checked_at FROM friend_requests WHERE user_id = ? AND status = 'pending'`, [userId]);
     for (const r of rows) {
-      if (!ids.has(String(r.target_id))) {
+      // Only mark "gone" when we saw the whole list; with a flood we only see the newest 200
+      if (pendingList.complete && !ids.has(String(r.target_id))) {
         await db.run(`UPDATE friend_requests SET status = 'gone', updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND target_id = ?`, [userId, r.target_id]);
       }
     }
 
     // Only score new ones, plus anything not re-checked in the last hour
-    const fresh = new Set(rows.filter(r => r.checked_at && Date.now() - toMs(r.checked_at) < 3600000).map(r => String(r.target_id)));
-    const toCheck = pendingList.filter(a => senderId(a) && !fresh.has(String(senderId(a))));
+    // Anything we already handled or checked in the last hour (declined, accepted or waiting) is skipped
+    const recent = await db.all(`SELECT target_id FROM friend_requests WHERE user_id = ? AND checked_at > datetime('now', '-1 hour')`, [userId]);
+    const fresh = new Set(recent.map(r => String(r.target_id)));
+    // Newest first, at most 40 per pass so new requests show up within seconds even during a flood.
+    // The rest get picked up on the next passes (every few seconds).
+    const MAX_PER_PASS = 16;
+    const unchecked = pendingList.filter(a => senderId(a) && !fresh.has(String(senderId(a))));
+    const toCheck = unchecked.slice(0, MAX_PER_PASS);
+    this.backlog = this.backlog || new Map();
+    this.backlog.set(userId, Math.max(0, unchecked.length - toCheck.length) + (pendingList.complete ? 0 : 1));
     if (toCheck.length === 0) {
       await db.run(`UPDATE roblox_accounts SET last_scan_at = CURRENT_TIMESTAMP WHERE id = ?`, [account.id]);
       return { scanned: 0, botsDeclined: 0, playersAccepted: 0, heldReview: 0, message: 'Nothing new to check.' };
@@ -531,22 +547,30 @@ class RobloxCloudService {
         const n = names.get(String(b.id));
         if (n) { b.name = b.name || n.name; b.displayName = b.displayName || n.displayName; if (n.hasVerifiedBadge) b.hasVerifiedBadge = true; }
       }
-      profiles = mm2Filter ? bases : await robloxProfiles.getProfiles(bases, authGet);
       headshots = await robloxProfiles.getHeadshots(bases.map(b => b.id));
-    } else {
-      profiles = bases;
     }
-
-    // Waves of brand-new accounts: how many OTHER new requesters were made within 3 days of this one
-    const createdAt = profiles.map(p => (p.created ? new Date(p.created).getTime() : null));
-    const isNew = createdAt.map(t => t !== null && Date.now() - t < 30 * 86400000);
-    const burst = createdAt.map((t, i) => !isNew[i] ? 0
-      : createdAt.filter((u, j) => j !== i && isNew[j] && Math.abs(u - t) < 3 * 86400000).length);
+    // Full profiles are fetched 8 at a time, and each request is saved the moment it's scored,
+    // so the page fills up while the rest are still being checked.
+    const CHUNK = 8;
+    profiles = new Array(bases.length);
+    const burst = new Array(bases.length).fill(0);
+    const loadChunk = async start => {
+      const part = bases.slice(start, start + CHUNK);
+      const got = (!live || mm2Filter) ? part : await robloxProfiles.getProfiles(part, authGet, CHUNK);
+      got.forEach((p, k) => { profiles[start + k] = p; });
+      // Waves of brand-new accounts arriving together
+      const ts = got.map(p => (p.created ? new Date(p.created).getTime() : null));
+      const fresh30 = ts.map(t => t !== null && Date.now() - t < 30 * 86400000);
+      ts.forEach((t, k) => {
+        burst[start + k] = !fresh30[k] ? 0 : ts.filter((u, j) => j !== k && fresh30[j] && Math.abs(u - t) < 3 * 86400000).length;
+      });
+    };
 
     let botsCount = 0, playersCount = 0, reviewCount = 0;
     const actionErrors = [];
 
     for (let i = 0; i < toCheck.length; i++) {
+      if (i % CHUNK === 0) await loadChunk(i);
       const sid = String(senderId(toCheck[i]));
       const profile = profiles[i];
       const name = profile.name || bases[i].name || `User ${sid}`;
@@ -616,7 +640,7 @@ class RobloxCloudService {
         [userId, account.roblox_id, sid, name, evaluation.verdict, evaluation.threatScore, evaluation.reasons[0] || '']
       );
 
-      if (live && status !== 'pending') await new Promise(r => setTimeout(r, 400));
+      if (live && status !== 'pending') await new Promise(r => setTimeout(r, 150));
     }
 
     await keyService.recordStats(activeLicense.id, { filtered: toCheck.length, blocked: botsCount, accepted: playersCount });
@@ -656,6 +680,7 @@ class RobloxCloudService {
       connected: true, level, active: !!account.is_active, autoAccept: !!account.auto_accept_players,
       acceptFilter: account.accept_filter || 'standard',
       lastScanAt: [account.last_check_at, account.last_scan_at].filter(Boolean).sort().pop() || null, lastError: account.last_error,
+      checking: (this.backlog && this.backlog.get(userId)) || 0, busy: !!(this.activeScans && this.activeScans.has(userId)),
       requests: visible, hidden
     };
   }
@@ -756,7 +781,9 @@ class RobloxCloudService {
         this.scanning.add(acc.user_id);
         this.watchOne(acc).finally(() => {
           this.scanning.delete(acc.user_id);
-          this.nextCheck.set(acc.user_id, Date.now() + randomWait());
+          // Still working through a flood? Go again in 1 second. Otherwise the normal random 5-10s.
+          const behind = this.backlog && this.backlog.get(acc.user_id) > 0;
+          this.nextCheck.set(acc.user_id, Date.now() + (behind ? 1000 : randomWait()));
         });
       }
     };
@@ -782,7 +809,8 @@ class RobloxCloudService {
       const prev = this.lastCounts.get(acc.user_id);
       const stale = !acc.last_scan_at || Date.now() - new Date(String(acc.last_scan_at).replace(' ', 'T') + 'Z').getTime() > 60000;
       const changed = ids === null || ids !== prev;
-      if (changed || stale) {
+      const behind = (this.backlog && this.backlog.get(acc.user_id)) > 0;
+      if (changed || stale || behind) {
         await this.runCloudScan(acc.user_id);
         if (ids !== null) this.lastCounts.set(acc.user_id, ids);
       }

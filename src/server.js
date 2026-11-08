@@ -510,6 +510,7 @@ app.post('/api/v1/roblox/scan-now', authMiddleware, async (req, res) => {
     await robloxCloudService.setScanError(req.user.id, null);
     res.json({ success: true, ...result });
   } catch (err) {
+    if (err.busy) return res.status(409).json({ error: err.message, busy: true });
     await robloxCloudService.setScanError(req.user.id, err.message).catch(() => {});
     res.status(400).json({ error: err.message });
   }

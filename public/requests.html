@@ -185,7 +185,7 @@
     else if (!d.active) { st.textContent = 'Paused. Turn it back on from My account.'; st.className = 'status'; }
     else {
       const t = d.lastScanAt ? new Date(String(d.lastScanAt).replace(' ', 'T') + 'Z').toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' }) : null;
-      st.textContent = 'Updates by itself' + (t ? ` · last checked ${t}` : '');
+      st.textContent = (d.checking ? `Checking ${d.checking > 1 ? d.checking + ' more' : 'more'} requests...` : 'Updates by itself') + (t ? ` · last checked ${t}` : '');
       st.className = 'status';
     }
 
@@ -255,6 +255,7 @@
     try {
       const r = await fetch('/api/v1/roblox/scan-now', { method: 'POST' });
       const d = await r.json();
+      if (r.status === 409) { notify('Already checking, results are coming in'); b.disabled = false; b.textContent = 'Scan now'; load(); return; }
       if (!r.ok) throw new Error(d.error);
       notify(d.scanned ? `Checked ${d.scanned}: ${d.botsDeclined} bots, ${d.playersAccepted} real` : 'No friend requests found', 'ok');
     } catch (err) {
@@ -288,7 +289,7 @@
   }).catch(() => {});
 
   load();
-  setInterval(load, 5000);
+  setInterval(load, 3000);
 </script>
 </body>
 </html>

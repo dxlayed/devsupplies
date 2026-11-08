@@ -65,7 +65,7 @@ async function getProfile(id, base = {}, authGet = null) {
     authGet ? authGet(`https://badges.roblox.com/v1/users/${id}/badges?limit=25&sortOrder=Desc`).catch(() => null) : null,
     getJson(`https://groups.roblox.com/v2/users/${id}/groups/roles`),
     getJson(`https://avatar.roblox.com/v1/users/${id}/avatar`),
-    getJson(`https://users.roblox.com/v1/users/${id}/username-history?limit=10&sortOrder=Desc`, 1) // heavily rate-limited, one try only
+    null // name history skipped: too slow and rate-limited
   ]);
 
   const profile = {
@@ -107,7 +107,6 @@ async function getProfiles(list, authGet = null, concurrency = 3) {
     while (next < list.length) {
       const i = next++;
       out[i] = await getProfile(list[i].id, list[i], authGet);
-      await sleep(150);
     }
   }
   await Promise.all(Array.from({ length: Math.min(concurrency, list.length) }, worker));
@@ -121,20 +120,24 @@ async function getProfiles(list, authGet = null, concurrency = 3) {
  * Prices are cached for 7 days since they rarely change.
  */
 async function findPaidItem(userId, assets) {
-  if (!Array.isArray(assets)) return null;
-  for (const a of assets.slice(0, 20)) {
+  if (!Array.isArray(assets) || assets.length === 0) return null;
+  // Look up every item at once (cached ones come straight from the database)
+  const rows = await Promise.all(assets.slice(0, 20).map(async a => {
     const aid = String(a.id);
     let row = await db.get(`SELECT * FROM asset_prices WHERE asset_id = ? AND fetched_at > datetime('now', '-7 days')`, [aid]).catch(() => null);
-    if (!row) {
-      const d = await getJson(`https://economy.roblox.com/v2/assets/${aid}/details`, 2);
-      if (!d) continue;
-      row = { asset_id: aid, name: d.Name || a.name, price: Number(d.PriceInRobux) || 0, is_limited: d.IsLimited ? 1 : 0, creator_id: String(d.Creator?.Id ?? '') };
-      db.run(`INSERT INTO asset_prices (asset_id, name, price, is_limited, creator_id, fetched_at) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-        ON CONFLICT(asset_id) DO UPDATE SET name = excluded.name, price = excluded.price, is_limited = excluded.is_limited, creator_id = excluded.creator_id, fetched_at = excluded.fetched_at`,
-        [row.asset_id, row.name, row.price, row.is_limited, row.creator_id]).catch(() => {});
-    }
+    if (row) return row;
+    const d = await getJson(`https://economy.roblox.com/v2/assets/${aid}/details`, 2);
+    if (!d) return null;
+    row = { asset_id: aid, name: d.Name || a.name, price: Number(d.PriceInRobux) || 0, is_limited: d.IsLimited ? 1 : 0, creator_id: String(d.Creator?.Id ?? '') };
+    db.run(`INSERT INTO asset_prices (asset_id, name, price, is_limited, creator_id, fetched_at) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      ON CONFLICT(asset_id) DO UPDATE SET name = excluded.name, price = excluded.price, is_limited = excluded.is_limited, creator_id = excluded.creator_id, fetched_at = excluded.fetched_at`,
+      [row.asset_id, row.name, row.price, row.is_limited, row.creator_id]).catch(() => {});
+    return row;
+  }));
+  for (const row of rows) {
+    if (!row) continue;
     if (row.creator_id && row.creator_id === String(userId)) continue;
-    if (row.price > 0 || row.is_limited) return { id: aid, name: row.name, price: row.price, limited: !!row.is_limited };
+    if (row.price > 0 || row.is_limited) return { id: row.asset_id, name: row.name, price: row.price, limited: !!row.is_limited };
   }
   return null;
 }
