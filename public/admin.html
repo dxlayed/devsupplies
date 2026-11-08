@@ -182,6 +182,7 @@
   const debounce = fn => { let h; return () => { clearTimeout(h); h = setTimeout(fn, 250); }; };
   $('qUsers').oninput = debounce(() => loadUsers()); $('qKeys').oninput = debounce(() => loadKeys());
 
+  const safe = fn => (...a) => fn(...a).catch(e => toast(e.message));
   function loadAll() { loadStats(); loadUsers(); loadOrders(); loadKeys(); loadBlacklist(); loadAudit(); loadSite(); }
 
   let maintenanceOn = false;
@@ -199,8 +200,17 @@
     $('ltcInfo').innerHTML = l.configured
       ? `Wallet first address: <span class="mono" style="color:var(--text)">${esc(l.firstAddress)}</span><br>
          Keys issue after <b style="color:var(--text)">${+l.confirmationsRequired}</b> confirmation(s). Prices lock for ${+l.quoteMinutes} minutes.<br>
-         Last check: ${l.lastCheck ? when(l.lastCheck) : 'not yet'}${l.lastRateUsd ? ' · LTC price 
-  const safe = fn => (...a) => fn(...a).catch(e => toast(e.message));
+         Last check: ${l.lastCheck ? when(l.lastCheck) : 'not yet'}${l.lastRateUsd ? ' · LTC price $' + (+l.lastRateUsd).toFixed(2) : ''}
+         ${l.lastError ? '<br><span style="color:var(--block)">Last error: ' + esc(l.lastError) + '</span>' : ''}`
+      : 'Add LTC_XPUB (your Electrum-LTC master public key) to the Railway variables to turn on crypto checkout.';
+  });
+  $('mtBtn').onclick = safe(async () => {
+    const turnOn = !maintenanceOn;
+    if (turnOn && !confirm('Close the site for everyone except admins?')) return;
+    await post('/maintenance', { enabled: turnOn, message: $('mtMessage').value.trim() });
+    toast(turnOn ? 'Site is in maintenance mode' : 'Site is open again');
+    loadSite(); loadAudit();
+  });
 
   const loadStats = safe(async () => {
     const d = await api('/stats');
@@ -241,123 +251,6 @@
     $('tOrders').innerHTML = orders.length ? orders.map(o => { const p = o.status === 'pending'; return `<tr>
       <td class="mono" style="color:var(--gold)">${esc(o.trade_ticket_id || o.order_id)}</td><td><b>${esc(o.discord_username)}</b></td><td>${o.tier === 'yearly' ? 'lifetime' : esc(o.tier)}</td><td>$${esc(o.amount_usd)}</td>
       <td>${o.payment_method === 'items' ? '🎮 Items' : '🪙 LTC' + (o.ltc_amount_sats ? `<div class="mono" style="font-size:11px;color:var(--muted)">${(o.ltc_received_sats / 1e8).toFixed(8)} / ${(o.ltc_amount_sats / 1e8).toFixed(8)}${o.ltc_txid ? ` · <a href="https://litecoinspace.org/tx/${esc(o.ltc_txid)}" target="_blank" rel="noopener" style="color:var(--guard)">tx</a> (${+o.ltc_confirmations} conf)` : ''}</div>` : '')}</td>
-      <td style="font-weight:700;color:${p ? 'var(--gold)' : o.status === 'completed' ? 'var(--pass)' : 'var(--muted)'}">${esc(String(o.status).toUpperCase())}</td><td>${day(o.created_at)}</td>
-      <td class="nowrap">${p ? `<button class="btn btn-approve" data-act="approve" data-id="${esc(o.order_id)}">✓ Approve</button> <button class="btn btn-danger" data-act="cancel" data-id="${esc(o.order_id)}">✕ Cancel</button>` : `<span class="mono" style="font-size:11px">${esc(o.key_code || '')}</span>`}</td></tr>`; }).join('')
-      : empty(8, 'No orders');
-  });
-  $('tOrders').onclick = safe(async e => {
-    const b = e.target.closest('button[data-act]'); if (!b) return;
-    const id = encodeURIComponent(b.dataset.id);
-    if (b.dataset.act === 'approve') {
-      if (!confirm('Mark this order as paid and issue the key?')) return;
-      const r = await post(`/orders/${id}/approve`); toast('Key issued: ' + r.result.license.keyCode);
-    } else {
-      if (!confirm('Cancel this order?')) return;
-      await post(`/orders/${id}/cancel`);
-    }
-    loadAll();
-  });
-
-  const loadKeys = safe(async () => {
-    const { licenses } = await api('/licenses?q=' + encodeURIComponent($('qKeys').value));
-    $('tKeys').innerHTML = licenses.length ? licenses.map(l => { const st = l.status === 'active' && toDate(l.expires_at) < new Date() ? 'expired' : l.status; return `<tr>
-      <td class="mono" style="color:var(--pass);cursor:pointer" title="Click to copy" data-act="copy" data-key="${esc(l.key_code)}">${esc(l.key_code)}</td>
-      <td>${esc(l.owner_username)}</td><td>${l.tier === 'yearly' ? 'lifetime' : esc(l.tier)}</td><td style="font-weight:700;color:${st === 'active' ? 'var(--pass)' : 'var(--block)'}">${esc(String(st).toUpperCase())}</td>
-      <td>${l.hwid_binding ? '🔒 locked' : '—'}</td><td>${l.tier === 'yearly' ? 'Never' : day(l.expires_at)}</td>
-      <td class="nowrap"><button class="btn btn-ghost" data-act="extend" data-days="7" data-id="${+l.id}">+7d</button> <button class="btn btn-ghost" data-act="extend" data-days="30" data-id="${+l.id}">+30d</button> <button class="btn btn-ghost" data-act="extend" data-days="365" data-id="${+l.id}">+1y</button>
-        ${l.hwid_binding ? `<button class="btn btn-ghost" data-act="hwid" data-id="${+l.id}">Reset device</button>` : ''}
-        ${l.status !== 'revoked' ? `<button class="btn btn-danger" data-act="revoke" data-id="${+l.id}">Revoke</button>` : ''}</td></tr>`; }).join('')
-      : empty(7, 'No keys');
-  });
-  $('tKeys').onclick = safe(async e => {
-    const el = e.target.closest('[data-act]'); if (!el) return;
-    const id = el.dataset.id, act = el.dataset.act;
-    if (act === 'copy') { try { await navigator.clipboard.writeText(el.dataset.key); toast('Copied'); } catch (_) {} return; }
-    if (act === 'extend') { await post(`/licenses/${id}/extend`, { days: +el.dataset.days }); toast('Added ' + el.dataset.days + ' days'); }
-    if (act === 'hwid') { await post(`/licenses/${id}/reset-hwid`); toast('Device lock cleared'); }
-    if (act === 'revoke') { if (!confirm('Revoke this key? It stops working right away.')) return; await post(`/licenses/${id}/revoke`); }
-    loadKeys(); loadStats(); loadAudit();
-  });
-
-  const loadBlacklist = safe(async () => {
-    const { blacklist } = await api('/blacklist');
-    $('tBlacklist').innerHTML = blacklist.length ? blacklist.map(b => `<tr><td class="mono">${esc(b.roblox_user_id || '—')}</td><td class="mono" style="color:var(--block)">${esc(b.username_pattern || '—')}</td><td>${esc(b.reason)}</td><td>${day(b.added_at)}</td>
-      <td><button class="btn btn-danger" data-id="${+b.id}">Delete</button></td></tr>`).join('') : empty(5, 'No rules');
-  });
-  $('tBlacklist').onclick = safe(async e => {
-    const b = e.target.closest('button[data-id]'); if (!b) return;
-    await post(`/blacklist/${b.dataset.id}/delete`); loadBlacklist(); loadAudit();
-  });
-  const addBlacklist = safe(async () => {
-    const robloxUserId = $('newRobloxId').value.trim(), usernamePattern = $('newPattern').value.trim(), reason = $('newReason').value.trim();
-    if (!robloxUserId && !usernamePattern) return toast('Enter a Roblox ID or a pattern');
-    await post('/blacklist/add', { robloxUserId, usernamePattern, reason });
-    ['newRobloxId', 'newPattern', 'newReason'].forEach(i => $(i).value = '');
-    loadBlacklist(); loadAudit();
-  });
-
-  const loadAudit = safe(async () => {
-    const { logs } = await api('/audit');
-    $('tAudit').innerHTML = logs.length ? logs.map(l => `<tr><td class="nowrap">${when(l.created_at)}</td><td class="mono">${esc(l.action)}</td><td>${esc(l.details)}</td></tr>`).join('')
-      : empty(3, 'Nothing yet');
-  });
-
-  boot();
-</script>
-</body>
-</html>
- + (+l.lastRateUsd).toFixed(2) : ''}
-         ${l.lastError ? '<br><span style="color:var(--block)">Last error: ' + esc(l.lastError) + '</span>' : ''}`
-      : 'Add LTC_XPUB (your Electrum-LTC master public key) to the Railway variables to turn on crypto checkout.';
-  });
-  $('mtBtn').onclick = safe(async () => {
-    const turnOn = !maintenanceOn;
-    if (turnOn && !confirm('Close the site for everyone except admins?')) return;
-    await post('/maintenance', { enabled: turnOn, message: $('mtMessage').value.trim() });
-    toast(turnOn ? 'Site is in maintenance mode' : 'Site is open again');
-    loadSite(); loadAudit();
-  });
-  const safe = fn => (...a) => fn(...a).catch(e => toast(e.message));
-
-  const loadStats = safe(async () => {
-    const d = await api('/stats');
-    $('sRevenue').textContent = '$' + (+d.revenueUsd).toFixed(2); $('sWeek').textContent = '$' + (+d.revenue7dUsd).toFixed(2);
-    $('sUsers').textContent = d.totalUsers; $('sKeys').textContent = d.activeSubscriptions; $('sPending').textContent = d.pendingTradeTickets;
-    $('sRoblox').textContent = d.connectedRobloxAccounts; $('sBots').textContent = d.totalBotsBlocked; $('sOrders').textContent = d.totalOrders;
-  });
-
-  // Users table — buttons use data-id attributes, never names, so names can't break the page.
-  const loadUsers = safe(async () => {
-    const { users } = await api('/users?q=' + encodeURIComponent($('qUsers').value));
-    $('tUsers').innerHTML = users.length ? users.map(u => `<tr style="${u.banned ? 'opacity:.55' : ''}">
-      <td>${u.avatar ? `<img class="av" src="${esc(u.avatar)}" alt="">` : ''}<b>${esc(u.username)}</b>${u.banned ? ' <span style="color:var(--block);font-weight:700">BANNED</span>' : ''}</td>
-      <td class="mono">${esc(u.discord_id)}</td><td>${esc(u.roblox_username || '—')}</td><td>${+u.active_keys}</td><td>$${(+u.spent_usd).toFixed(2)}</td><td>${day(u.created_at)}</td>
-      <td class="nowrap"><select class="input-field" id="tier${+u.id}"><option value="weekly">7 days</option><option value="monthly">30 days</option><option value="yearly">Lifetime</option></select>
-        <button class="btn btn-approve" data-act="grant" data-id="${+u.id}">Give key</button>
-        ${u.banned ? `<button class="btn btn-ghost" data-act="unban" data-id="${+u.id}">Unban</button>` : `<button class="btn btn-danger" data-act="ban" data-id="${+u.id}">Ban</button>`}</td></tr>`).join('')
-      : empty(7, 'No users');
-  });
-  $('tUsers').onclick = safe(async e => {
-    const b = e.target.closest('button[data-act]'); if (!b) return;
-    const id = b.dataset.id, act = b.dataset.act;
-    if (act === 'grant') {
-      const r = await post(`/users/${id}/grant`, { tier: $('tier' + id).value });
-      try { await navigator.clipboard.writeText(r.license.keyCode); } catch (_) {}
-      toast('Key issued (copied): ' + r.license.keyCode);
-    } else if (act === 'ban') {
-      if (!confirm('Ban this user? Their keys are revoked and their cloud scanning stops.')) return;
-      await post(`/users/${id}/ban`); toast('Banned');
-    } else if (act === 'unban') {
-      await post(`/users/${id}/unban`); toast('Unbanned. Give them a key if they need one.');
-    }
-    loadUsers(); loadKeys(); loadStats(); loadAudit();
-  });
-
-  const loadOrders = safe(async () => {
-    const { orders } = await api('/orders');
-    $('tOrders').innerHTML = orders.length ? orders.map(o => { const p = o.status === 'pending'; return `<tr>
-      <td class="mono" style="color:var(--gold)">${esc(o.trade_ticket_id || o.order_id)}</td><td><b>${esc(o.discord_username)}</b></td><td>${o.tier === 'yearly' ? 'lifetime' : esc(o.tier)}</td><td>$${esc(o.amount_usd)}</td>
-      <td>${o.payment_method === 'items' ? '🎮 Items' : '🪙 ' + esc(o.crypto_currency || 'Crypto')}</td>
       <td style="font-weight:700;color:${p ? 'var(--gold)' : o.status === 'completed' ? 'var(--pass)' : 'var(--muted)'}">${esc(String(o.status).toUpperCase())}</td><td>${day(o.created_at)}</td>
       <td class="nowrap">${p ? `<button class="btn btn-approve" data-act="approve" data-id="${esc(o.order_id)}">✓ Approve</button> <button class="btn btn-danger" data-act="cancel" data-id="${esc(o.order_id)}">✕ Cancel</button>` : `<span class="mono" style="font-size:11px">${esc(o.key_code || '')}</span>`}</td></tr>`; }).join('')
       : empty(8, 'No orders');

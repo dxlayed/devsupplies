@@ -446,7 +446,7 @@
       btn.textContent = 'Pick a plan to continue';
     } else {
       btn.disabled = false;
-      btn.textContent = paymentMethod === 'crypto' ? `Pay ${selectedPlan.amt} with LTC` : `Open Middleman Trade Ticket`;
+      btn.textContent = paymentMethod === 'crypto' ? `Pay $${selectedPlan.amt} with LTC` : `Open Middleman Trade Ticket`;
     }
   }
 

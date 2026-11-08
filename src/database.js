@@ -1,7 +1,10 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
-const dbPath = path.join(__dirname, '..', 'waurks.db');
+// On Railway, DB_PATH points at the Volume (e.g. /data/waurks.db) so data survives redeploys
+const dbPath = process.env.DB_PATH || path.join(__dirname, '..', 'waurks.db');
+try { require('fs').mkdirSync(path.dirname(dbPath), { recursive: true }); } catch (e) {}
+console.log('[db] using', dbPath);
 const db = new sqlite3.Database(dbPath);
 
 db.serialize(() => {
