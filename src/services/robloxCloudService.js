@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const db = require('../database');
 const detectionEngine = require('./detectionEngine');
 const robloxProfiles = require('./robloxProfiles');
+const presence = require('./presence');
 db.run(`ALTER TABLE roblox_accounts ADD COLUMN last_error TEXT`).catch(() => {});
 db.run(`ALTER TABLE roblox_accounts ADD COLUMN last_error_at DATETIME`).catch(() => {});
 db.run(`ALTER TABLE roblox_accounts ADD COLUMN filter_level TEXT DEFAULT 'normal'`).catch(() => {});
@@ -42,6 +43,7 @@ function demoRequests(cookie = '') {
     { id: 3847561, name: 'PixelSammy', displayName: 'Sammy', description: 'hello world', created: d(700), badgeCount: 12, friendsCount: 45 },
     { id: 4958672, name: 'mia_plays', displayName: 'Mia', description: '', created: d(5), badgeCount: 1, friendsCount: 2, avatarAssetCount: 4 },
     { id: 5069783, name: 'qwrtzpls8812', displayName: 'qwrtzpls8812', description: '', created: d(9), badgeCount: 0, friendsCount: 0, avatarAssetCount: 1 },
+    { id: 7392016, name: 'old_sleeper', displayName: 'Sleeper', description: '', created: d(900), badgeCount: 25, friendsCount: 40, avatarAssetCount: 9, online: false },
     { id: 7281905, name: 'kev_trades', displayName: 'Kev', description: '', created: d(3), badgeCount: 0, friendsCount: 1, avatarAssetCount: 3, mm2: true },
     { id: 6170894, name: 'skate_jay', displayName: 'Jay', description: 'new here', created: d(2), badgeCount: 0, friendsCount: 0, avatarAssetCount: 3, paidItem: { name: 'Black Beanie', price: 75 } }
   ];
@@ -529,7 +531,7 @@ class RobloxCloudService {
       created: a.created, isBanned: a.isBanned, hasVerifiedBadge: a.hasVerifiedBadge,
       // test requests carry their own extra info
       badgeCount: a.badgeCount, friendsCount: a.friendsCount, avatarAssetCount: a.avatarAssetCount, paidItem: a.paidItem,
-      mm2: a.mm2
+      mm2: a.mm2, online: a.online
     }));
 
     let profiles, headshots = new Map(), authGet = null;
@@ -566,9 +568,22 @@ class RobloxCloudService {
     const CHUNK = 8;
     profiles = new Array(bases.length);
     const burst = new Array(bases.length).fill(0);
+    // Step 2 (Standard filter): online status, one batch call per chunk. null = couldn't check.
+    const online = new Array(bases.length).fill(null);
     const loadChunk = async start => {
       const part = bases.slice(start, start + CHUNK);
-      const got = (!live || mm2Filter) ? part : await robloxProfiles.getProfiles(part, authGet, CHUNK);
+      const [got, pres] = await Promise.all([
+        (!live || mm2Filter) ? part : robloxProfiles.getProfiles(part, authGet, CHUNK),
+        mm2Filter ? null
+          : !live ? new Map(part.map(b => [String(b.id), { userId: b.id, userPresenceType: b.online === false ? 0 : 1 }]))
+          : presence.getUserPresences(part.map(b => b.id),
+              (url, body) => this.robloxRequest(url, 'POST', cookie, body, account.roblox_id)).catch(() => null)
+      ]);
+      part.forEach((b, k) => {
+        if (!pres) return;
+        const rec = pres.get(String(b.id));
+        online[start + k] = rec ? presence.normalizePresenceStatus(rec) : null;
+      });
       got.forEach((p, k) => { profiles[start + k] = p; });
       // Waves of brand-new accounts arriving together
       const ts = got.map(p => (p.created ? new Date(p.created).getTime() : null));
@@ -606,6 +621,12 @@ class RobloxCloudService {
           burstSiblings: burst[i],
           wave: waveOf(toCheck[i])
         });
+        // STEP 2: anyone who passed Step 1 also has to be online right now (bots are usually offline)
+        if (evaluation.verdict !== 'DECLINE' && online[i] === false) {
+          evaluation.verdict = 'DECLINE';
+          evaluation.threatScore = Math.max(evaluation.threatScore, 70);
+          evaluation.reasons = ['Offline (failed step 2)', ...evaluation.reasons];
+        }
       }
 
       // Act on Roblox when the customer's switches say so
