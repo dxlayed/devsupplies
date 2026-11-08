@@ -130,6 +130,7 @@ function mount(app) {
       }
 
       const behind = robloxCloudService.backlog && robloxCloudService.backlog.get(user.id) > 0;
+      if (account.scan_requested) await db.run(`UPDATE roblox_accounts SET scan_requested = 0 WHERE id = ?`, [account.id]);
       res.json({ ok: true, actions: actions.concat(result.actions || []), checking: behind ? robloxCloudService.backlog.get(user.id) : 0, nextMs: behind ? 1500 : wait() });
     } catch (err) {
       console.error('[ext] sync failed:', err.message);

@@ -508,6 +508,13 @@ app.post('/api/v1/roblox/filter', authMiddleware, async (req, res) => {
 
 app.post('/api/v1/roblox/scan-now', authMiddleware, async (req, res) => {
   try {
+    // Extension mode: there's no saved cookie here, so ask the browser extension to re-check everything
+    const acc = await db.get(`SELECT id, mode FROM roblox_accounts WHERE user_id = ?`, [req.user.id]);
+    if (acc && acc.mode === 'extension') {
+      await db.run(`UPDATE friend_requests SET checked_at = NULL WHERE user_id = ? AND status = 'pending'`, [req.user.id]);
+      await db.run(`UPDATE roblox_accounts SET scan_requested = 1, last_error = NULL WHERE id = ?`, [acc.id]);
+      return res.json({ success: true, ext: true });
+    }
     const result = await robloxCloudService.runCloudScan(req.user.id, { force: true });
     await db.run(`UPDATE roblox_accounts SET last_check_at = CURRENT_TIMESTAMP WHERE user_id = ?`, [req.user.id]).catch(() => {});
     await robloxCloudService.setScanError(req.user.id, null);

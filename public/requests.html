@@ -259,6 +259,7 @@
       const d = await r.json();
       if (r.status === 409) { notify('Already checking, results are coming in'); b.disabled = false; b.textContent = 'Scan now'; load(); return; }
       if (!r.ok) throw new Error(d.error);
+      if (d.ext) { notify('Your browser extension will re-check everything in a few seconds', 'ok'); b.disabled = false; b.textContent = 'Scan now'; load(); return; }
       notify(d.scanned ? `Checked ${d.scanned}: ${d.botsDeclined} bots, ${d.playersAccepted} real` : 'No friend requests found', 'ok');
     } catch (err) {
       notify(err.message || 'Scan failed', 'err');

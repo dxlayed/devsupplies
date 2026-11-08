@@ -19,6 +19,7 @@ const MM2_LEVEL10_BADGE = '196198137'; // Murder Mystery 2 "Level 10"
 db.run(`ALTER TABLE roblox_accounts ADD COLUMN last_check_at DATETIME`).catch(() => {});
 
 db.run(`ALTER TABLE roblox_accounts ADD COLUMN mode TEXT DEFAULT 'cloud'`).catch(() => {});
+db.run(`ALTER TABLE roblox_accounts ADD COLUMN scan_requested INTEGER DEFAULT 0`).catch(() => {});
 db.run(`ALTER TABLE licenses ADD COLUMN roblox_id TEXT`).catch(() => {});
 // Accept/decline clicks from the website, waiting for the customer's extension to carry them out
 db.run(`CREATE TABLE IF NOT EXISTS ext_actions (
@@ -470,6 +471,9 @@ class RobloxCloudService {
       await db.run(`UPDATE roblox_accounts SET license_id = ? WHERE id = ?`, [activeLicense.id, account.id]);
     }
 
+    if (account.mode === 'extension') {
+      throw new Error('Your account is connected through the browser extension. Keep your browser open.');
+    }
     const cookie = this.decrypt(account.encrypted_cookie, account.cookie_iv);
 
     // 2. Get every waiting friend request (up to 8 pages of 25)
