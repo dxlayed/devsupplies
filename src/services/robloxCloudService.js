@@ -691,20 +691,29 @@ class RobloxCloudService {
     this.isDaemonRunning = true;
     this.scanning = new Set();
     this.lastCounts = new Map();
-    console.log(`[watcher] checking friend requests every ${intervalSeconds}s`);
+    console.log('[watcher] checking friend requests every 5-10s (random per account)');
 
+    // Each account gets its own random wait of 5-10 seconds between checks,
+    // so checks are spread out instead of all hitting Roblox at the same moment.
+    this.nextCheck = new Map();
+    const randomWait = () => 5000 + Math.floor(Math.random() * 5000);
     const tick = async () => {
       let accounts = [];
       try {
         accounts = await db.all(`SELECT * FROM roblox_accounts WHERE is_active = 1`);
       } catch (e) { return; }
+      const now = Date.now();
       for (const acc of accounts) {
         if (this.scanning.has(acc.user_id)) continue;
+        if ((this.nextCheck.get(acc.user_id) || 0) > now) continue;
         this.scanning.add(acc.user_id);
-        this.watchOne(acc).finally(() => this.scanning.delete(acc.user_id));
+        this.watchOne(acc).finally(() => {
+          this.scanning.delete(acc.user_id);
+          this.nextCheck.set(acc.user_id, Date.now() + randomWait());
+        });
       }
     };
-    this.daemonInterval = setInterval(tick, intervalSeconds * 1000);
+    this.daemonInterval = setInterval(tick, 1000);
     setTimeout(tick, 2000);
   }
 
