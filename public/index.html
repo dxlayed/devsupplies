@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Waurks — Uncrackable Roblox Anti-Botter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0a0e16;
+    --surface:#121826;
+    --surface-2:#1a2234;
+    --line:#26304480;
+    --guard:#4d8dff;
+    --guard-glow:#4d8dff33;
+    --pass:#34d17e;
+    --block:#ff4d5e;
+    --text:#e8edf6;
+    --muted:#8b97ad;
+    --gold:#f0b429;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--ink);
+    color:var(--text);
+    font-family:"Inter",sans-serif;
+    line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 24px}
+
+  /* Nav */
+  nav{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:20px 0;
+  }
+  .brand{display:flex;align-items:center;gap:10px;font-family:"Archivo";font-weight:900;font-size:20px;letter-spacing:-.02em}
+  .brand svg{width:26px;height:26px}
+  .nav-links{display:flex;gap:24px;align-items:center;color:var(--muted);font-size:14px;font-weight:500}
+  .nav-links a:hover{color:var(--text)}
+  .btn{
+    font-family:"Inter";font-weight:600;font-size:14px;
+    padding:10px 18px;border-radius:10px;cursor:pointer;border:none;
+    transition:filter .15s, transform .15s;
+    display:inline-flex;align-items:center;gap:8px;
+  }
+  .btn-primary{background:var(--guard);color:#fff;box-shadow:0 6px 22px var(--guard-glow)}
+  .btn-primary:hover{filter:brightness(1.08);transform:translateY(-1px)}
+  .btn-ghost{background:transparent;color:var(--text);border:1px solid var(--line)}
+  .btn-ghost:hover{border-color:var(--guard);color:var(--guard)}
+
+  /* Hero */
+  .hero{padding:60px 0 40px;display:grid;grid-template-columns:1.05fr 1fr;gap:48px;align-items:center}
+  .hero h1{
+    font-family:"Archivo";font-weight:900;font-size:clamp(38px,5vw,60px);
+    line-height:1.02;letter-spacing:-.03em;margin-bottom:22px;
+  }
+  .hero h1 .pass{color:var(--pass)}
+  .hero h1 .block{color:var(--block)}
+  .hero p.lede{color:var(--muted);font-size:17px;max-width:46ch;margin-bottom:28px}
+  .hero-cta{display:flex;gap:12px;flex-wrap:wrap}
+  .price-tag{font-size:13px;color:var(--muted);margin-top:18px}
+  .price-tag b{color:var(--text)}
+
+  /* The Live Sorting Gate */
+  .gate{
+    position:relative;background:var(--surface);border:1px solid var(--line);
+    border-radius:20px;padding:22px;height:390px;overflow:hidden;
+  }
+  .gate-label{font-size:12px;color:var(--muted);font-weight:500;margin-bottom:14px;display:flex;justify-content:space-between}
+  .gate-grid{display:grid;grid-template-columns:1fr auto 1fr;gap:12px;height:310px}
+  .lane{display:flex;flex-direction:column;gap:8px;padding-top:4px}
+  .lane.out{align-items:stretch}
+  .shield-col{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px}
+  .shield{width:64px;height:64px;filter:drop-shadow(0 0 18px var(--guard-glow))}
+  .shield-pulse{width:64px;height:64px;position:absolute;border-radius:50%;border:2px solid var(--guard);opacity:0;animation:pulse 2.6s ease-out infinite}
+  @keyframes pulse{0%{transform:scale(.6);opacity:.6}100%{transform:scale(2.4);opacity:0}}
+
+  .req{
+    font-size:12px;padding:8px 10px;border-radius:9px;background:var(--surface-2);
+    border:1px solid var(--line);display:flex;align-items:center;gap:7px;
+    animation:slideIn .5s ease both;
+  }
+  .req .dot{width:8px;height:8px;border-radius:50%;flex:none}
+  .req.real .dot{background:var(--pass)}
+  .req.bot .dot{background:var(--block)}
+  .req.verdict-pass{border-color:#34d17e55;background:#34d17e14}
+  .req.verdict-block{border-color:#ff4d5e55;background:#ff4d5e14;color:var(--muted)}
+  .req .tag{margin-left:auto;font-size:10px;font-weight:700}
+  .req.verdict-pass .tag{color:var(--pass)}
+  .req.verdict-block .tag{color:var(--block)}
+  @keyframes slideIn{from{opacity:0;transform:translateX(-14px)}to{opacity:1;transform:translateX(0)}}
+
+  /* Sections */
+  section.block-sec{padding:68px 0;border-top:1px solid var(--line)}
+  .sec-head{font-family:"Archivo";font-weight:900;font-size:clamp(26px,3.2vw,38px);letter-spacing:-.02em;margin-bottom:10px}
+  .sec-sub{color:var(--muted);font-size:16px;margin-bottom:40px;max-width:56ch}
+
+  /* Uncrackable Architecture Callout */
+  .security-box{
+    background:linear-gradient(135deg, #121826 0%, #172138 100%);
+    border:1px solid rgba(77, 141, 255, 0.4);
+    border-radius:18px;
+    padding:32px;
+    margin-bottom:40px;
+    display:grid;
+    grid-template-columns:auto 1fr;
+    gap:24px;
+    align-items:center;
+  }
+  .sec-icon{
+    width:56px;height:56px;background:rgba(77, 141, 255, 0.15);border-radius:14px;
+    display:flex;align-items:center;justify-content:center;color:var(--guard);
+  }
+  .sec-icon svg{width:32px;height:32px}
+
+  /* Steps */
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+  .step{padding:24px 20px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius)}
+  .step .n{font-family:"Archivo";font-weight:900;font-size:34px;color:var(--guard);opacity:.9;line-height:1}
+  .step h3{font-size:17px;margin:12px 0 8px;font-weight:600}
+  .step p{color:var(--muted);font-size:14px}
+
+  /* Pricing */
+  .tiers{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;align-items:stretch}
+  .tier{
+    padding:28px 24px;background:var(--surface);border:1px solid var(--line);
+    border-radius:18px;display:flex;flex-direction:column;
+  }
+  .tier.feature{border-color:var(--guard);box-shadow:0 0 0 1px var(--guard),0 16px 40px var(--guard-glow);position:relative}
+  .tier .flag{position:absolute;top:-11px;left:24px;background:var(--guard);color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px}
+  .tier .plan{font-size:14px;color:var(--muted);font-weight:500}
+  .tier .amt{font-family:"Archivo";font-weight:900;font-size:42px;letter-spacing:-.02em;margin:6px 0 2px}
+  .tier .amt span{font-size:15px;color:var(--muted);font-weight:500;font-family:"Inter"}
+  .tier ul{list-style:none;margin:20px 0 24px;display:flex;flex-direction:column;gap:11px}
+  .tier li{font-size:14px;color:var(--text);display:flex;gap:9px;align-items:flex-start}
+  .tier li svg{width:16px;height:16px;flex:none;margin-top:2px;color:var(--pass)}
+  .tier .btn{margin-top:auto;width:100%;justify-content:center}
+
+  /* Safety strip */
+  .safety{display:flex;gap:18px;align-items:center;background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--pass);border-radius:var(--radius);padding:22px 24px}
+  .safety svg{width:30px;height:30px;color:var(--pass);flex:none}
+  .safety h4{font-size:16px;margin-bottom:4px}
+  .safety p{color:var(--muted);font-size:14px}
+
+  footer{padding:40px 0;border-top:1px solid var(--line);color:var(--muted);font-size:13px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
+
+  @media (max-width:860px){
+    .hero{grid-template-columns:1fr;gap:32px}
+    .security-box{grid-template-columns:1fr}
+    .steps,.tiers{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <nav>
+    <div class="brand">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M12 2l8 3v6c0 5-3.5 8.5-8 11-4.5-2.5-8-6-8-11V5l8-3z" fill="#4d8dff" fill-opacity=".2" stroke="#4d8dff" stroke-width="1.6"/><path d="M8.5 12l2.5 2.5 4.5-5" stroke="#34d17e" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Waurks
+    </div>
+    <div class="nav-links">
+      <a href="#how">How it works</a>
+      <a href="#security">Anti-Crack Security</a>
+      <a href="#pricing">Pricing</a>
+      <a href="/dashboard.html">Client Portal</a>
+      <a href="/checkout.html" class="btn btn-primary">Get a key</a>
+    </div>
+  </nav>
+</div>
+
+<div class="wrap">
+  <section class="hero">
+    <div>
+      <h1>Block the <span class="block">bots</span>.<br>Keep the <span class="pass">players</span>.</h1>
+      <p class="lede">Waurks runs 24/7 in the cloud to monitor your Roblox friend requests, bounce spam botnets on sight, and auto-accept real players — without keeping your PC on or installing any extensions.</p>
+      <div class="hero-cta">
+        <a href="/checkout.html?tier=weekly" class="btn btn-primary">Get a weekly key ($15)</a>
+        <a href="#how" class="btn btn-ghost">See how it works</a>
+      </div>
+      <p class="price-tag">100% Cloud-Powered. <b>No browser extensions. No downloads.</b></p>
+    </div>
+
+    <div class="gate">
+      <div class="gate-label"><span>Live Incoming Stream</span><span>Waurks Heuristic Oracle</span></div>
+      <div class="gate-grid">
+        <div class="lane" id="laneIn"></div>
+        <div class="shield-col">
+          <div style="position:relative;display:flex;align-items:center;justify-content:center">
+            <div class="shield-pulse"></div>
+            <svg class="shield" viewBox="0 0 24 24" fill="none"><path d="M12 2l8 3v6c0 5-3.5 8.5-8 11-4.5-2.5-8-6-8-11V5l8-3z" fill="#4d8dff" fill-opacity=".18" stroke="#4d8dff" stroke-width="1.4"/><path d="M8.5 12l2.5 2.5 4.5-5" stroke="#34d17e" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div style="font-size:11px;color:var(--muted);font-weight:600">Waurks Engine</div>
+        </div>
+        <div class="lane out" id="laneOut"></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="wrap" id="security">
+  <section class="block-sec">
+    <div class="security-box">
+      <div class="sec-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+      </div>
+      <div>
+        <h3 style="font-size:20px;font-weight:800;margin-bottom:6px">Why Waurks Cannot Be Cracked</h3>
+        <p style="color:var(--muted);font-size:14px;line-height:1.6">
+          Ordinary tools that run on users' PCs get cracked because people decompile them and remove the key check. <b>Waurks runs 100% on our secure cloud servers:</b> There is no extension or desktop executable to decompile, patch, or strip. Your active key unlocks our high-speed cloud workers to process your account. When a key expires, our servers halt protection immediately. It is physically impossible to bypass because the botting engine never leaves our private infrastructure.
+        </p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="wrap" id="how">
+  <section class="block-sec">
+    <h2 class="sec-head">How it works</h2>
+    <p class="sec-sub">Three fast steps. Zero downloads, zero browser extensions, 100% on the cloud.</p>
+    <div class="steps">
+      <div class="step">
+        <div class="n">1</div>
+        <h3>Connect Your Account</h3>
+        <p>Log in to the Waurks dashboard and link your Roblox account. Your credentials are encrypted with AES-256 and kept secure.</p>
+      </div>
+      <div class="step">
+        <div class="n">2</div>
+        <h3>Activate Your Key</h3>
+        <p>Choose your plan ($15 weekly, $45 monthly, or $115 yearly) and pay with crypto or in-game items. Your key activates your cloud worker instantly.</p>
+      </div>
+      <div class="step">
+        <div class="n">3</div>
+        <h3>24/7 Cloud Autopilot</h3>
+        <p>Our servers watch your friend requests around the clock. Scam botnets are declined on sight; real players are accepted into your friend list.</p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="wrap" id="pricing">
+  <section class="block-sec">
+    <h2 class="sec-head">Pick your tier</h2>
+    <p class="sec-sub">Keys unlock full access and expire automatically on schedule. Renew anytime through Discord sign-in.</p>
+    <div class="tiers">
+      <div class="tier">
+        <div class="plan">Weekly Key</div>
+        <div class="amt">$15<span> / 7 days</span></div>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none"><path d="M5 12l4 4 10-11" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Full botnet filtering</li>
+          <li><svg viewBox="0 0 24 24" fill="none"><path d="M5 12l4 4 10-11" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Auto-accept real players</li>
+          <li><svg viewBox="0 0 24 24" fill="none"><path d="M5 12l4 4 10-11" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>7-day instant key issuance</li>
+          <li><svg viewBox="0 0 24 24" fill="none"><path d="M5 12l4 4 10-11" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Crypto & In-game item payment</li>
+        </ul>
+        <a href="/checkout.html?tier=weekly" class="btn btn-ghost">Get Weekly Key</a>
+      </div>
+
+      <div class="tier feature">
+        <div class="flag">MOST POPULAR</div>
+        <div class="plan">Monthly Key</div>
+        <div class="amt">$45<span> / 30 days</span></div>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none"><path d="M5 12l4 4 10-11" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Everything in weekly</li>
+          <li><svg viewBox="0 0 24 24" fill="none"><path d="M5 12l4 4 10-11" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Save $15 vs weekly</li>
+          <li><svg viewBox="0 0 24 24" fill="none"><path d="M5 12l4 4 10-11" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Priority threat updates</li>
+          <li><svg viewBox="0 0 24 24" fill="none"><path d="M5 12l4 4 10-11" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Continuous background loop</li>
+        </ul>
+        <a href="/checkout.html?tier=monthly" class="btn btn-primary">Get Monthly Key</a>
+      </div>
+
+      <div class="tier">
+        <div class="plan">Yearly Key</div>
+        <div class="amt">$115<span> / 365 days</span></div>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none"><path d="M5 12l4 4 10-11" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Best value — under $2.20/week</li>
+          <li><svg viewBox="0 0 24 24" fill="none"><path d="M5 12l4 4 10-11" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Full year unlimited bot filtering</li>
+          <li><svg viewBox="0 0 24 24" fill="none"><path d="M5 12l4 4 10-11" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Device switch protection</li>
+          <li><svg viewBox="0 0 24 24" fill="none"><path d="M5 12l4 4 10-11" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Direct Discord VIP role</li>
+        </ul>
+        <a href="/checkout.html?tier=yearly" class="btn btn-ghost">Get Yearly Key</a>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="wrap">
+  <section class="block-sec" style="border-bottom:1px solid var(--line)">
+    <div class="safety">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M12 2l8 3v6c0 5-3.5 8.5-8 11-4.5-2.5-8-6-8-11V5l8-3z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8.5 12l2.5 2.5 4.5-5" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div>
+        <h4>Enterprise AES-256 Vault Protection</h4>
+        <p>All connected Roblox account sessions are encrypted with military-grade AES-256-CBC at rest. Only automated friend management endpoints are ever touched by our workers.</p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="wrap">
+  <footer>
+    <div class="brand" style="font-size:16px"><svg viewBox="0 0 24 24" fill="none" width="20" height="20"><path d="M12 2l8 3v6c0 5-3.5 8.5-8 11-4.5-2.5-8-6-8-11V5l8-3z" fill="#4d8dff" fill-opacity=".2" stroke="#4d8dff" stroke-width="1.6"/></svg> Waurks Anti-Botter</div>
+    <div>Not affiliated with Roblox Corporation. All rights reserved.</div>
+  </footer>
+</div>
+
+<script>
+  const names = [
+    { n:'ToddlerPlays22', real:true },
+    { n:'FreeRobux_x9981', real:false },
+    { n:'mia_draws', real:true },
+    { n:'giftcard.gg/win', real:false },
+    { n:'Blocky_Kai', real:true },
+    { n:'aidenmason4471', real:false },
+    { n:'soup_enjoyer', real:true },
+    { n:'CLAIM_NOW_7781', real:false },
+  ];
+  const laneIn = document.getElementById('laneIn');
+  const laneOut = document.getElementById('laneOut');
+  let i = 0;
+
+  function cap(lane, max){ while(lane.children.length > max) lane.removeChild(lane.firstChild); }
+
+  function tick(){
+    const item = names[i % names.length];
+    i++;
+    const inEl = document.createElement('div');
+    inEl.className = 'req ' + (item.real ? 'real' : 'bot');
+    inEl.innerHTML = `<span class="dot"></span>${item.n}`;
+    laneIn.appendChild(inEl);
+    cap(laneIn, 5);
+
+    setTimeout(() => {
+      const outEl = document.createElement('div');
+      outEl.className = 'req ' + (item.real ? 'verdict-pass' : 'verdict-block');
+      outEl.innerHTML = `<span class="dot"></span>${item.n}<span class="tag">${item.real ? 'ACCEPTED' : 'BLOCKED'}</span>`;
+      laneOut.appendChild(outEl);
+      cap(laneOut, 5);
+    }, 600);
+  }
+
+  tick(); tick();
+  setInterval(tick, 1400);
+</script>
+</body>
+</html>
+

@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Waurks — 24/7 Cloud Anti-Bot Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0a0e16;
+    --surface:#121826;
+    --surface-2:#1a2234;
+    --line:#26304480;
+    --line-solid:#263044;
+    --guard:#4d8dff;
+    --guard-glow:#4d8dff33;
+    --pass:#34d17e;
+    --gold:#f0b429;
+    --block:#ff4d5e;
+    --text:#e8edf6;
+    --muted:#8b97ad;
+    --radius:16px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--ink);color:var(--text);
+    font-family:"Inter",sans-serif;line-height:1.55;-webkit-font-smoothing:antialiased;
+    padding-bottom:80px;
+  }
+  .wrap{max-width:960px;margin:0 auto;padding:0 24px}
+  header{display:flex;align-items:center;justify-content:space-between;padding:24px 0 16px;border-bottom:1px solid var(--line)}
+  .brand{display:flex;align-items:center;gap:10px;font-family:"Archivo";font-weight:900;font-size:19px}
+  .brand svg{width:26px;height:26px}
+  .user-pill{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line-solid);padding:6px 14px 6px 8px;border-radius:30px}
+  .user-pill img{width:28px;height:28px;border-radius:50%}
+  a{text-decoration:none;color:inherit}
+
+  .dash-grid{display:grid;grid-template-columns:1fr;gap:24px;margin-top:28px}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:26px}
+  .card-title{font-family:"Archivo";font-weight:900;font-size:20px;margin-bottom:6px;display:flex;align-items:center;gap:10px}
+
+  /* Cloud Banner */
+  .cloud-banner{
+    background:linear-gradient(135deg, rgba(77, 141, 255, 0.15) 0%, rgba(52, 209, 126, 0.1) 100%);
+    border:1px solid rgba(77, 141, 255, 0.3);
+    border-radius:var(--radius);
+    padding:20px 24px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:16px;
+    flex-wrap:wrap;
+  }
+  .cloud-banner h3{font-family:"Archivo";font-size:18px;font-weight:800;color:#fff;margin-bottom:2px}
+  .cloud-badge{
+    display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;
+    background:rgba(52,209,126,0.2);color:var(--pass);font-size:12px;font-weight:700;border:1px solid rgba(52,209,126,0.3);
+  }
+  .cloud-badge .pulse{width:8px;height:8px;border-radius:50%;background:var(--pass);animation:pulse 1.5s infinite}
+  @keyframes pulse{0%{opacity:1}50%{opacity:0.4}100%{opacity:1}}
+
+  /* Connected Account Profile Header */
+  .roblox-profile-card{
+    background:var(--surface-2);border:1px solid var(--line-solid);border-radius:14px;
+    padding:20px;display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;
+  }
+  .roblox-meta{display:flex;align-items:center;gap:16px}
+  .roblox-avatar{width:64px;height:64px;border-radius:50%;border:2px solid var(--guard);background:#090d15}
+  .roblox-name{font-family:"Archivo";font-size:20px;font-weight:800}
+  .roblox-id{font-size:12px;color:var(--muted);font-family:monospace}
+
+  /* Key Display */
+  .key-card{
+    background:linear-gradient(135deg, #121826 0%, #17233c 100%);
+    border:1px solid rgba(77, 141, 255, 0.3);
+  }
+  .key-code-box{
+    display:flex;align-items:center;justify-content:space-between;
+    background:#080c14;border:1px solid var(--line-solid);border-radius:12px;padding:14px 18px;margin:16px 0;
+  }
+  .key-text{font-family:monospace;font-size:17px;font-weight:700;color:var(--pass);letter-spacing:1px}
+  .btn{
+    font-family:"Inter";font-weight:600;font-size:13px;
+    padding:9px 16px;border-radius:8px;cursor:pointer;border:none;transition:.15s;
+    display:inline-flex;align-items:center;gap:6px;
+  }
+  .btn-primary{background:var(--guard);color:#fff}
+  .btn-primary:hover{filter:brightness(1.1)}
+  .btn-action{background:var(--pass);color:#0a0e16;font-weight:700}
+  .btn-action:hover{filter:brightness(1.08)}
+  .btn-danger{background:transparent;color:var(--block);border:1px solid rgba(255,77,94,0.3)}
+  .btn-danger:hover{background:rgba(255,77,94,0.1)}
+  .btn-ghost{background:transparent;color:var(--text);border:1px solid var(--line-solid)}
+  .btn-ghost:hover{border-color:var(--guard);color:var(--guard)}
+
+  /* Stats row */
+  .stats-row{display:grid;grid-template-columns:repeat(3, 1fr);gap:16px;margin:18px 0}
+  .stat-card{background:var(--surface-2);border:1px solid var(--line-solid);border-radius:12px;padding:16px}
+  .stat-val{font-family:"Archivo";font-size:28px;font-weight:900}
+  .stat-lbl{font-size:12px;color:var(--muted);text-transform:uppercase;margin-top:2px}
+
+  /* Toggles & Options */
+  .opt-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+  .opt-item{
+    background:var(--surface-2);border:1px solid var(--line-solid);border-radius:12px;
+    padding:16px;display:flex;align-items:center;justify-content:space-between;
+  }
+  .opt-item input[type="checkbox"]{width:18px;height:18px;cursor:pointer;accent-color:var(--guard)}
+
+  /* Review Queue Table */
+  .queue-box{background:var(--surface-2);border:1px solid var(--line-solid);border-radius:12px;padding:16px;margin-top:14px}
+  .queue-item{display:flex;align-items:center;justify-content:space-between;padding:12px;border-bottom:1px solid #26334d;gap:12px}
+  .queue-item:last-child{border-bottom:none}
+
+  /* Live Activity Log */
+  .log-feed{
+    background:#080c14;border:1px solid var(--line-solid);border-radius:12px;
+    max-height:280px;overflow-y:auto;display:flex;flex-direction:column;
+  }
+  .log-row{
+    padding:12px 16px;border-bottom:1px solid #141c2c;display:flex;align-items:center;justify-content:space-between;
+    font-size:13px;
+  }
+  .log-row:last-child{border-bottom:none}
+  .log-badge{font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;font-family:monospace}
+  .log-badge.decline{background:rgba(255,77,94,0.15);color:var(--block);border:1px solid rgba(255,77,94,0.3)}
+  .log-badge.accept{background:rgba(52,209,126,0.15);color:var(--pass);border:1px solid rgba(52,209,126,0.3)}
+  .log-badge.review{background:rgba(240,180,41,0.15);color:var(--gold);border:1px solid rgba(240,180,41,0.3)}
+
+  /* Connect Modal / Box */
+  .connect-box{background:var(--surface-2);border:1px dashed var(--line-solid);border-radius:14px;padding:24px;text-align:center}
+  .cookie-input{
+    width:100%;background:#080c14;border:1px solid var(--line-solid);border-radius:8px;
+    padding:12px;color:#fff;font-family:monospace;font-size:13px;margin:14px 0;
+  }
+
+  /* Modal */
+  .modal-overlay{
+    position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);backdrop-filter:blur(6px);
+    display:none;align-items:center;justify-content:center;z-index:9999;padding:20px;
+  }
+  .modal-overlay.open{display:flex}
+  .modal-content{
+    background:#121826;border:1px solid var(--line-solid);border-radius:20px;
+    width:100%;max-width:580px;padding:28px;position:relative;
+  }
+  .modal-close{position:absolute;top:18px;right:18px;background:transparent;border:none;color:var(--muted);font-size:22px;cursor:pointer}
+  .guide-step{display:flex;gap:14px;align-items:flex-start;margin-bottom:14px}
+  .guide-num{width:24px;height:24px;border-radius:50%;background:var(--guard);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:none}
+
+  @media (max-width:720px){
+    .stats-row{grid-template-columns:1fr}
+    .opt-grid{grid-template-columns:1fr}
+    .key-code-box{flex-direction:column;gap:12px;align-items:flex-start}
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M12 2l8 3v6c0 5-3.5 8.5-8 11-4.5-2.5-8-6-8-11V5l8-3z" fill="#4d8dff" fill-opacity=".2" stroke="#4d8dff" stroke-width="1.6"/><path d="M8.5 12l2.5 2.5 4.5-5" stroke="#34d17e" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Waurks Cloud Command Center
+    </div>
+    <div class="user-pill" id="userPill">
+      <img src="https://cdn.discordapp.com/embed/avatars/0.png" id="avatarImg" alt="User Avatar">
+      <span id="usernameDisplay">Not Connected</span>
+    </div>
+  </header>
+
+  <div class="dash-grid" id="mainDash">
+    <!-- Cloud Status Banner -->
+    <div class="cloud-banner">
+      <div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+          <h3>24/7 Cloud Anti-Bot Engine</h3>
+          <span class="cloud-badge" id="cloudLiveBadge"><span class="pulse"></span> 24/7 CLOUD ACTIVE</span>
+        </div>
+        <p style="color:var(--muted);font-size:13px">Running 100% on high-speed Waurks cloud servers. Keeps your friends list clean while you play or sleep.</p>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-action" id="scanNowBtn" onclick="triggerScanNow()">⚡ Scan & Clean Now</button>
+      </div>
+    </div>
+
+    <!-- Active License Key Card -->
+    <div class="card key-card" id="keyCard">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <div class="card-title">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4d8dff" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+            Active Subscription Key
+          </div>
+          <p style="color:var(--muted);font-size:14px">Your license unlocks uninterrupted 24/7 cloud sorting on our servers.</p>
+        </div>
+        <span id="tierBadge" style="background:rgba(52,209,126,0.15);color:var(--pass);font-weight:700;font-size:11px;padding:4px 10px;border-radius:20px;border:1px solid rgba(52,209,126,0.3)">
+          ACTIVE
+        </span>
+      </div>
+
+      <div class="key-code-box">
+        <span class="key-text" id="keyCodeText">LOADING KEY...</span>
+        <button class="btn btn-primary" onclick="copyKey()">📋 Copy</button>
+      </div>
+
+      <div style="display:flex;gap:24px;font-size:13px;color:var(--muted);flex-wrap:wrap">
+        <div>Plan: <b id="keyTierName" style="color:#fff">—</b></div>
+        <div>Time Remaining: <b id="keyCountdown" style="color:var(--pass)">—</b></div>
+        <div>Protection State: <b id="protectionState" style="color:#34d17e">Active on Server</b></div>
+      </div>
+    </div>
+
+    <!-- Connected Roblox Account Section -->
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div class="card-title">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#34d17e" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg>
+            Connected Roblox Account
+          </div>
+          <p style="color:var(--muted);font-size:14px">Our cloud worker connects to your account to monitor incoming requests.</p>
+        </div>
+        <button class="btn btn-ghost" style="font-size:12px" onclick="openCookieGuide()">📖 How to find your Cookie</button>
+      </div>
+
+      <!-- View when account is connected -->
+      <div id="accountConnectedView" style="display:none;margin-top:16px">
+        <div class="roblox-profile-card">
+          <div class="roblox-meta">
+            <img src="" id="rbxAvatar" class="roblox-avatar" alt="Roblox Avatar">
+            <div>
+              <div class="roblox-name" id="rbxUsername">RobloxUser</div>
+              <div class="roblox-id" id="rbxUserId">ID: 123456789</div>
+              <div id="rbxPendingCount" style="font-size:12px;color:var(--pass);margin-top:2px">● Active Session Verified</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center">
+            <button class="btn btn-ghost" id="toggleCloudBtn" onclick="toggleCloudProtection()">Pause 24/7 Scanner</button>
+            <button class="btn btn-danger" onclick="disconnectRoblox()">Disconnect</button>
+          </div>
+        </div>
+
+        <!-- Protection Toggles -->
+        <div class="opt-grid">
+          <label class="opt-item">
+            <div>
+              <b style="display:block;font-size:14px">Auto-Decline Spam Bots</b>
+              <span style="font-size:12px;color:var(--muted)">Automatically declines detected scam and spam botnet requests</span>
+            </div>
+            <input type="checkbox" id="chkDeclineBots" checked onchange="saveProtectionSettings()">
+          </label>
+          <label class="opt-item">
+            <div>
+              <b style="display:block;font-size:14px">Auto-Accept Real Players</b>
+              <span style="font-size:12px;color:var(--muted)">Waves genuine human players straight into your friend list</span>
+            </div>
+            <input type="checkbox" id="chkAcceptPlayers" checked onchange="saveProtectionSettings()">
+          </label>
+        </div>
+
+        <!-- Custom Filter Controls -->
+        <div style="background:var(--surface-2);border:1px solid var(--line-solid);border-radius:12px;padding:16px;margin-top:14px">
+          <h4 style="font-size:14px;margin-bottom:10px;color:#fff">Custom Filtering Rules</h4>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px">
+            <div>
+              <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px">MINIMUM ACCOUNT AGE (DAYS)</label>
+              <input type="number" id="filterMinAge" class="cookie-input" style="margin:0" value="7" placeholder="e.g. 7">
+            </div>
+            <div>
+              <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px">CUSTOM BLACKLIST KEYWORDS (COMMA-SEPARATED)</label>
+              <input type="text" id="filterBlacklist" class="cookie-input" style="margin:0" placeholder="e.g. giveaway, blox, claim">
+            </div>
+          </div>
+          <button class="btn btn-primary" style="font-size:12px" onclick="saveCustomFilters()">Save Custom Rules</button>
+        </div>
+      </div>
+
+      <!-- View when NO account is connected -->
+      <div id="accountNotConnectedView" style="margin-top:16px">
+        <div class="connect-box">
+          <h4 style="font-size:18px;margin-bottom:6px">Paste Your Roblox Security Cookie</h4>
+          <p style="color:var(--muted);font-size:13px;max-width:560px;margin:0 auto">
+            Paste your <code>.ROBLOSECURITY</code> cookie below. Waurks encrypts it with AES-256 and gets to work immediately scanning your friend requests.
+          </p>
+
+          <input type="password" id="robloxCookieInput" class="cookie-input" placeholder="Paste .ROBLOSECURITY value here (starts with _|WARNING:-DO-NOT-SHARE-THIS...)">
+
+          <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+            <button class="btn btn-action" onclick="connectRobloxAccount()">🔒 Connect & Start 24/7 Protection</button>
+            <button class="btn btn-ghost" onclick="connectDemoAccount()">⚡ Connect Demo / Test Account</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Borderline Review Queue (Held Requests) -->
+    <div class="card" id="reviewQueueCard" style="display:none">
+      <div class="card-title" style="color:var(--gold)">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+        Pending Review Tray (<span id="reviewCountHeader">0</span>)
+      </div>
+      <p style="color:var(--muted);font-size:13px">Accounts that fell in the borderline zone. You can accept or decline them directly from here with 1 tap:</p>
+      
+      <div class="queue-box" id="queueList"></div>
+    </div>
+
+    <!-- Lifetime Metrics -->
+    <div class="card">
+      <div class="card-title">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4d8dff" stroke-width="2"><path d="M12 2l8 3v6c0 5-3.5 8.5-8 11-4.5-2.5-8-6-8-11V5l8-3z"/></svg>
+        Cloud Protection Statistics
+      </div>
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-val" id="statScanned" style="color:#4d8dff">0</div>
+          <div class="stat-lbl">Total Friend Requests Scanned</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val" id="statDeclined" style="color:#ff4d5e">0</div>
+          <div class="stat-lbl">Spam Bots Auto-Declined</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val" id="statAccepted" style="color:#34d17e">0</div>
+          <div class="stat-lbl">Real Players Auto-Accepted</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Live Cloud Activity Log Feed -->
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div class="card-title">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f0b429" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+          Live Activity Feed
+        </div>
+        <span style="font-size:12px;color:var(--muted)" id="lastScanTime">Last cloud scan: Never</span>
+      </div>
+      <p style="color:var(--muted);font-size:14px;margin-bottom:14px">Real-time decisions executed on your Roblox account by Waurks cloud:</p>
+
+      <div class="log-feed" id="logFeed">
+        <div style="padding:20px;text-align:center;color:var(--muted);font-size:13px">
+          Connect your Roblox account to begin seeing live request events.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: How to Find Cookie -->
+<div class="modal-overlay" id="cookieGuideModal">
+  <div class="modal-content">
+    <button class="modal-close" onclick="closeCookieGuide()">✕</button>
+    <h3 style="font-family:'Archivo';font-weight:900;font-size:22px;margin-bottom:8px">How to find your Roblox Cookie</h3>
+    <p style="color:var(--muted);font-size:13px;margin-bottom:20px">Your <code>.ROBLOSECURITY</code> cookie allows Waurks cloud workers to safely decline bots on your behalf.</p>
+
+    <div class="guide-step">
+      <div class="guide-num">1</div>
+      <div>
+        <b style="color:#fff">Open Roblox in your Browser</b>
+        <p style="color:var(--muted);font-size:13px">Log in to <a href="https://www.roblox.com" target="_blank" style="color:var(--guard);text-decoration:underline">roblox.com</a> on Chrome, Edge, Brave, or Firefox.</p>
+      </div>
+    </div>
+
+    <div class="guide-step">
+      <div class="guide-num">2</div>
+      <div>
+        <b style="color:#fff">Open DevTools (F12)</b>
+        <p style="color:var(--muted);font-size:13px">Press <kbd style="background:#090d15;padding:2px 6px;border-radius:4px;border:1px solid #26334d">F12</kbd> or right-click anywhere and select <b>Inspect</b>.</p>
+      </div>
+    </div>
+
+    <div class="guide-step">
+      <div class="guide-num">3</div>
+      <div>
+        <b style="color:#fff">Navigate to Cookies</b>
+        <p style="color:var(--muted);font-size:13px">Click the <b>Application</b> tab (or <b>Storage</b> in Firefox) at the top, expand <b>Cookies</b> on the left, and click <code>https://www.roblox.com</code>.</p>
+      </div>
+    </div>
+
+    <div class="guide-step">
+      <div class="guide-num">4</div>
+      <div>
+        <b style="color:#fff">Copy .ROBLOSECURITY</b>
+        <p style="color:var(--muted);font-size:13px">Look for the cookie named <code>.ROBLOSECURITY</code>. Double-click its value, copy it, and paste it into Waurks!</p>
+      </div>
+    </div>
+
+    <div style="background:#090d15;border:1px solid var(--line-solid);border-radius:10px;padding:12px;margin-top:16px">
+      <div style="font-size:12px;color:var(--guard);font-weight:700;margin-bottom:4px">⚡ Ultra-Fast 1-Click Console Shortcut:</div>
+      <p style="font-size:12px;color:var(--muted)">In the DevTools <b>Console</b> tab, paste this command and press Enter to instantly copy your cookie:</p>
+      <code style="display:block;background:#141c2c;padding:8px;border-radius:6px;color:#34d17e;font-size:11px;margin-top:6px;word-break:break-all">copy(document.cookie.match(/\.ROBLOSECURITY=([^;]+)/)[1]);</code>
+    </div>
+  </div>
+</div>
+
+<script>
+  let user = JSON.parse(localStorage.getItem('waurks_user') || 'null');
+  let activeLicense = null;
+  let accountData = null;
+
+  window.addEventListener('DOMContentLoaded', async () => {
+    if (!user) {
+      window.location.href = '/checkout.html';
+      return;
+    }
+
+    document.getElementById('usernameDisplay').textContent = user.username;
+    document.getElementById('avatarImg').src = user.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png';
+
+    await loadLicenseInfo();
+    await loadRobloxAccountStatus();
+    await loadReviewQueue();
+
+    // Auto-refresh feed & review queue every 15 seconds
+    setInterval(async () => {
+      await loadRobloxAccountStatus();
+      await loadReviewQueue();
+    }, 15000);
+  });
+
+  async function loadLicenseInfo() {
+    try {
+      const resp = await fetch('/api/v1/user/licenses', {
+        headers: { 'x-user-id': user.id }
+      });
+      const data = await resp.json();
+
+      if (data.licenses && data.licenses.length > 0) {
+        activeLicense = data.licenses[0];
+        document.getElementById('keyCodeText').textContent = activeLicense.key_code;
+        document.getElementById('keyTierName').textContent = activeLicense.tier.toUpperCase();
+        document.getElementById('keyCountdown').textContent = `${activeLicense.daysRemaining} days remaining`;
+
+        if (activeLicense.isExpired) {
+          document.getElementById('tierBadge').textContent = 'EXPIRED';
+          document.getElementById('tierBadge').style.color = '#ff4d5e';
+          document.getElementById('keyCountdown').textContent = 'Expired';
+          document.getElementById('protectionState').textContent = 'Protection Paused (Expired)';
+          document.getElementById('protectionState').style.color = '#ff4d5e';
+        }
+      } else {
+        document.getElementById('keyCodeText').textContent = 'No key found';
+        document.getElementById('tierBadge').textContent = 'NO KEY';
+        document.getElementById('tierBadge').style.color = '#ff4d5e';
+        document.getElementById('protectionState').textContent = 'Key Required';
+        document.getElementById('protectionState').style.color = '#ff4d5e';
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  async function loadRobloxAccountStatus() {
+    try {
+      const resp = await fetch('/api/v1/roblox/status', {
+        headers: { 'x-user-id': user.id }
+      });
+      const data = await resp.json();
+
+      const connectedView = document.getElementById('accountConnectedView');
+      const notConnectedView = document.getElementById('accountNotConnectedView');
+
+      if (data.connected && data.account) {
+        accountData = data.account;
+        connectedView.style.display = 'block';
+        notConnectedView.style.display = 'none';
+
+        document.getElementById('rbxUsername').textContent = data.account.robloxUsername;
+        document.getElementById('rbxUserId').textContent = `Roblox ID: ${data.account.robloxId}`;
+        document.getElementById('rbxAvatar').src = data.account.avatarUrl || 'https://tr.rbxcdn.com/30DAY-AvatarHeadshot-default/150/150/AvatarHeadshot/Png/isCircular';
+
+        document.getElementById('chkDeclineBots').checked = data.account.autoDeclineBots;
+        document.getElementById('chkAcceptPlayers').checked = data.account.autoAcceptPlayers;
+        document.getElementById('filterMinAge').value = data.account.minAccountAgeDays || 7;
+        document.getElementById('filterBlacklist').value = data.account.customBlacklist || '';
+
+        const toggleBtn = document.getElementById('toggleCloudBtn');
+        const badge = document.getElementById('cloudLiveBadge');
+        if (data.account.isActive) {
+          toggleBtn.textContent = 'Pause 24/7 Scanner';
+          badge.innerHTML = '<span class="pulse"></span> 24/7 CLOUD ACTIVE';
+          badge.style.color = 'var(--pass)';
+        } else {
+          toggleBtn.textContent = 'Resume 24/7 Scanner';
+          badge.innerHTML = 'PAUSED';
+          badge.style.color = 'var(--muted)';
+        }
+
+        // Stats
+        document.getElementById('statScanned').textContent = data.stats.totalScanned;
+        document.getElementById('statDeclined').textContent = data.stats.botsDeclined;
+        document.getElementById('statAccepted').textContent = data.stats.playersAccepted;
+
+        if (data.account.lastScanAt) {
+          document.getElementById('lastScanTime').textContent = 'Last scan: ' + new Date(data.account.lastScanAt).toLocaleTimeString();
+        }
+
+        // Logs
+        renderLogs(data.logs || []);
+      } else {
+        connectedView.style.display = 'none';
+        notConnectedView.style.display = 'block';
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  async function loadReviewQueue() {
+    try {
+      const resp = await fetch('/api/v1/roblox/review-queue', {
+        headers: { 'x-user-id': user.id }
+      });
+      const data = await resp.json();
+
+      const card = document.getElementById('reviewQueueCard');
+      const list = document.getElementById('queueList');
+      const header = document.getElementById('reviewCountHeader');
+
+      if (data.queue && data.queue.length > 0) {
+        card.style.display = 'block';
+        header.textContent = data.queue.length;
+        list.innerHTML = data.queue.map(q => `
+          <div class="queue-item">
+            <div>
+              <b style="color:#fff;font-size:14px">${q.target_username}</b>
+              <span style="font-size:12px;color:var(--gold);margin-left:8px">Score: ${q.threat_score}/100</span>
+              <div style="font-size:11px;color:var(--muted);margin-top:2px">${q.reasons || 'Borderline account signals'}</div>
+            </div>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-action" style="padding:6px 12px;font-size:11px" onclick="resolveReview(${q.id}, 'ACCEPT')">✓ Accept</button>
+              <button class="btn btn-danger" style="padding:6px 12px;font-size:11px" onclick="resolveReview(${q.id}, 'DECLINE')">✕ Decline</button>
+            </div>
+          </div>
+        `).join('');
+      } else {
+        card.style.display = 'none';
+      }
+    } catch (e) {}
+  }
+
+  async function resolveReview(reviewId, action) {
+    try {
+      await fetch('/api/v1/roblox/review-action', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': user.id
+        },
+        body: JSON.stringify({ reviewId, action })
+      });
+      await loadReviewQueue();
+      await loadRobloxAccountStatus();
+    } catch (e) {
+      alert('Error: ' + e.message);
+    }
+  }
+
+  function renderLogs(logs) {
+    const feed = document.getElementById('logFeed');
+    if (!logs || logs.length === 0) {
+      feed.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);font-size:13px">Waiting for incoming friend requests...</div>';
+      return;
+    }
+
+    feed.innerHTML = logs.map(log => {
+      const isDecline = log.verdict === 'DECLINE';
+      const isAccept = log.verdict === 'ACCEPT';
+      const badgeClass = isDecline ? 'decline' : (isAccept ? 'accept' : 'review');
+      const badgeText = isDecline ? 'BOT BLOCKED' : (isAccept ? 'PLAYER ACCEPTED' : 'HELD FOR REVIEW');
+      const time = new Date(log.created_at).toLocaleTimeString();
+
+      return `
+        <div class="log-row">
+          <div style="display:flex;align-items:center;gap:12px">
+            <span class="log-badge ${badgeClass}">${badgeText}</span>
+            <div>
+              <b style="color:#fff">${log.target_username}</b>
+              <span style="font-size:12px;color:var(--muted);margin-left:8px">${log.reason || ''}</span>
+            </div>
+          </div>
+          <div style="font-size:12px;color:var(--muted);font-family:monospace">${time}</div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  async function connectRobloxAccount() {
+    const cookie = document.getElementById('robloxCookieInput').value.trim();
+    if (!cookie) {
+      alert('Please enter your Roblox cookie.');
+      return;
+    }
+
+    try {
+      const resp = await fetch('/api/v1/roblox/connect', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': user.id
+        },
+        body: JSON.stringify({ cookie })
+      });
+      const data = await resp.json();
+      if (data.success) {
+        alert('Roblox account connected successfully! 24/7 Cloud botting is now active.');
+        await loadRobloxAccountStatus();
+      } else {
+        alert('Connection error: ' + data.error);
+      }
+    } catch (e) {
+      alert('Error: ' + e.message);
+    }
+  }
+
+  function connectDemoAccount() {
+    document.getElementById('robloxCookieInput').value = 'TEST_COOKIE_RobloxProGamer';
+    connectRobloxAccount();
+  }
+
+  async function toggleCloudProtection() {
+    if (!accountData) return;
+    const newState = !accountData.isActive;
+    try {
+      await fetch('/api/v1/roblox/toggle', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': user.id
+        },
+        body: JSON.stringify({ isActive: newState })
+      });
+      await loadRobloxAccountStatus();
+    } catch (e) {
+      alert('Error: ' + e.message);
+    }
+  }
+
+  async function saveProtectionSettings() {
+    try {
+      await fetch('/api/v1/roblox/settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': user.id
+        },
+        body: JSON.stringify({
+          autoDeclineBots: document.getElementById('chkDeclineBots').checked,
+          autoAcceptPlayers: document.getElementById('chkAcceptPlayers').checked,
+          holdReview: true
+        })
+      });
+    } catch (e) {}
+  }
+
+  async function saveCustomFilters() {
+    try {
+      await fetch('/api/v1/roblox/filters', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': user.id
+        },
+        body: JSON.stringify({
+          minAccountAgeDays: document.getElementById('filterMinAge').value,
+          customBlacklist: document.getElementById('filterBlacklist').value
+        })
+      });
+      alert('Custom filtering rules saved!');
+    } catch (e) {
+      alert('Error saving filters: ' + e.message);
+    }
+  }
+
+  async function triggerScanNow() {
+    const btn = document.getElementById('scanNowBtn');
+    btn.disabled = true;
+    btn.textContent = 'Scanning Cloud...';
+
+    try {
+      const resp = await fetch('/api/v1/roblox/scan-now', {
+        method: 'POST',
+        headers: { 'x-user-id': user.id }
+      });
+      const data = await resp.json();
+
+      if (data.success) {
+        alert(`Cloud scan complete!\nScanned: ${data.scanned}\nBots Blocked: ${data.botsDeclined}\nPlayers Accepted: ${data.playersAccepted}`);
+        await loadRobloxAccountStatus();
+      } else {
+        alert('Scan error: ' + data.error);
+      }
+    } catch (e) {
+      alert('Error: ' + e.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '⚡ Scan & Clean Now';
+    }
+  }
+
+  async function disconnectRoblox() {
+    if (!confirm('Are you sure you want to disconnect your Roblox account from Waurks Cloud?')) return;
+    try {
+      await fetch('/api/v1/roblox/disconnect', {
+        method: 'POST',
+        headers: { 'x-user-id': user.id }
+      });
+      await loadRobloxAccountStatus();
+    } catch (e) {
+      alert('Error: ' + e.message);
+    }
+  }
+
+  function copyKey() {
+    if (!activeLicense) return;
+    navigator.clipboard.writeText(activeLicense.key_code);
+    alert('Key copied: ' + activeLicense.key_code);
+  }
+
+  function openCookieGuide() {
+    document.getElementById('cookieGuideModal').classList.add('open');
+  }
+
+  function closeCookieGuide() {
+    document.getElementById('cookieGuideModal').classList.remove('open');
+  }
+</script>
+</body>
+</html>

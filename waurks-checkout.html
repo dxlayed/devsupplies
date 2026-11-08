@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Waurks — Checkout</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0a0e16;
+    --surface:#121826;
+    --surface-2:#1a2234;
+    --line:#26304480;
+    --line-solid:#263044;
+    --guard:#4d8dff;
+    --guard-glow:#4d8dff33;
+    --pass:#34d17e;
+    --gold:#f0b429;
+    --block:#ff4d5e;
+    --text:#e8edf6;
+    --muted:#8b97ad;
+    --discord:#5865f2;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--ink);color:var(--text);
+    font-family:"Inter",sans-serif;line-height:1.55;-webkit-font-smoothing:antialiased;
+    padding-bottom:92px;
+  }
+  @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+  .wrap{max-width:860px;margin:0 auto;padding:0 20px}
+
+  /* header */
+  header{display:flex;align-items:center;justify-content:space-between;padding:20px 0 8px}
+  .brand{display:flex;align-items:center;gap:10px;font-family:"Archivo";font-weight:900;font-size:18px;letter-spacing:-.02em}
+  .brand svg{width:24px;height:24px}
+  .back{color:var(--muted);font-size:14px;font-weight:500}
+  .back:hover{color:var(--text)}
+  a{text-decoration:none;color:inherit}
+
+  .page-title{font-family:"Archivo";font-weight:900;font-size:30px;letter-spacing:-.02em;margin:18px 0 4px}
+  .page-sub{color:var(--muted);font-size:15px;margin-bottom:26px}
+
+  /* card shell */
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:22px 24px;margin-bottom:18px}
+  .step-head{display:flex;align-items:center;gap:12px;margin-bottom:6px}
+  .step-num{width:26px;height:26px;border-radius:50%;background:var(--guard);color:#fff;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;flex:none}
+  .step-head h2{font-family:"Archivo";font-weight:700;font-size:19px;letter-spacing:-.01em}
+  .step-desc{color:var(--muted);font-size:14px;margin:0 0 16px 38px}
+
+  /* discord button */
+  .discord-btn{
+    display:inline-flex;align-items:center;gap:10px;margin-left:38px;
+    background:var(--discord);color:#fff;font-weight:600;font-size:15px;
+    padding:12px 20px;border:none;border-radius:10px;cursor:pointer;transition:filter .15s,transform .15s;
+  }
+  .discord-btn:hover{filter:brightness(1.08);transform:translateY(-1px)}
+  .discord-btn svg{width:22px;height:22px}
+  .signed-in{display:none;margin-left:38px;align-items:center;gap:10px;font-size:14px;color:var(--pass)}
+  .signed-in.show{display:flex}
+  .signed-in .av{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#5865f2,#4d8dff)}
+
+  /* payment method toggle */
+  .methods{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px}
+  .method{
+    display:flex;align-items:center;justify-content:center;gap:9px;
+    padding:15px;border-radius:12px;background:var(--surface);border:1px solid var(--line-solid);
+    cursor:pointer;font-weight:600;font-size:15px;color:var(--muted);transition:.15s;
+  }
+  .method .ic{width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:13px;border-radius:50%}
+  .method.active{background:var(--guard);color:#fff;border-color:var(--guard);box-shadow:0 6px 20px var(--guard-glow)}
+  .method.active .ic{background:#fff;color:var(--guard)}
+
+  /* plans */
+  .plans{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-left:0}
+  .plan{
+    position:relative;text-align:left;padding:18px 16px 16px;border-radius:14px;cursor:pointer;
+    background:var(--surface-2);border:1.5px solid var(--line-solid);transition:.15s;
+  }
+  .plan:hover{border-color:var(--guard)}
+  .plan.sel{border-color:var(--guard);box-shadow:0 0 0 1px var(--guard),0 10px 30px var(--guard-glow)}
+  .plan.best.sel{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold),0 10px 30px #f0b4292e}
+  .deal{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.04em;padding:3px 8px;border-radius:6px;margin-bottom:12px}
+  .deal.good{background:#34d17e22;color:var(--pass)}
+  .deal.best{background:#f0b42922;color:var(--gold)}
+  .plan .len{font-size:14px;color:var(--text);font-weight:500;margin-bottom:4px}
+  .plan .price{font-family:"Archivo";font-weight:900;font-size:26px;letter-spacing:-.02em;display:flex;align-items:baseline;gap:7px}
+  .plan .was{font-family:"Inter";font-size:14px;font-weight:500;color:var(--muted);text-decoration:line-through}
+  .plan .note{font-size:12px;color:var(--muted);margin-top:8px}
+  .plan .save{font-size:12px;color:var(--pass);font-weight:600;margin-top:3px}
+  .plan .tick{position:absolute;top:14px;right:14px;width:20px;height:20px;border-radius:50%;background:var(--guard);display:none;align-items:center;justify-content:center}
+  .plan.best .tick{background:var(--gold)}
+  .plan.sel .tick{display:flex}
+  .plan .tick svg{width:12px;height:12px}
+
+  /* crypto coin strip */
+  .coins-note{color:var(--muted);font-size:14px;margin-bottom:14px}
+  .coins{display:flex;flex-wrap:wrap;gap:8px}
+  .coin{display:flex;align-items:center;gap:7px;background:var(--surface-2);border:1px solid var(--line-solid);border-radius:20px;padding:6px 12px 6px 7px;font-size:13px;font-weight:500}
+  .coin .b{width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff}
+  .items-panel{display:none}
+  .items-panel.show{display:block}
+  .items-panel p{color:var(--muted);font-size:14px}
+
+  /* sticky checkout bar */
+  .bar{
+    position:fixed;left:0;right:0;bottom:0;background:#0d1320ee;backdrop-filter:blur(10px);
+    border-top:1px solid var(--line-solid);padding:14px 0;z-index:20;
+  }
+  .bar .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px}
+  .bar .total{display:flex;flex-direction:column}
+  .bar .total .amt{font-family:"Archivo";font-weight:900;font-size:24px;letter-spacing:-.02em}
+  .bar .total .lbl{font-size:12px;color:var(--muted)}
+  .pay-btn{
+    background:var(--guard);color:#fff;font-weight:600;font-size:15px;border:none;
+    padding:13px 24px;border-radius:11px;cursor:pointer;transition:filter .15s,transform .15s;
+    box-shadow:0 6px 22px var(--guard-glow);
+  }
+  .pay-btn:hover:not(:disabled){filter:brightness(1.08);transform:translateY(-1px)}
+  .pay-btn:disabled{opacity:.5;cursor:not-allowed}
+
+  @media (max-width:720px){
+    .plans{grid-template-columns:1fr}
+    .methods{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M12 2l8 3v6c0 5-3.5 8.5-8 11-4.5-2.5-8-6-8-11V5l8-3z" fill="#4d8dff" fill-opacity=".2" stroke="#4d8dff" stroke-width="1.6"/><path d="M8.5 12l2.5 2.5 4.5-5" stroke="#34d17e" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Waurks
+    </div>
+    <a href="#" class="back">← Back to site</a>
+  </header>
+
+  <h1 class="page-title">Get your key</h1>
+  <p class="page-sub">Pick a plan, pay, and your key is issued instantly. It works on your own Roblox login — nothing to hand over.</p>
+
+  <!-- Step 1: Discord -->
+  <div class="card">
+    <div class="step-head"><div class="step-num">1</div><h2>Link your Discord</h2></div>
+    <p class="step-desc">Your key is tied to your Discord account, so sign in first.</p>
+    <button class="discord-btn" id="discordBtn" onclick="signIn()">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.3 4.4A19.8 19.8 0 0 0 15.4 3l-.2.5a18 18 0 0 1 4.3 1.4 16.4 16.4 0 0 0-14.9-.1A18 18 0 0 1 8.8 3.5L8.6 3a19.8 19.8 0 0 0-4.9 1.4C.9 8.5 0 12.6.5 16.6a19.9 19.9 0 0 0 6 3.1l.5-.9a13 13 0 0 1-2-1l.5-.4a14.2 14.2 0 0 0 12 0l.5.4c-.6.4-1.3.7-2 1l.5.9a19.8 19.8 0 0 0 6-3.1c.6-4.7-.8-8.8-2.7-12.2ZM8.3 14.2c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2Zm7.4 0c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2Z"/></svg>
+      Sign in with Discord
+    </button>
+    <div class="signed-in" id="signedIn"><div class="av"></div><span>Signed in as <b>you</b>#0001</span></div>
+  </div>
+
+  <!-- Payment method -->
+  <div class="methods">
+    <div class="method active" id="mCrypto" onclick="setMethod('crypto')">
+      <span class="ic" style="background:#f7931a">₿</span> Crypto
+    </div>
+    <div class="method" id="mItems" onclick="setMethod('items')">
+      <span class="ic" style="background:#3a4257">🎮</span> In-game items
+    </div>
+  </div>
+
+  <!-- Step 2: plans -->
+  <div class="card">
+    <div class="step-head"><div class="step-num">2</div><h2>Choose a plan</h2></div>
+    <p class="step-desc">Keys are checked each run. When one expires, access pauses until you renew.</p>
+    <div class="plans">
+      <div class="plan" data-amt="15" data-label="7 days" onclick="selectPlan(this)">
+        <div class="tick"><svg viewBox="0 0 24 24" fill="none"><path d="M5 12l4 4 10-11" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <span class="deal good">GOOD DEAL</span>
+        <div class="len">7 days</div>
+        <div class="price">$15 <span class="was">$30</span></div>
+        <div class="note">7 days of full access</div>
+        <div class="save">Save $15</div>
+      </div>
+
+      <div class="plan" data-amt="45" data-label="1 month" onclick="selectPlan(this)">
+        <div class="tick"><svg viewBox="0 0 24 24" fill="none"><path d="M5 12l4 4 10-11" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <span class="deal good">GOOD DEAL</span>
+        <div class="len">1 month</div>
+        <div class="price">$45 <span class="was">$90</span></div>
+        <div class="note">1 month of full access</div>
+        <div class="save">Save $45</div>
+      </div>
+
+      <div class="plan best" data-amt="115" data-label="1 year" onclick="selectPlan(this)">
+        <div class="tick"><svg viewBox="0 0 24 24" fill="none"><path d="M5 12l4 4 10-11" stroke="#1a2234" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <span class="deal best">BEST DEAL</span>
+        <div class="len">1 year</div>
+        <div class="price">$115 <span class="was">$230</span></div>
+        <div class="note">Best value — a full year</div>
+        <div class="save">Save $115</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- payment detail -->
+  <div class="card">
+    <div id="cryptoPanel">
+      <p class="coins-note">You'll pick your coin and network on the secure checkout:</p>
+      <div class="coins">
+        <span class="coin"><span class="b" style="background:#26a17b">T</span>USDT</span>
+        <span class="coin"><span class="b" style="background:#2775ca">$</span>USDC</span>
+        <span class="coin"><span class="b" style="background:#f7931a">₿</span>BTC</span>
+        <span class="coin"><span class="b" style="background:#627eea">◆</span>ETH</span>
+        <span class="coin"><span class="b" style="background:#14f195;color:#000">◎</span>SOL</span>
+        <span class="coin"><span class="b" style="background:#345d9d">Ł</span>LTC</span>
+        <span class="coin"><span class="b" style="background:#ff060a">T</span>TRX</span>
+        <span class="coin"><span class="b" style="background:#f3ba2f;color:#000">B</span>BNB</span>
+        <span class="coin"><span class="b" style="background:#23292f">✕</span>XRP</span>
+        <span class="coin"><span class="b" style="background:#c2a633">Ð</span>DOGE</span>
+      </div>
+    </div>
+    <div class="items-panel" id="itemsPanel">
+      <p>Pay with in-game items instead. You'll be matched with a middleman from the Waurks Discord to complete the trade, then your key unlocks. (This is a preview — trade flow comes later.)</p>
+    </div>
+  </div>
+</div>
+
+<!-- sticky bar -->
+<div class="bar">
+  <div class="wrap">
+    <div class="total">
+      <span class="amt" id="barAmt">$—</span>
+      <span class="lbl" id="barLbl">Pick a plan</span>
+    </div>
+    <button class="pay-btn" id="payBtn" disabled onclick="pay()">Sign in with Discord to continue</button>
+  </div>
+</div>
+
+<script>
+  let signedInState = false;
+  let selected = null;
+  let method = 'crypto';
+
+  function signIn(){
+    signedInState = true;
+    document.getElementById('discordBtn').style.display = 'none';
+    document.getElementById('signedIn').classList.add('show');
+    refreshBar();
+  }
+
+  function setMethod(m){
+    method = m;
+    document.getElementById('mCrypto').classList.toggle('active', m==='crypto');
+    document.getElementById('mItems').classList.toggle('active', m==='items');
+    document.getElementById('cryptoPanel').style.display = m==='crypto' ? 'block':'none';
+    document.getElementById('itemsPanel').classList.toggle('show', m==='items');
+    refreshBar();
+  }
+
+  function selectPlan(el){
+    document.querySelectorAll('.plan').forEach(p=>p.classList.remove('sel'));
+    el.classList.add('sel');
+    selected = { amt: el.dataset.amt, label: el.dataset.label };
+    refreshBar();
+  }
+
+  function refreshBar(){
+    const amtEl = document.getElementById('barAmt');
+    const lblEl = document.getElementById('barLbl');
+    const btn = document.getElementById('payBtn');
+
+    if(selected){
+      amtEl.textContent = '$' + selected.amt;
+      lblEl.textContent = selected.label + ' · ' + (method==='crypto'?'Crypto':'In-game items');
+    } else {
+      amtEl.textContent = '$—';
+      lblEl.textContent = 'Pick a plan';
+    }
+
+    if(!signedInState){
+      btn.disabled = true;
+      btn.textContent = 'Sign in with Discord to continue';
+    } else if(!selected){
+      btn.disabled = true;
+      btn.textContent = 'Pick a plan to continue';
+    } else {
+      btn.disabled = false;
+      btn.textContent = method==='crypto' ? 'Continue to payment' : 'Continue to trade';
+    }
+  }
+
+  function pay(){
+    alert('Preview only — this is where the real payment + key issuing gets wired up.');
+  }
+</script>
+</body>
+</html>
