@@ -52,14 +52,14 @@ function maintenancePage(message) {
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Waurks — Maintenance</title>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@900&family=Inter:wght@400;600&display=swap" rel="stylesheet">
-<style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0a0e16;color:#e8edf6;font-family:Inter,sans-serif;padding:20px;text-align:center}
-.card{max-width:460px;background:#121826;border:1px solid #263044;border-radius:18px;padding:36px 28px}
-.ic{width:60px;height:60px;border-radius:50%;background:rgba(240,180,41,.15);color:#f0b429;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:28px}
-h1{font-family:Archivo,sans-serif;font-size:28px;margin:0 0 10px}p{color:#8b97ad;font-size:15px;line-height:1.6;margin:0}
-a{display:inline-block;margin-top:24px;color:#4d8dff;font-size:12px;text-decoration:none}</style></head>
-<body><div class="card"><div class="ic">🛠</div><h1>Maintenance mode</h1>
-<p>${esc(message || "Waurks is down for maintenance. We'll be back shortly.")}</p>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#09080c;color:#f3f1f7;font-family:Inter,sans-serif;padding:20px;text-align:center}
+.card{max-width:460px;background:#121017;border:1px solid #272233;border-radius:18px;padding:36px 28px}
+.ic{width:44px;height:44px;border-radius:12px;background:#9b5cff;color:#fff;display:flex;align-items:center;justify-content:center;margin:0 auto 18px;font:700 22px 'Space Grotesk',sans-serif}
+h1{font-family:'Space Grotesk',sans-serif;font-size:28px;margin:0 0 10px}p{color:#9b94a8;font-size:15px;line-height:1.6;margin:0}
+a{display:inline-block;margin-top:24px;color:#9b5cff;font-size:12px;text-decoration:none}</style></head>
+<body><div class="card"><div class="ic">W</div><h1>Be right back</h1>
+<p>${esc(message || "We're fixing a few things. Check back soon.")}</p>
 <a href="/api/v1/auth/discord/login">Staff sign in</a></div></body></html>`;
 }
 

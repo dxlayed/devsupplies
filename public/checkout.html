@@ -3,355 +3,192 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Waurks — Checkout & Key Issuance</title>
+<title>Get a key - Waurks</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/theme.css">
 <style>
-  :root{
-    --ink:#0a0e16;
-    --surface:#121826;
-    --surface-2:#1a2234;
-    --line:#26304480;
-    --line-solid:#263044;
-    --guard:#4d8dff;
-    --guard-glow:#4d8dff33;
-    --pass:#34d17e;
-    --gold:#f0b429;
-    --block:#ff4d5e;
-    --text:#e8edf6;
-    --muted:#8b97ad;
-    --discord:#5865f2;
-    --radius:14px;
-  }
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{
-    background:var(--ink);color:var(--text);
-    font-family:"Inter",sans-serif;line-height:1.55;-webkit-font-smoothing:antialiased;
-    padding-bottom:120px;
-  }
-  .wrap{max-width:860px;margin:0 auto;padding:0 20px}
+  body{padding-bottom:110px}
+  .page{max-width:760px;margin:0 auto;padding:0 20px}
+  .title{font-size:34px;margin:10px 0 6px}
+  .sub{color:var(--muted);margin-bottom:26px}
 
-  header{display:flex;align-items:center;justify-content:space-between;padding:22px 0 10px}
-  .brand{display:flex;align-items:center;gap:10px;font-family:"Archivo";font-weight:900;font-size:18px;letter-spacing:-.02em}
-  .brand svg{width:24px;height:24px}
-  .back{color:var(--muted);font-size:14px;font-weight:500;display:flex;align-items:center;gap:6px}
-  .back:hover{color:var(--text)}
-  a{text-decoration:none;color:inherit}
+  .step{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+  .step .n{width:26px;height:26px;border-radius:50%;background:var(--purple-soft);color:#d7c2ff;font-weight:700;font-size:13px;display:grid;place-items:center;flex:none}
+  .step h2{font-size:18px;margin:0}
 
-  .page-title{font-family:"Archivo";font-weight:900;font-size:32px;letter-spacing:-.02em;margin:18px 0 4px}
-  .page-sub{color:var(--muted);font-size:15px;margin-bottom:26px}
-
-  .card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:24px;margin-bottom:20px}
-  .step-head{display:flex;align-items:center;gap:12px;margin-bottom:6px}
-  .step-num{width:26px;height:26px;border-radius:50%;background:var(--guard);color:#fff;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;flex:none}
-  .step-head h2{font-family:"Archivo";font-weight:700;font-size:19px;letter-spacing:-.01em}
-  .step-desc{color:var(--muted);font-size:14px;margin:0 0 16px 38px}
-
-  .auth-actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-left:38px}
-  .discord-btn{
-    display:inline-flex;align-items:center;gap:10px;
-    background:var(--discord);color:#fff;font-weight:600;font-size:14px;
-    padding:11px 18px;border:none;border-radius:10px;cursor:pointer;transition:.15s;
-  }
-  .discord-btn:hover{filter:brightness(1.1);transform:translateY(-1px)}
+  .auth-actions{display:flex;gap:10px;flex-wrap:wrap}
+  .discord-btn{background:#5865f2;color:#fff}
+  .discord-btn:hover{background:#4752c4}
   .discord-btn svg{width:20px;height:20px}
-  .dev-login-btn{
-    background:var(--surface-2);color:var(--text);border:1px solid var(--line-solid);
-    font-weight:600;font-size:14px;padding:11px 18px;border-radius:10px;cursor:pointer;transition:.15s;
-  }
-  .dev-login-btn:hover{border-color:var(--guard);color:var(--guard)}
-
-  .signed-in{display:none;margin-left:38px;align-items:center;gap:12px;font-size:14px;color:var(--pass);background:rgba(52,209,126,0.1);padding:10px 16px;border-radius:10px;border:1px solid rgba(52,209,126,0.3)}
+  .dev-login-btn{background:transparent;color:var(--text);border:1px solid var(--line)}
+  .signed-in{display:none;align-items:center;gap:12px;font-size:14px}
   .signed-in.show{display:flex}
-  .signed-in .av{width:32px;height:32px;border-radius:50%;object-fit:cover;border:2px solid var(--pass)}
+  .signed-in .av{width:34px;height:34px;border-radius:50%;object-fit:cover}
+  .signed-in .out{margin-left:auto}
 
-  /* Payment methods */
-  .methods{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px}
-  .method{
-    display:flex;align-items:center;justify-content:center;gap:10px;
-    padding:15px;border-radius:12px;background:var(--surface);border:1px solid var(--line-solid);
-    cursor:pointer;font-weight:600;font-size:15px;color:var(--muted);transition:.15s;
-  }
-  .method .ic{width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:13px;border-radius:50%}
-  .method.active{background:var(--guard);color:#fff;border-color:var(--guard);box-shadow:0 6px 20px var(--guard-glow)}
-  .method.active .ic{background:#fff;color:var(--guard)}
+  .plans{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .plan{position:relative;padding:18px;border-radius:12px;cursor:pointer;background:var(--panel-2);border:1px solid var(--line);transition:border-color .15s,background .15s}
+  .plan:hover{border-color:#4a3d66}
+  .plan.sel{border-color:var(--purple);background:var(--purple-soft)}
+  .plan .len{font-weight:600;font-size:14px;color:var(--muted)}
+  .plan .price{font-family:"Space Grotesk",sans-serif;font-weight:700;font-size:30px;margin:2px 0}
+  .plan .note{font-size:13px;color:var(--muted)}
+  .plan .flag{position:absolute;top:12px;right:12px;font-size:11px;font-weight:600;color:#d7c2ff}
 
-  /* Plans */
-  .plans{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
-  .plan{
-    position:relative;text-align:left;padding:20px 18px;border-radius:14px;cursor:pointer;
-    background:var(--surface-2);border:1.5px solid var(--line-solid);transition:.15s;
-  }
-  .plan:hover{border-color:var(--guard)}
-  .plan.sel{border-color:var(--guard);box-shadow:0 0 0 1px var(--guard),0 10px 30px var(--guard-glow)}
-  .plan.best.sel{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold),0 10px 30px #f0b4292e}
-  .deal{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.04em;padding:3px 8px;border-radius:6px;margin-bottom:12px}
-  .deal.good{background:#34d17e22;color:var(--pass)}
-  .deal.best{background:#f0b42922;color:var(--gold)}
-  .plan .len{font-size:14px;color:var(--text);font-weight:600;margin-bottom:4px}
-  .plan .price{font-family:"Archivo";font-weight:900;font-size:28px;letter-spacing:-.02em;display:flex;align-items:baseline;gap:7px}
-  .plan .was{font-family:"Inter";font-size:14px;font-weight:500;color:var(--muted);text-decoration:line-through}
-  .plan .note{font-size:12px;color:var(--muted);margin-top:8px}
-  .plan .save{font-size:12px;color:var(--pass);font-weight:600;margin-top:4px}
-  .plan .tick{position:absolute;top:14px;right:14px;width:20px;height:20px;border-radius:50%;background:var(--guard);display:none;align-items:center;justify-content:center}
-  .plan.best .tick{background:var(--gold)}
-  .plan.sel .tick{display:flex}
-  .plan .tick svg{width:12px;height:12px}
-
-  /* Coins */
-  .coins-note{color:var(--muted);font-size:14px;margin-bottom:12px}
-  .coins{display:flex;flex-wrap:wrap;gap:8px}
-  .coin-chip{
-    display:flex;align-items:center;gap:7px;background:var(--surface-2);border:1px solid var(--line-solid);
-    border-radius:20px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;transition:.15s;
-  }
-  .coin-chip:hover{border-color:var(--guard)}
-  .coin-chip.selected{background:rgba(77,141,255,0.15);border-color:var(--guard);color:#fff}
-  .coin-chip .b{width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff}
-
-  /* Trade items preview */
+  .methods{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .method{padding:14px 16px;border-radius:12px;background:var(--panel-2);border:1px solid var(--line);cursor:pointer;transition:border-color .15s,background .15s}
+  .method b{display:block;font-size:15px}
+  .method span{font-size:13px;color:var(--muted)}
+  .method.active{border-color:var(--purple);background:var(--purple-soft)}
+  .pay-note{font-size:14px;color:var(--muted);margin-top:14px}
   .items-panel{display:none}
   .items-panel.show{display:block}
-  .trade-flow-box{background:var(--surface-2);border:1px dashed var(--line-solid);padding:16px;border-radius:12px;font-size:14px;color:var(--muted)}
 
-  /* Modal / Payment Sheet */
-  .modal-overlay{
-    position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);backdrop-filter:blur(6px);
-    display:none;align-items:center;justify-content:center;z-index:999;padding:20px;
-  }
+  .bar{position:fixed;left:0;right:0;bottom:0;background:rgba(9,8,12,.92);backdrop-filter:blur(8px);border-top:1px solid var(--line);padding:14px 0;z-index:20}
+  .bar .inner{max-width:760px;margin:0 auto;padding:0 20px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+  .bar .amt{font-family:"Space Grotesk",sans-serif;font-weight:700;font-size:24px;display:block}
+  .bar .lbl{font-size:13px;color:var(--muted)}
+  .pay-btn{padding:13px 22px;font-size:15px}
+
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.8);display:none;align-items:center;justify-content:center;z-index:999;padding:20px}
   .modal-overlay.open{display:flex}
-  .modal-card{
-    background:#121826;border:1px solid var(--line-solid);border-radius:20px;
-    width:100%;max-width:540px;padding:28px;box-shadow:0 20px 50px rgba(0,0,0,0.8);
-    position:relative;
-  }
-  .modal-close{position:absolute;top:18px;right:18px;background:transparent;border:none;color:var(--muted);font-size:20px;cursor:pointer}
-  .modal-title{font-family:"Archivo";font-weight:900;font-size:22px;margin-bottom:12px}
-
-  .key-revealed-box{
-    background:#0a0e16;border:2px solid var(--pass);padding:18px;border-radius:12px;margin:18px 0;text-align:center;
-  }
-  .key-code-display{
-    font-family:monospace;font-size:18px;font-weight:700;color:var(--pass);letter-spacing:1px;margin:8px 0;word-break:break-all;
-  }
-
-  /* Sticky checkout bar */
-  .bar{
-    position:fixed;left:0;right:0;bottom:0;background:#0d1320ee;backdrop-filter:blur(10px);
-    border-top:1px solid var(--line-solid);padding:16px 0;z-index:20;
-  }
-  .bar .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px}
-  .bar .total{display:flex;flex-direction:column}
-  .bar .total .amt{font-family:"Archivo";font-weight:900;font-size:26px;letter-spacing:-.02em}
-  .bar .total .lbl{font-size:12px;color:var(--muted)}
-  .pay-btn{
-    background:var(--guard);color:#fff;font-weight:700;font-size:15px;border:none;
-    padding:14px 28px;border-radius:11px;cursor:pointer;transition:.15s;
-    box-shadow:0 6px 22px var(--guard-glow);
-  }
-  .pay-btn:hover:not(:disabled){filter:brightness(1.08);transform:translateY(-1px)}
-  .pay-btn:disabled{opacity:.5;cursor:not-allowed}
-
-  @media (max-width:720px){
-    .plans{grid-template-columns:1fr}
-    .methods{grid-template-columns:1fr}
-  }
-  .mrow{display:flex;justify-content:space-between;margin-bottom:8px;font-size:14px}
+  .modal-card{background:var(--panel);border:1px solid var(--line);border-radius:16px;width:100%;max-width:500px;padding:26px;position:relative;max-height:92vh;overflow:auto}
+  .modal-close{position:absolute;top:14px;right:14px}
+  .modal-title{font-size:22px;margin-bottom:6px;padding-right:70px}
+  .mbox{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:16px;margin:16px 0 12px}
+  .mrow{display:flex;justify-content:space-between;margin-bottom:6px;font-size:14px}
   .mrow span:first-child{color:var(--muted)}
-  .mlabel{font-size:11px;text-transform:uppercase;color:var(--muted);margin:12px 0 6px;letter-spacing:.04em}
-  .copybox{display:flex;align-items:center;gap:8px;background:var(--surface-2);border:1px solid var(--line-solid);border-radius:10px;padding:10px 12px;cursor:pointer}
-  .copybox:hover{border-color:var(--guard)}
-  .copyhint{margin-left:auto;font-size:11px;color:var(--guard);font-weight:600;flex:none}
-  .paystatus{background:rgba(77,141,255,.1);border:1px solid rgba(77,141,255,.3);color:#cfe0ff;border-radius:10px;padding:12px;font-size:14px;font-weight:600;text-align:center}
-  .paystatus.seen{background:rgba(52,209,126,.12);border-color:rgba(52,209,126,.35);color:var(--pass)}
-  .paystatus.bad{background:rgba(255,77,94,.1);border-color:rgba(255,77,94,.3);color:#ffb3bb}
+  .mlabel{font-size:13px;color:var(--muted);margin:12px 0 6px}
+  .copybox{display:flex;align-items:center;gap:8px;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer}
+  .copybox:hover{border-color:var(--purple)}
+  .copyhint{margin-left:auto;font-size:12px;color:var(--purple);font-weight:600;flex:none}
+  .paystatus{background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:12px;font-size:14px;font-weight:600;text-align:center}
+  .paystatus.seen{border-color:rgba(61,220,132,.4);color:var(--green)}
+  .paystatus.bad{border-color:rgba(255,84,112,.4);color:#ffb3c0}
+  .key-revealed-box{background:var(--bg);border:1px solid var(--purple);padding:16px;border-radius:12px;margin:16px 0;text-align:center}
+  .key-code-display{font-family:ui-monospace,Consolas,monospace;font-size:17px;font-weight:700;margin:8px 0;word-break:break-all}
+
+  @media (max-width:680px){ .plans,.methods{grid-template-columns:1fr} }
 </style>
 </head>
 <body>
-<style>
-  #wkToast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,20px);opacity:0;pointer-events:none;z-index:9999;
-    background:#1a2234;color:#e8edf6;border:1px solid #263044;border-radius:12px;padding:12px 18px;font:600 14px Inter,sans-serif;
-    box-shadow:0 10px 30px rgba(0,0,0,.4);transition:opacity .2s,transform .2s;max-width:min(92vw,520px);text-align:center}
-  #wkToast.show{opacity:1;transform:translate(-50%,0)}
-  #wkToast.err{border-color:rgba(255,77,94,.5);color:#ffb3bb}
-  #wkToast.ok{border-color:rgba(52,209,126,.5);color:#34d17e}
-</style>
 <div id="wkToast" role="status" aria-live="polite"></div>
 <script>
-  // Small notice at the bottom of the page instead of a browser popup
   function notify(msg, kind) {
     const t = document.getElementById('wkToast');
     t.textContent = String(msg);
     t.className = 'show' + (kind ? ' ' + kind : (/error|fail|invalid|could not|please/i.test(msg) ? ' err' : ''));
     clearTimeout(t._h); t._h = setTimeout(() => { t.className = ''; }, 3500);
   }
-  // Risky buttons: first click arms the button, second click (within 4s) confirms. No popup.
-  function confirmTwice(el, label) {
-    if (!el) return true;
-    if (el.dataset.armed === '1') { el.dataset.armed = ''; el.textContent = el.dataset.orig; return true; }
-    el.dataset.orig = el.textContent; el.dataset.armed = '1';
-    el.textContent = label || 'Click again to confirm';
-    setTimeout(() => { if (el.dataset.armed === '1') { el.dataset.armed = ''; el.textContent = el.dataset.orig; } }, 4000);
-    return false;
-  }
   window.alert = msg => notify(msg);
 </script>
 
-
 <div class="wrap">
-  <header>
-    <div class="brand">
-      <svg viewBox="0 0 24 24" fill="none"><path d="M12 2l8 3v6c0 5-3.5 8.5-8 11-4.5-2.5-8-6-8-11V5l8-3z" fill="#4d8dff" fill-opacity=".2" stroke="#4d8dff" stroke-width="1.6"/><path d="M8.5 12l2.5 2.5 4.5-5" stroke="#34d17e" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      Waurks
-    </div>
-    <a href="/" class="back">← Back to main site</a>
+  <header class="topbar">
+    <a href="/" class="logo"><span class="logo-mark">W</span>Waurks</a>
+    <nav class="nav"><a href="/">Back to home</a><a href="/dashboard">My account</a></nav>
   </header>
+</div>
 
-  <h1 class="page-title">Unlock Waurks Key</h1>
-  <p class="page-sub">Pick your tier, complete payment, and your cryptographic key is issued instantly with auto-expiration tracking.</p>
+<main class="page">
+  <h1 class="title">Get a key</h1>
+  <p class="sub">Three quick steps. Your key shows up right after you pay.</p>
 
-  <!-- Step 1: Discord -->
-  <div class="card">
-    <div class="step-head"><div class="step-num">1</div><h2>Link your Discord</h2></div>
-    <p class="step-desc">Your license is tied to your Discord identity for renewals and role sync.</p>
-    
+  <div class="box">
+    <div class="step"><span class="n">1</span><h2>Sign in with Discord</h2></div>
     <div class="auth-actions" id="authActions">
-      <button class="discord-btn" onclick="startDiscordAuth()">
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.3 4.4A19.8 19.8 0 0 0 15.4 3l-.2.5a18 18 0 0 1 4.3 1.4 16.4 16.4 0 0 0-14.9-.1A18 18 0 0 1 8.8 3.5L8.6 3a19.8 19.8 0 0 0-4.9 1.4C.9 8.5 0 12.6.5 16.6a19.9 19.9 0 0 0 6 3.1l.5-.9a13 13 0 0 1-2-1l.5-.4a14.2 14.2 0 0 0 12 0l.5.4c-.6.4-1.3.7-2 1l.5.9a19.8 19.8 0 0 0 6-3.1c.6-4.7-.8-8.8-2.7-12.2ZM8.3 14.2c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2Zm7.4 0c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2Z"/></svg>
+      <button class="btn discord-btn" onclick="startDiscordAuth()">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.3 4.4A19.8 19.8 0 0 0 15.4 3l-.2.5a18 18 0 0 1 4.3 1.4 16.4 16.4 0 0 0-14.9-.1A18 18 0 0 1 8.8 3.5L8.6 3a19.8 19.8 0 0 0-4.9 1.4C.9 8.5 0 12.6.5 16.6a19.9 19.9 0 0 0 6 3.1l.5-.9a13 13 0 0 1-2-1l.5-.4a14.2 14.2 0 0 0 12 0l.5.4c-.6.4-1.3.7-2 1l.5.9a19.8 19.8 0 0 0 6-3.1c.6-4.7-.8-8.8-2.7-12.2ZM8.3 14.2c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2Zm7.4 0c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2Z"/></svg>
         Sign in with Discord
       </button>
-      <button class="dev-login-btn" id="devLoginBtn" style="display:none" onclick="startDevLogin()">
-        ⚡ Quick Test Sign-in (Demo Mode)
-      </button>
+      <button class="btn dev-login-btn" id="devLoginBtn" style="display:none" onclick="startDevLogin()">Test sign-in</button>
     </div>
-
     <div class="signed-in" id="signedIn">
-      <img src="" class="av" id="userAvatar" alt="Avatar">
-      <span>Connected as <b id="userTag">User#0001</b></span>
-      <button onclick="logout()" style="background:transparent;border:none;color:#ff4d5e;margin-left:auto;cursor:pointer;font-size:12px;text-decoration:underline;">Disconnect</button>
+      <img class="av" id="userAvatar" src="https://cdn.discordapp.com/embed/avatars/0.png" alt="">
+      <div>Signed in as <b id="userTag">you</b></div>
+      <button class="btn btn-line btn-sm out" onclick="logout()">Sign out</button>
     </div>
   </div>
 
-  <!-- Step 2: Payment method -->
-  <div class="methods">
-    <div class="method active" id="mCrypto" onclick="setMethod('crypto')">
-      <span class="ic" style="background:#345d9d">Ł</span> Litecoin (LTC)
-    </div>
-    <div class="method" id="mItems" onclick="setMethod('items')">
-      <span class="ic" style="background:#3a4257">🎮</span> In-Game Items (Middleman Trade)
-    </div>
-  </div>
-
-  <!-- Step 3: Choose Plan -->
-  <div class="card">
-    <div class="step-head"><div class="step-num">2</div><h2>Choose your plan</h2></div>
-    <p class="step-desc">All keys include full anti-crack cloud protection and server-authoritative scoring.</p>
-    
+  <div class="box">
+    <div class="step"><span class="n">2</span><h2>Pick a plan</h2></div>
     <div class="plans">
-      <div class="plan" id="planWeekly" data-tier="weekly" data-amt="15" data-label="Weekly (7 Days)" onclick="selectPlan(this)">
-        <div class="tick"><svg viewBox="0 0 24 24" fill="none"><path d="M5 12l4 4 10-11" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-        <span class="deal good">GOOD VALUE</span>
+      <div class="plan" id="planWeekly" data-tier="weekly" data-amt="15" data-label="Weekly" onclick="selectPlan(this)">
         <div class="len">Weekly</div>
-        <div class="price">$15 <span class="was">$30</span></div>
-        <div class="note">7 days of full bot filtering</div>
-        <div class="save">Save $15</div>
+        <div class="price">$15</div>
+        <div class="note">7 days</div>
       </div>
-
-      <div class="plan" id="planMonthly" data-tier="monthly" data-amt="45" data-label="Monthly (30 Days)" onclick="selectPlan(this)">
-        <div class="tick"><svg viewBox="0 0 24 24" fill="none"><path d="M5 12l4 4 10-11" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-        <span class="deal good">POPULAR</span>
+      <div class="plan" id="planMonthly" data-tier="monthly" data-amt="45" data-label="Monthly" onclick="selectPlan(this)">
+        <span class="flag">Popular</span>
         <div class="len">Monthly</div>
-        <div class="price">$45 <span class="was">$90</span></div>
-        <div class="note">30 days of continuous access</div>
-        <div class="save">Save $45</div>
+        <div class="price">$45</div>
+        <div class="note">30 days</div>
       </div>
-
-      <div class="plan best" id="planYearly" data-tier="yearly" data-amt="115" data-label="Lifetime (forever)" onclick="selectPlan(this)">
-        <div class="tick"><svg viewBox="0 0 24 24" fill="none"><path d="M5 12l4 4 10-11" stroke="#1a2234" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-        <span class="deal best">BEST DEAL</span>
+      <div class="plan" id="planYearly" data-tier="yearly" data-amt="115" data-label="Lifetime" onclick="selectPlan(this)">
+        <span class="flag">Best deal</span>
         <div class="len">Lifetime</div>
-        <div class="price">$115 <span class="was">$230</span></div>
-        <div class="note">Pay once, yours forever</div>
-        <div class="save">Save $115</div>
+        <div class="price">$115</div>
+        <div class="note">Pay once, keep it forever</div>
       </div>
     </div>
   </div>
 
-  <!-- Payment Details Selector -->
-  <div class="card">
-    <div id="cryptoPanel">
-      <p class="coins-note"><b style="color:#fff">Pay with Litecoin (LTC).</b> You'll get an exact amount and address. Your key is issued automatically about 3 minutes after you send.</p>
+  <div class="box">
+    <div class="step"><span class="n">3</span><h2>How do you want to pay?</h2></div>
+    <div class="methods">
+      <div class="method active" id="mCrypto" onclick="setMethod('crypto')"><b>Litecoin (LTC)</b><span>Key shows up in a few minutes</span></div>
+      <div class="method" id="mItems" onclick="setMethod('items')"><b>In-game items</b><span>Trade through our Discord</span></div>
     </div>
-
-    <div class="items-panel" id="itemsPanel">
-      <div class="trade-flow-box">
-        <h4 style="color:#fff;margin-bottom:6px">In-Game Item Trade Escrow</h4>
-        <p>Accepting Roblox Limiteds, MM2 godlies, Adopt Me high-tiers, or Blox Fruits perms. Clicking continue generates a secure Middleman Trade Ticket. Our Discord escrow agent will verify the items and your key unlocks immediately.</p>
-      </div>
-    </div>
+    <div id="cryptoPanel"><p class="pay-note">We'll show you an address and the exact amount to send. Once it goes through, your key appears on the screen.</p></div>
+    <div class="items-panel" id="itemsPanel"><p class="pay-note">We take Roblox limiteds and items from games like MM2, Adopt Me and Blox Fruits. You'll get a ticket number, then a staff member on our Discord does the trade with you. Your key unlocks after that.</p></div>
   </div>
-</div>
+</main>
 
-<!-- Sticky Checkout Bar -->
 <div class="bar">
-  <div class="wrap">
-    <div class="total">
-      <span class="amt" id="barAmt">$—</span>
-      <span class="lbl" id="barLbl">Select a plan to start</span>
-    </div>
-    <button class="pay-btn" id="payBtn" disabled onclick="handleCheckout()">Sign in with Discord to continue</button>
+  <div class="inner">
+    <div><span class="amt" id="barAmt">$-</span><span class="lbl" id="barLbl">Pick a plan</span></div>
+    <button class="btn btn-main pay-btn" id="payBtn" disabled onclick="handleCheckout()">Sign in first</button>
   </div>
 </div>
 
-<!-- Payment Processing / Key Delivery Modal -->
 <div class="modal-overlay" id="checkoutModal">
   <div class="modal-card">
-    <button class="modal-close" onclick="closeModal()">✕</button>
-    
-    <div id="modalOrderView">
-      <h3 class="modal-title" id="mOrderTitle">Complete Your Payment</h3>
-      <p style="color:var(--muted);font-size:14px;margin-bottom:18px" id="mOrderSub">Send payment to generate your key immediately.</p>
+    <button class="btn btn-line btn-sm modal-close" onclick="closeModal()">Close</button>
 
-      <div style="background:#090d15;border:1px solid var(--line-solid);border-radius:12px;padding:16px;margin-bottom:14px;">
-        <div class="mrow"><span>Order</span><span style="font-family:monospace;font-weight:700" id="mOrderId">ORD-XXXX</span></div>
-        <div class="mrow"><span>Price</span><span style="font-weight:700" id="mOrderTotal">$0.00</span></div>
+    <div id="modalOrderView">
+      <h3 class="modal-title" id="mOrderTitle">Pay with Litecoin</h3>
+      <p class="muted" style="font-size:14px" id="mOrderSub">Your key shows up here once your payment goes through.</p>
+
+      <div class="mbox">
+        <div class="mrow"><span>Order</span><span class="mono" id="mOrderId">-</span></div>
+        <div class="mrow"><span>Price</span><span id="mOrderTotal">-</span></div>
         <div id="mLtcBlock">
           <div class="mlabel">Send exactly</div>
-          <div class="copybox" onclick="copyText('mLtcAmount')"><b id="mLtcAmount" style="color:var(--pass);font-size:20px">0.00000000</b> <span>LTC</span><span class="copyhint">copy</span></div>
-          <div class="mlabel">To this Litecoin address</div>
-          <div class="copybox" onclick="copyText('mDepositAddress')"><span id="mDepositAddress" style="font-family:monospace;font-size:12px;word-break:break-all;color:#4d8dff">—</span><span class="copyhint">copy</span></div>
-          <a id="mWalletLink" href="#" style="display:inline-block;font-size:12px;color:var(--guard);margin-top:6px">Open in my wallet app →</a>
+          <div class="copybox" onclick="copyText('mLtcAmount')"><b id="mLtcAmount" style="font-size:20px">0.00000000</b><span class="muted">LTC</span><span class="copyhint">copy</span></div>
+          <div class="mlabel">To this address</div>
+          <div class="copybox" onclick="copyText('mDepositAddress')"><span id="mDepositAddress" class="mono" style="font-size:12px;word-break:break-all">-</span><span class="copyhint">copy</span></div>
+          <a id="mWalletLink" href="#" style="display:inline-block;font-size:13px;color:var(--purple);margin-top:8px">Open in my wallet app</a>
         </div>
-        <div class="mrow" style="display:none" id="mTicketRow"><span>Trade ticket</span><span style="font-family:monospace;font-weight:700;color:var(--gold)" id="mTradeTicket">TRADE-XXXX</span></div>
+        <div class="mrow" style="display:none" id="mTicketRow"><span>Ticket number</span><span class="mono" id="mTradeTicket">-</span></div>
       </div>
 
-      <div id="mPayStatus" class="paystatus">⏳ Waiting for your payment…</div>
-      <p id="mPayNote" style="font-size:12px;color:var(--muted);margin-top:10px;line-height:1.5">
-        This address is only for this order. Send the full amount: if less arrives, your key won't unlock. If you send from an exchange, add a little for their fee. Price is locked for <span id="mCountdown">30:00</span>.
+      <div id="mPayStatus" class="paystatus">Waiting for your payment...</div>
+      <p id="mPayNote" class="muted" style="font-size:13px;margin-top:10px">
+        This address is just for this order. Send the full amount or your key won't unlock. Sending from an exchange? Add a little extra for their fee. This price is good for <span id="mCountdown">30:00</span>.
       </p>
-      <button class="pay-btn" id="simBtn" style="width:100%;margin-top:10px;display:none" onclick="simulatePaymentApproval()">⚡ Simulate payment (test mode)</button>
+      <button class="btn btn-line btn-block" id="simBtn" style="margin-top:12px;display:none" onclick="simulatePaymentApproval()">Test payment</button>
     </div>
 
-    <!-- Key Issued Success View -->
     <div id="modalSuccessView" style="display:none;text-align:center">
-      <div style="width:52px;height:52px;border-radius:50%;background:rgba(52,209,126,0.15);color:var(--pass);display:flex;align-items:center;justify-content:center;margin:0 auto 12px">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M5 12l4 4 10-11" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </div>
-      <h3 class="modal-title" style="color:var(--pass)">Key Activated Successfully!</h3>
-      <p style="color:var(--muted);font-size:14px">Your key is tied to your Discord account and active immediately.</p>
-
+      <h3 class="modal-title" style="padding-right:0">You're all set</h3>
+      <p class="muted" style="font-size:14px">Here's your key. It's also saved on your account page.</p>
       <div class="key-revealed-box">
-        <span style="font-size:11px;color:var(--muted);text-transform:uppercase">Your Waurks License Key</span>
-        <div class="key-code-display" id="issuedKeyDisplay">WAURKS-XXXX-XXXX-XXXX-XXXX</div>
-        <button class="dev-login-btn" style="padding:6px 14px;font-size:12px;margin-top:6px" onclick="copyIssuedKey()">
-          📋 Copy License Key
-        </button>
+        <div class="key-code-display" id="issuedKeyDisplay">-</div>
+        <button class="btn btn-line btn-sm" onclick="copyIssuedKey()">Copy key</button>
       </div>
-
-      <div style="display:flex;gap:10px;justify-content:center">
-        <a href="/dashboard" class="pay-btn" style="text-align:center;width:100%">Go to Cloud Dashboard & Connect Roblox →</a>
-      </div>
+      <a href="/dashboard" class="btn btn-main btn-block">Go to my account</a>
     </div>
   </div>
 </div>
@@ -463,19 +300,19 @@
       amtEl.textContent = '$' + selectedPlan.amt;
       lblEl.textContent = selectedPlan.label + ' · ' + (paymentMethod === 'crypto' ? 'Litecoin' : 'In-game items');
     } else {
-      amtEl.textContent = '$—';
-      lblEl.textContent = 'Select a plan to start';
+      amtEl.textContent = '$-';
+      lblEl.textContent = 'Pick a plan';
     }
 
     if (!currentUser) {
       btn.disabled = true;
-      btn.textContent = 'Sign in with Discord to continue';
+      btn.textContent = 'Sign in first';
     } else if (!selectedPlan) {
       btn.disabled = true;
-      btn.textContent = 'Pick a plan to continue';
+      btn.textContent = 'Pick a plan';
     } else {
       btn.disabled = false;
-      btn.textContent = paymentMethod === 'crypto' ? `Pay $${selectedPlan.amt} with LTC` : `Open Middleman Trade Ticket`;
+      btn.textContent = paymentMethod === 'crypto' ? `Pay $${selectedPlan.amt} with LTC` : `Get a trade ticket`;
     }
   }
 
@@ -499,7 +336,7 @@
 
       currentOrderId = data.order.orderId;
       document.getElementById('mOrderId').textContent = currentOrderId;
-      document.getElementById('mOrderTotal').textContent = '$' + data.order.amountUsd + ' USD';
+      document.getElementById('mOrderTotal').textContent = '$' + data.order.amountUsd;
 
       if (paymentMethod === 'crypto') {
         document.getElementById('mLtcBlock').style.display = 'block';
@@ -507,7 +344,7 @@
         document.getElementById('mPayStatus').style.display = 'block';
         document.getElementById('mPayNote').style.display = 'block';
         document.getElementById('mOrderTitle').textContent = 'Pay with Litecoin';
-        document.getElementById('mOrderSub').textContent = 'Your key appears here automatically once the payment confirms. Keep this window open, or check your dashboard later.';
+        document.getElementById('mOrderSub').textContent = 'Your key shows up here once your payment goes through. You can close this and check your account page later too.';
         showLtcOrder(data.order);
         startPolling();
       } else {
@@ -516,7 +353,8 @@
         document.getElementById('mPayNote').style.display = 'none';
         document.getElementById('mTicketRow').style.display = 'flex';
         document.getElementById('mTradeTicket').textContent = data.order.tradeTicketId;
-        document.getElementById('mOrderTitle').textContent = 'Item Escrow Ticket Created';
+        document.getElementById('mOrderTitle').textContent = 'Your trade ticket';
+        document.getElementById('mOrderSub').textContent = 'Open a ticket in our Discord and send this number. A staff member will do the trade with you, then your key unlocks.';
       }
 
       document.getElementById('modalOrderView').style.display = 'block';
@@ -572,13 +410,13 @@
       document.getElementById('issuedKeyDisplay').textContent = o.keyCode;
     } else if (o.paymentState === 'confirming') {
       el.classList.add('seen');
-      el.textContent = '✅ Payment received! Waiting for the network to confirm (' + o.confirmations + '/' + o.confirmationsRequired + ')…';
+      el.textContent = 'Got your payment. Almost done, this takes a couple of minutes...';
     } else if (o.paymentState === 'expired' || o.paymentState === 'cancelled') {
       clearInterval(countdownTimer);
       el.classList.add('bad');
-      el.textContent = '⌛ This price expired. Close this and click Pay again for a new one. Already sent? Contact support with your order ID.';
+      el.textContent = 'This price ran out. Close this and press Pay again. Already sent it? Message us on Discord with your order number.';
     } else {
-      el.textContent = '⏳ Waiting for your payment…';
+      el.textContent = 'Waiting for your payment...';
     }
   }
 
