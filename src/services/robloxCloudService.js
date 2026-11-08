@@ -459,6 +459,16 @@ class RobloxCloudService {
       const r = await this.robloxRequest(url, 'GET', cookie, null, account.roblox_id);
       return r.ok ? r.json() : null;
     };
+    // The request list sometimes comes back without names, so fill them in with one batch call
+    const authPost = async (url, body) => {
+      const r = await this.robloxRequest(url, 'POST', cookie, body, account.roblox_id);
+      return r.ok ? r.json() : null;
+    };
+    const names = await robloxProfiles.getNames(bases.map(b => b.id), authPost);
+    for (const b of bases) {
+      const n = names.get(String(b.id));
+      if (n) { b.name = b.name || n.name; b.displayName = b.displayName || n.displayName; if (n.hasVerifiedBadge) b.hasVerifiedBadge = true; }
+    }
     const profiles = await robloxProfiles.getProfiles(bases, authGet);
 
     // Waves of brand-new accounts: how many OTHER new requesters were made within 3 days of this one
@@ -469,7 +479,9 @@ class RobloxCloudService {
 
     const actionErrors = [];
     for (let i = 0; i < toCheck.length; i++) {
-      const applicant = { ...toCheck[i], id: senderId(toCheck[i]), name: profiles[i].name || toCheck[i].name, displayName: profiles[i].displayName || toCheck[i].displayName };
+      const sid = senderId(toCheck[i]);
+      const safeName = profiles[i].name || bases[i].name || toCheck[i].name || `User ${sid}`;
+      const applicant = { ...toCheck[i], id: sid, name: safeName, displayName: profiles[i].displayName || bases[i].displayName || toCheck[i].displayName || safeName };
       const profile = profiles[i];
       const fr = toCheck[i].friendRequest || {};
 

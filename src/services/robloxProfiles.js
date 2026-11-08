@@ -50,10 +50,14 @@ async function getProfile(id, base = {}, authGet = null) {
     `SELECT data FROM profile_cache WHERE roblox_id = ? AND fetched_at > datetime('now', ?)`,
     [id, `-${CACHE_HOURS} hours`]
   ).catch(() => null);
-  if (cached) return { ...JSON.parse(cached.data), ...pickDefined(base) };
+  if (cached) {
+    const c = JSON.parse(cached.data);
+    if (c.name && c.created) return { ...c, ...pickDefined(base) };
+  }
 
   const [user, friends, followers, followings, badges, groups, avatar, names] = await Promise.all([
-    base.created && base.description !== undefined && base.name ? null : getJson(`https://users.roblox.com/v1/users/${id}`),
+    base.created && base.description !== undefined && base.name ? null
+      : getJson(`https://users.roblox.com/v1/users/${id}`).then(u => u || (authGet ? authGet(`https://users.roblox.com/v1/users/${id}`).catch(() => null) : null)),
     getJson(`https://friends.roblox.com/v1/users/${id}/friends/count`),
     getJson(`https://friends.roblox.com/v1/users/${id}/followers/count`),
     getJson(`https://friends.roblox.com/v1/users/${id}/followings/count`),
@@ -84,7 +88,7 @@ async function getProfile(id, base = {}, authGet = null) {
     paidItem: await findPaidItem(id, avatar?.assets)
   };
 
-  db.run(
+  if (profile.name && profile.created) db.run(
     `INSERT INTO profile_cache (roblox_id, data, fetched_at) VALUES (?, ?, CURRENT_TIMESTAMP)
      ON CONFLICT(roblox_id) DO UPDATE SET data = excluded.data, fetched_at = excluded.fetched_at`,
     [id, JSON.stringify(profile)]
@@ -135,6 +139,29 @@ async function findPaidItem(userId, assets) {
   return null;
 }
 
+/**
+ * Names for many accounts in one request (Roblox's batch endpoint is much less rate-limited).
+ * Returns a Map of id -> { name, displayName, hasVerifiedBadge }.
+ */
+async function getNames(ids, authPost = null) {
+  const out = new Map();
+  const list = [...new Set(ids.map(String))].filter(Boolean);
+  for (let i = 0; i < list.length; i += 100) {
+    const body = { userIds: list.slice(i, i + 100).map(Number), excludeBannedUsers: false };
+    let data = null;
+    try {
+      const r = await fetch('https://users.roblox.com/v1/users', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0 waurks' },
+        body: JSON.stringify(body), signal: AbortSignal.timeout(10000)
+      });
+      if (r.ok) data = await r.json();
+    } catch (e) { /* fall through */ }
+    if (!data && authPost) data = await authPost('https://users.roblox.com/v1/users', body).catch(() => null);
+    for (const u of data?.data || []) out.set(String(u.id), { name: u.name, displayName: u.displayName, hasVerifiedBadge: u.hasVerifiedBadge });
+  }
+  return out;
+}
+
 function numOrNull(v) { return typeof v === 'number' ? v : null; }
 function pickDefined(o) {
   const r = {};
@@ -142,4 +169,4 @@ function pickDefined(o) {
   return r;
 }
 
-module.exports = { getProfile, getProfiles };
+module.exports = { getProfile, getProfiles, getNames };
