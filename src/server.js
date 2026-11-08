@@ -458,6 +458,35 @@ app.post('/api/v1/roblox/review-action', authMiddleware, async (req, res) => {
   }
 });
 
+// ---- Friend requests page ----
+app.get('/api/v1/roblox/requests', authMiddleware, async (req, res) => {
+  try {
+    res.json(await robloxCloudService.getRequests(req.user.id));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/v1/roblox/requests/:targetId/:action', authMiddleware, async (req, res) => {
+  try {
+    const { targetId, action } = req.params;
+    if (action === 'accept') return res.json(await robloxCloudService.answerRequest(req.user.id, targetId, true));
+    if (action === 'decline') return res.json(await robloxCloudService.answerRequest(req.user.id, targetId, false));
+    if (action === 'bot') return res.json(await robloxCloudService.reportBot(req.user.id, targetId));
+    res.status(400).json({ error: 'Unknown action' });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.post('/api/v1/roblox/filter', authMiddleware, async (req, res) => {
+  try {
+    res.json(await robloxCloudService.setFilterLevel(req.user.id, String(req.body.level || '')));
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 app.post('/api/v1/roblox/scan-now', authMiddleware, async (req, res) => {
   try {
     const result = await robloxCloudService.runCloudScan(req.user.id);
@@ -779,6 +808,12 @@ if (require.main === module) {
     robloxCloudService.startDaemon(10);
     // Watch the LTC wallet and issue keys automatically when payments confirm
     ltcPayments.start(orderId => paymentService.completeOrder(orderId), 30);
+    // One time: turn auto-accept off for existing accounts, so real players show on the Friend requests page
+    db.get(`SELECT value FROM site_settings WHERE key = 'migr_autoaccept_off'`).then(row => {
+      if (row) return;
+      return db.run(`UPDATE roblox_accounts SET auto_accept_players = 0`)
+        .then(() => saveSetting('migr_autoaccept_off', '1'));
+    }).catch(() => {});
     // Lifetime keys: make older "yearly" keys never expire too
     db.run(`UPDATE licenses SET expires_at = '2126-01-01T00:00:00.000Z' WHERE tier = 'yearly' AND status != 'revoked' AND expires_at < '2100'`).catch(() => {});
   });

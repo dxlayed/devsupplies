@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Friend requests - Waurks</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/theme.css">
+<style>
+  .page{max-width:1040px;margin:0 auto;padding:0 20px 80px}
+  .head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin:10px 0 18px}
+  .head h1{font-size:30px}
+  .head h1 .count{color:var(--muted);font-weight:500}
+  .status{font-size:13px;color:var(--muted);margin-top:4px}
+  .status.bad{color:var(--red)}
+
+  .seg{display:inline-flex;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:3px}
+  .seg button{background:none;border:none;color:var(--muted);font:600 13px "Inter",sans-serif;padding:8px 14px;border-radius:8px;cursor:pointer}
+  .seg button.on{background:var(--purple);color:#fff}
+  .seg-help{font-size:12px;color:var(--muted);margin-top:6px;text-align:right}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(176px,1fr));gap:14px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;align-items:center;text-align:center}
+  .card .pic{width:110px;height:110px;border-radius:50%;background:var(--panel-2);object-fit:cover;margin:4px 0 10px}
+  .card .pic.ph{display:grid;place-items:center;font:700 34px "Space Grotesk",sans-serif;color:var(--muted)}
+  .card .dn{font-weight:700;font-size:15px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .card .un{font-size:13px;color:var(--muted);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .card .facts{font-size:12px;color:var(--muted);margin:8px 0 12px;min-height:32px}
+  .card .facts b{color:var(--text);font-weight:600}
+  .card .acts{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;margin-top:auto}
+  .card .acts .btn{padding:9px 0}
+  .card .why{font-size:12px;color:var(--red);margin:6px 0 10px}
+  .card.gone{opacity:.4;pointer-events:none}
+  .linkish{background:none;border:none;color:var(--muted);font:12px "Inter",sans-serif;cursor:pointer;margin-top:8px;text-decoration:underline}
+  .linkish:hover{color:var(--text)}
+
+  .empty{background:var(--panel);border:1px dashed var(--line);border-radius:14px;padding:40px 20px;text-align:center;color:var(--muted)}
+  .hidden-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:28px 0 14px;flex-wrap:wrap}
+  .hidden-bar h2{font-size:18px}
+</style>
+</head>
+<body>
+<div id="wkToast" role="status" aria-live="polite"></div>
+<script>
+  function notify(msg, kind) {
+    const t = document.getElementById('wkToast');
+    t.textContent = String(msg);
+    t.className = 'show' + (kind ? ' ' + kind : (/error|fail|could not|didn't/i.test(msg) ? ' err' : ''));
+    clearTimeout(t._h); t._h = setTimeout(() => { t.className = ''; }, 3000);
+  }
+</script>
+
+<div class="wrap">
+  <header class="topbar">
+    <a href="/" class="logo"><span class="logo-mark">W</span>Waurks</a>
+    <nav class="nav">
+      <a href="/requests" style="color:var(--text)">Friend requests</a>
+      <a href="/dashboard">My account</a>
+      <a href="/admin" id="adminLink" class="admin-link" style="display:none">Admin</a>
+    </nav>
+  </header>
+</div>
+
+<main class="page">
+  <div class="head">
+    <div>
+      <h1>Friend requests <span class="count" id="count"></span></h1>
+      <div class="status" id="status">Loading...</div>
+    </div>
+    <div>
+      <div class="seg" role="group" aria-label="Bot filter strength">
+        <button data-level="relaxed">Relaxed</button>
+        <button data-level="normal">Normal</button>
+        <button data-level="strict">Strict</button>
+      </div>
+      <div class="seg-help" id="segHelp"></div>
+    </div>
+  </div>
+
+  <div id="list"></div>
+
+  <div class="hidden-bar" id="hiddenBar" style="display:none">
+    <h2 id="hiddenTitle">Filtered out</h2>
+    <button class="btn btn-line btn-sm" id="toggleHidden">Show</button>
+  </div>
+  <div id="hiddenList" style="display:none"></div>
+</main>
+
+<script>
+  const esc = v => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const HELP = {
+    relaxed: 'Only hides accounts we are sure are bots.',
+    normal: 'Also hides accounts that look suspicious.',
+    strict: 'Only shows accounts that clearly look real.'
+  };
+  let showHidden = false;
+  let busy = new Set();
+  let lastData = null;
+
+  function factsLine(f) {
+    const bits = [];
+    if (f.mutuals) bits.push(`<b>${+f.mutuals} mutual</b>`);
+    if (f.paidItem) bits.push(`wears <b>${esc(f.paidItem)}</b>`);
+    if (f.ageDays !== null && f.ageDays !== undefined) {
+      bits.push(f.ageDays >= 365 ? `${Math.floor(f.ageDays / 365)} yr old` : `${f.ageDays} day${f.ageDays === 1 ? '' : 's'} old`);
+    }
+    if (f.badges !== null && f.badges !== undefined) bits.push(`${f.badges >= 25 ? '25+' : f.badges} badges`);
+    if (f.friends !== null && f.friends !== undefined) bits.push(`${f.friends} friends`);
+    return bits.join(' · ');
+  }
+
+  function pic(r) {
+    return r.avatar
+      ? `<img class="pic" src="${esc(r.avatar)}" alt="" loading="lazy">`
+      : `<div class="pic ph">${esc((r.displayName || r.name || '?').charAt(0).toUpperCase())}</div>`;
+  }
+
+  function card(r, hiddenMode) {
+    const off = busy.has(String(r.id)) ? ' gone' : '';
+    if (hiddenMode) {
+      const declined = r.status === 'declined';
+      return `<div class="card${off}">
+        ${pic(r)}
+        <div class="dn">${esc(r.displayName || r.name)}</div>
+        <div class="un">@${esc(r.name)}</div>
+        <div class="why">${esc((r.reasons || [])[0] || 'Looks like a bot')}</div>
+        ${declined ? '<div class="facts">Declined for you</div>'
+          : `<div class="acts"><button class="btn btn-line btn-sm" data-act="accept" data-id="${esc(r.id)}">Accept</button><button class="btn btn-line btn-sm" data-act="decline" data-id="${esc(r.id)}">Decline</button></div>`}
+      </div>`;
+    }
+    return `<div class="card${off}">
+      ${pic(r)}
+      <div class="dn">${esc(r.displayName || r.name)}</div>
+      <div class="un">@${esc(r.name)}</div>
+      <div class="facts">${factsLine(r.facts || {})}</div>
+      <div class="acts">
+        <button class="btn btn-main btn-sm" data-act="accept" data-id="${esc(r.id)}">Accept</button>
+        <button class="btn btn-line btn-sm" data-act="decline" data-id="${esc(r.id)}">Decline</button>
+      </div>
+      <button class="linkish" data-act="bot" data-id="${esc(r.id)}">This is a bot</button>
+    </div>`;
+  }
+
+  function render(d) {
+    lastData = d;
+    document.querySelectorAll('.seg button').forEach(b => b.classList.toggle('on', b.dataset.level === d.level));
+    document.getElementById('segHelp').textContent = HELP[d.level] || '';
+
+    const st = document.getElementById('status');
+    if (d.lastError) { st.textContent = 'Problem: ' + d.lastError; st.className = 'status bad'; }
+    else if (!d.active) { st.textContent = 'Paused. Turn it back on from My account.'; st.className = 'status'; }
+    else {
+      const t = d.lastScanAt ? new Date(String(d.lastScanAt).replace(' ', 'T') + 'Z').toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' }) : null;
+      st.textContent = 'Updates by itself' + (t ? ` · last checked ${t}` : '');
+      st.className = 'status';
+    }
+
+    const reqs = d.requests || [];
+    document.getElementById('count').textContent = reqs.length ? `(${reqs.length})` : '';
+    document.getElementById('list').innerHTML = reqs.length
+      ? `<div class="grid">${reqs.map(r => card(r, false)).join('')}</div>`
+      : `<div class="empty">No friend requests from real people right now.<br>New ones show up here by themselves.</div>`;
+
+    const hid = d.hidden || [];
+    document.getElementById('hiddenBar').style.display = hid.length ? 'flex' : 'none';
+    document.getElementById('hiddenTitle').textContent = `Filtered out (${hid.length})`;
+    document.getElementById('toggleHidden').textContent = showHidden ? 'Hide' : 'Show';
+    const hl = document.getElementById('hiddenList');
+    hl.style.display = showHidden && hid.length ? 'block' : 'none';
+    if (showHidden) hl.innerHTML = `<div class="grid">${hid.map(r => card(r, true)).join('')}</div>`;
+  }
+
+  async function load() {
+    try {
+      const r = await fetch('/api/v1/roblox/requests');
+      if (r.status === 401) { location.href = '/checkout'; return; }
+      const d = await r.json();
+      if (!d.connected) {
+        document.getElementById('status').textContent = '';
+        document.getElementById('list').innerHTML = `<div class="empty">Link your Roblox account first.<br><br><a href="/dashboard" class="btn btn-main">Go to My account</a></div>`;
+        return;
+      }
+      render(d);
+    } catch (e) {}
+  }
+
+  document.querySelectorAll('.seg button').forEach(b => b.onclick = async () => {
+    try {
+      const r = await fetch('/api/v1/roblox/filter', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ level: b.dataset.level }) });
+      if (!r.ok) throw new Error((await r.json()).error);
+      await load();
+    } catch (e) { notify(e.message || 'Could not change the filter', 'err'); }
+  });
+
+  document.getElementById('toggleHidden').onclick = () => { showHidden = !showHidden; if (lastData) render(lastData); };
+
+  document.addEventListener('click', async e => {
+    const b = e.target.closest('button[data-act]');
+    if (!b) return;
+    const id = b.dataset.id, act = b.dataset.act;
+    busy.add(id); if (lastData) render(lastData);
+    try {
+      const r = await fetch(`/api/v1/roblox/requests/${encodeURIComponent(id)}/${act}`, { method: 'POST' });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error);
+      notify(act === 'accept' ? 'Accepted' : act === 'bot' ? 'Thanks, marked as a bot' : 'Declined', 'ok');
+    } catch (err) {
+      notify(err.message || 'Could not do that', 'err');
+    }
+    busy.delete(id);
+    load();
+  });
+
+  fetch('/api/v1/auth/status').then(r => r.json()).then(s => {
+    if (s.isAdmin) document.getElementById('adminLink').style.display = '';
+  }).catch(() => {});
+
+  load();
+  setInterval(load, 5000);
+</script>
+</body>
+</html>

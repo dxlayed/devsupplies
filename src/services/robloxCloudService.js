@@ -4,6 +4,36 @@ const detectionEngine = require('./detectionEngine');
 const robloxProfiles = require('./robloxProfiles');
 db.run(`ALTER TABLE roblox_accounts ADD COLUMN last_error TEXT`).catch(() => {});
 db.run(`ALTER TABLE roblox_accounts ADD COLUMN last_error_at DATETIME`).catch(() => {});
+db.run(`ALTER TABLE roblox_accounts ADD COLUMN filter_level TEXT DEFAULT 'normal'`).catch(() => {});
+db.run(`CREATE TABLE IF NOT EXISTS friend_requests (
+  user_id INTEGER NOT NULL, target_id TEXT NOT NULL, name TEXT, display_name TEXT, avatar_url TEXT,
+  verdict TEXT, score INTEGER, reasons TEXT, facts TEXT, status TEXT DEFAULT 'pending', auto INTEGER DEFAULT 0,
+  sent_at TEXT, checked_at DATETIME, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (user_id, target_id)
+)`).catch(() => {});
+
+const isTestCookie = c => c.startsWith('TEST_COOKIE_') || c.startsWith('DEMO_');
+const toMs = d => new Date(String(d).replace(' ', 'T') + (/[zZ]|[+-]\d\d:?\d\d$/.test(String(d)) ? '' : 'Z')).getTime();
+const safeJson = (v, dflt) => { try { return JSON.parse(v); } catch (e) { return dflt; } };
+function isHidden(level, verdict, score) {
+  if (verdict === 'DECLINE') return true;
+  if (level === 'strict') return verdict !== 'ACCEPT';
+  if (level === 'normal') return verdict === 'REVIEW' && score >= 40;
+  return false; // relaxed
+}
+// Fake requests for test accounts (no real Roblox login)
+function demoRequests() {
+  const d = n => new Date(Date.now() - n * 86400000).toISOString();
+  return [
+    { id: 9817263, name: 'ClaimRobux_x882', displayName: 'Robux Giveaway', description: 'Visit giftcard.gg/free for 10,000 robux!', created: d(1), badgeCount: 0, friendsCount: 0 },
+    { id: 1827364, name: 'BlockyGamer_Ethan', displayName: 'Ethan', description: 'Builder and anime fan', created: d(400), badgeCount: 22, friendsCount: 30 },
+    { id: 2938475, name: 'free_rbx_bot99', displayName: 'FreeRobux', description: 'ro-bux generator link in bio', created: d(2), badgeCount: 0, friendsCount: 0 },
+    { id: 3847561, name: 'PixelSammy', displayName: 'Sammy', description: 'hello world', created: d(700), badgeCount: 12, friendsCount: 45 },
+    { id: 4958672, name: 'mia_plays', displayName: 'Mia', description: '', created: d(5), badgeCount: 1, friendsCount: 2, avatarAssetCount: 4 },
+    { id: 5069783, name: 'qwrtzpls8812', displayName: 'qwrtzpls8812', description: '', created: d(9), badgeCount: 0, friendsCount: 0, avatarAssetCount: 1 },
+    { id: 6170894, name: 'skate_jay', displayName: 'Jay', description: 'new here', created: d(2), badgeCount: 0, friendsCount: 0, avatarAssetCount: 3, paidItem: { name: 'Black Beanie', price: 75 } }
+  ];
+}
 const { keyService } = require('./keyService');
 
 const ENCRYPTION_SECRET = process.env.ENCRYPTION_SECRET || 'waurks-cloud-roblox-vault-secret-key-32b';
@@ -149,8 +179,8 @@ class RobloxCloudService {
       );
     } else {
       await db.run(
-        `INSERT INTO roblox_accounts (user_id, license_id, roblox_id, roblox_username, avatar_url, encrypted_cookie, cookie_iv, is_active)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 1)`,
+        `INSERT INTO roblox_accounts (user_id, license_id, roblox_id, roblox_username, avatar_url, encrypted_cookie, cookie_iv, is_active, auto_accept_players)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 1, 0)`,
         [userId, activeLicense?.id || null, verification.robloxId, verification.robloxUsername, verification.avatarUrl, encrypted, iv]
       );
     }
@@ -400,76 +430,87 @@ class RobloxCloudService {
 
     const cookie = this.decrypt(account.encrypted_cookie, account.cookie_iv);
 
-    // If test / demo mode account
-    if (cookie.startsWith('TEST_COOKIE_') || cookie.startsWith('DEMO_')) {
-      return await this.simulateCloudScan(userId, account, activeLicense);
-    }
-
-    // 2. Fetch pending friend requests from Roblox
-    const requestsRes = await this.robloxRequest(
-      'https://friends.roblox.com/v1/my/friends/requests?limit=25&sortOrder=Desc',
-      'GET',
-      cookie,
-      null,
-      account.roblox_id
-    );
-
-    if (!requestsRes.ok) {
-      if (requestsRes.status === 401) {
-        await db.run(`UPDATE roblox_accounts SET is_active = 0 WHERE id = ?`, [account.id]);
-        throw new Error('Your Roblox login expired. Unlink and paste a fresh cookie.');
+    // 2. Get every waiting friend request (up to 8 pages of 25)
+    const pendingList = [];
+    if (isTestCookie(cookie)) {
+      pendingList.push(...demoRequests());
+    } else {
+      let cursor = '';
+      for (let page = 0; page < 8; page++) {
+        const res = await this.robloxRequest(
+          `https://friends.roblox.com/v1/my/friends/requests?limit=25&sortOrder=Desc${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`,
+          'GET', cookie, null, account.roblox_id
+        );
+        if (!res.ok) {
+          if (res.status === 401) {
+            await db.run(`UPDATE roblox_accounts SET is_active = 0 WHERE id = ?`, [account.id]);
+            throw new Error('Your Roblox login expired. Unlink and paste a fresh cookie.');
+          }
+          if (page === 0) throw new Error(`Roblox said no when we asked for your friend requests (error ${res.status}). Try again in a minute.`);
+          break;
+        }
+        const data = await res.json();
+        pendingList.push(...(data.data || []));
+        cursor = data.nextPageCursor;
+        if (!cursor) break;
       }
-      throw new Error(`Roblox said no when we asked for your friend requests (error ${requestsRes.status}). Try again in a minute.`);
     }
+    return await this.processRequests(userId, account, activeLicense, pendingList, cookie);
+  }
 
-    const requestsData = await requestsRes.json();
-    const pendingList = requestsData.data || [];
-
-    if (pendingList.length === 0) {
-      await db.run(`UPDATE roblox_accounts SET last_scan_at = CURRENT_TIMESTAMP WHERE id = ?`, [account.id]);
-      return {
-        scanned: 0,
-        botsDeclined: 0,
-        playersAccepted: 0,
-        message: 'No pending friend requests to sort.'
-      };
-    }
-
-    let botsCount = 0;
-    let playersCount = 0;
-    let reviewCount = 0;
-
-    // Don't re-check accounts already waiting in this customer's "Not sure" list
-    const waiting = new Set((await db.all(
-      `SELECT target_id FROM review_queue WHERE user_id = ? AND status = 'pending'`, [userId]
-    )).map(r => String(r.target_id)));
+  /**
+   * Scores waiting requests, declines/accepts on Roblox if the customer's switches say so,
+   * and saves each one so the Friend requests page can show it.
+   */
+  async processRequests(userId, account, activeLicense, pendingList, cookie) {
+    const live = !isTestCookie(cookie);
     const senderId = a => a.id ?? a.friendRequest?.senderId;
-    const toCheck = pendingList.filter(a => senderId(a) && !waiting.has(String(senderId(a))));
+    const ids = new Set(pendingList.map(a => String(senderId(a))).filter(Boolean));
+
+    // Requests that disappeared from Roblox (accepted/declined in the Roblox app) are marked gone
+    const rows = await db.all(`SELECT target_id, checked_at FROM friend_requests WHERE user_id = ? AND status = 'pending'`, [userId]);
+    for (const r of rows) {
+      if (!ids.has(String(r.target_id))) {
+        await db.run(`UPDATE friend_requests SET status = 'gone', updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND target_id = ?`, [userId, r.target_id]);
+      }
+    }
+
+    // Only score new ones, plus anything not re-checked in the last hour
+    const fresh = new Set(rows.filter(r => r.checked_at && Date.now() - toMs(r.checked_at) < 3600000).map(r => String(r.target_id)));
+    const toCheck = pendingList.filter(a => senderId(a) && !fresh.has(String(senderId(a))));
     if (toCheck.length === 0) {
       await db.run(`UPDATE roblox_accounts SET last_scan_at = CURRENT_TIMESTAMP WHERE id = ?`, [account.id]);
-      return { scanned: 0, botsDeclined: 0, playersAccepted: 0, message: 'Nothing new to check.' };
+      return { scanned: 0, botsDeclined: 0, playersAccepted: 0, heldReview: 0, message: 'Nothing new to check.' };
     }
 
-    // Pull full public profiles (badges, friends, groups, avatar, name history...). Cached for 12h.
     const bases = toCheck.map(a => ({
       id: senderId(a), name: a.name, displayName: a.displayName, description: a.description,
-      created: a.created, isBanned: a.isBanned, hasVerifiedBadge: a.hasVerifiedBadge
+      created: a.created, isBanned: a.isBanned, hasVerifiedBadge: a.hasVerifiedBadge,
+      // test requests carry their own extra info
+      badgeCount: a.badgeCount, friendsCount: a.friendsCount, avatarAssetCount: a.avatarAssetCount, paidItem: a.paidItem
     }));
-    const authGet = async url => {
-      const r = await this.robloxRequest(url, 'GET', cookie, null, account.roblox_id);
-      return r.ok ? r.json() : null;
-    };
-    // The request list sometimes comes back without names, so fill them in with one batch call
-    const authPost = async (url, body) => {
-      const r = await this.robloxRequest(url, 'POST', cookie, body, account.roblox_id);
-      return r.ok ? r.json() : null;
-    };
-    const names = await robloxProfiles.getNames(bases.map(b => b.id), authPost);
-    for (const b of bases) {
-      const n = names.get(String(b.id));
-      if (n) { b.name = b.name || n.name; b.displayName = b.displayName || n.displayName; if (n.hasVerifiedBadge) b.hasVerifiedBadge = true; }
+
+    let profiles, headshots = new Map();
+    if (live) {
+      const authGet = async url => {
+        const r = await this.robloxRequest(url, 'GET', cookie, null, account.roblox_id);
+        return r.ok ? r.json() : null;
+      };
+      // The request list sometimes comes back without names, so fill them in with one batch call
+      const authPost = async (url, body) => {
+        const r = await this.robloxRequest(url, 'POST', cookie, body, account.roblox_id);
+        return r.ok ? r.json() : null;
+      };
+      const names = await robloxProfiles.getNames(bases.map(b => b.id), authPost);
+      for (const b of bases) {
+        const n = names.get(String(b.id));
+        if (n) { b.name = b.name || n.name; b.displayName = b.displayName || n.displayName; if (n.hasVerifiedBadge) b.hasVerifiedBadge = true; }
+      }
+      profiles = await robloxProfiles.getProfiles(bases, authGet);
+      headshots = await robloxProfiles.getHeadshots(bases.map(b => b.id));
+    } else {
+      profiles = bases;
     }
-    const profiles = await robloxProfiles.getProfiles(bases, authGet);
 
     // Waves of brand-new accounts: how many OTHER new requesters were made within 3 days of this one
     const createdAt = profiles.map(p => (p.created ? new Date(p.created).getTime() : null));
@@ -477,162 +518,146 @@ class RobloxCloudService {
     const burst = createdAt.map((t, i) => !isNew[i] ? 0
       : createdAt.filter((u, j) => j !== i && isNew[j] && Math.abs(u - t) < 3 * 86400000).length);
 
+    let botsCount = 0, playersCount = 0, reviewCount = 0;
     const actionErrors = [];
-    for (let i = 0; i < toCheck.length; i++) {
-      const sid = senderId(toCheck[i]);
-      const safeName = profiles[i].name || bases[i].name || toCheck[i].name || `User ${sid}`;
-      const applicant = { ...toCheck[i], id: sid, name: safeName, displayName: profiles[i].displayName || bases[i].displayName || toCheck[i].displayName || safeName };
-      const profile = profiles[i];
-      const fr = toCheck[i].friendRequest || {};
 
-      // Score it with all the checks
+    for (let i = 0; i < toCheck.length; i++) {
+      const sid = String(senderId(toCheck[i]));
+      const profile = profiles[i];
+      const name = profile.name || bases[i].name || `User ${sid}`;
+      const displayName = profile.displayName || bases[i].displayName || name;
+      const fr = toCheck[i].friendRequest || {};
+      const mutuals = Array.isArray(toCheck[i].mutualFriendsList) ? toCheck[i].mutualFriendsList.length : 0;
+
       const evaluation = await detectionEngine.evaluateProfile(profile, {
         forUserId: userId,
-        mutualFriends: Array.isArray(toCheck[i].mutualFriendsList) ? toCheck[i].mutualFriendsList.length : 0,
+        mutualFriends: mutuals,
         metInGame: !!fr.sourceUniverseId || /ingame/i.test(String(fr.originSourceType || '')),
         burstSiblings: burst[i]
       });
 
-      // Custom Blacklist Keywords check
-      if (account.custom_blacklist) {
-        const words = account.custom_blacklist.split(',').map(w => w.trim().toLowerCase()).filter(Boolean);
-        const textToCheck = ((profile.name || '') + ' ' + (profile.description || '')).toLowerCase();
-        for (const w of words) {
-          if (textToCheck.includes(w)) {
-            evaluation.verdict = 'DECLINE';
-            evaluation.threatScore = 100;
-            evaluation.reasons = [`Matched custom blacklist keyword: "${w}"`];
-            break;
-          }
-        }
-      }
-
-      // Custom Whitelist Keywords check
-      if (account.custom_whitelist) {
-        const words = account.custom_whitelist.split(',').map(w => w.trim().toLowerCase()).filter(Boolean);
-        const textToCheck = ((profile.name || '') + ' ' + (profile.description || '')).toLowerCase();
-        for (const w of words) {
-          if (textToCheck.includes(w)) {
-            evaluation.verdict = 'ACCEPT';
-            evaluation.threatScore = 0;
-            evaluation.reasons = [`Matched custom whitelist keyword: "${w}"`];
-            break;
-          }
-        }
-      }
-
-
-      // Execute action on Roblox
+      // Act on Roblox when the customer's switches say so
+      let status = 'pending';
       if (evaluation.verdict === 'DECLINE') {
-        if (account.auto_decline_bots) {
-          const r = await this.robloxRequest(
-            `https://friends.roblox.com/v1/users/${applicant.id}/decline-friend-request`,
-            'POST',
-            cookie,
-            null,
-            account.roblox_id
-          );
-          if (!r.ok) actionErrors.push(`decline ${applicant.name}: ${r.status}`);
-        }
         botsCount++;
+        if (account.auto_decline_bots) {
+          if (live) {
+            const r = await this.robloxRequest(`https://friends.roblox.com/v1/users/${sid}/decline-friend-request`, 'POST', cookie, null, account.roblox_id);
+            if (r.ok) status = 'declined'; else actionErrors.push(`decline ${name}: ${r.status}`);
+          } else status = 'declined';
+        }
       } else if (evaluation.verdict === 'ACCEPT') {
-        if (account.auto_accept_players) {
-          const r = await this.robloxRequest(
-            `https://friends.roblox.com/v1/users/${applicant.id}/accept-friend-request`,
-            'POST',
-            cookie,
-            null,
-            account.roblox_id
-          );
-          if (!r.ok) actionErrors.push(`accept ${applicant.name}: ${r.status}`);
-        }
         playersCount++;
-      } else {
-        if (account.hold_review) {
-          await db.run(
-            `INSERT INTO review_queue (user_id, roblox_id, target_id, target_username, target_display_name, threat_score, reasons)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`,
-            [userId, account.roblox_id, String(applicant.id), applicant.name, applicant.displayName || applicant.name, evaluation.threatScore, evaluation.reasons.join('; ')]
-          );
+        if (account.auto_accept_players) {
+          if (live) {
+            const r = await this.robloxRequest(`https://friends.roblox.com/v1/users/${sid}/accept-friend-request`, 'POST', cookie, null, account.roblox_id);
+            if (r.ok) status = 'accepted'; else actionErrors.push(`accept ${name}: ${r.status}`);
+          } else status = 'accepted';
         }
+      } else {
         reviewCount++;
       }
 
-      // Record in cloud database log
+      const ageDays = profile.created ? Math.floor((Date.now() - new Date(profile.created).getTime()) / 86400000) : null;
+      const facts = {
+        ageDays, badges: profile.badgeCount ?? null, friends: profile.friendsCount ?? null,
+        paidItem: profile.paidItem ? profile.paidItem.name : null, mutuals
+      };
+      await db.run(
+        `INSERT INTO friend_requests (user_id, target_id, name, display_name, avatar_url, verdict, score, reasons, facts, status, auto, sent_at, checked_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+         ON CONFLICT(user_id, target_id) DO UPDATE SET name = excluded.name, display_name = excluded.display_name,
+           avatar_url = COALESCE(excluded.avatar_url, friend_requests.avatar_url), verdict = excluded.verdict, score = excluded.score,
+           reasons = excluded.reasons, facts = excluded.facts, status = excluded.status, auto = excluded.auto,
+           checked_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP`,
+        [userId, sid, name, displayName, headshots.get(sid) || null, evaluation.verdict, evaluation.threatScore,
+         JSON.stringify(evaluation.reasons.slice(0, 4)), JSON.stringify(facts), status, status === 'pending' ? 0 : 1, fr.sentAt || null]
+      );
+
       await db.run(
         `INSERT INTO scan_activity_logs (user_id, roblox_id, target_id, target_username, verdict, threat_score, reason)
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [userId, account.roblox_id, String(applicant.id), applicant.name, evaluation.verdict, evaluation.threatScore, evaluation.reasons[0] || '']
+        [userId, account.roblox_id, sid, name, evaluation.verdict, evaluation.threatScore, evaluation.reasons[0] || '']
       );
 
-      // Small pause between accept/decline calls so Roblox doesn't rate-limit us
-      await new Promise(r => setTimeout(r, 400));
+      if (live && status !== 'pending') await new Promise(r => setTimeout(r, 400));
     }
 
-    // Update stats
-    await keyService.recordStats(activeLicense.id, {
-      filtered: toCheck.length,
-      blocked: botsCount,
-      accepted: playersCount
-    });
-
+    await keyService.recordStats(activeLicense.id, { filtered: toCheck.length, blocked: botsCount, accepted: playersCount });
     await db.run(`UPDATE roblox_accounts SET last_scan_at = CURRENT_TIMESTAMP WHERE id = ?`, [account.id]);
     if (actionErrors.length) {
       throw new Error(`Roblox blocked ${actionErrors.length} accept/decline action(s) (${actionErrors.slice(0, 2).join(', ')}). Your cookie may need refreshing.`);
     }
-
-    return {
-      scanned: toCheck.length,
-      botsDeclined: botsCount,
-      playersAccepted: playersCount,
-      heldReview: reviewCount
-    };
+    return { scanned: toCheck.length, botsDeclined: botsCount, playersAccepted: playersCount, heldReview: reviewCount, simulated: !live || undefined };
   }
 
   /**
-   * Simulation scanner for demo / test accounts without live Roblox cookies
+   * What the Friend requests page shows. The filter level decides what counts as "hidden":
+   *   relaxed - hide only sure bots
+   *   normal  - also hide suspicious accounts
+   *   strict  - only show accounts that clearly look real
    */
-  async simulateCloudScan(userId, account, activeLicense) {
-    const demoRequesters = [
-      { id: 9817263, name: 'ClaimRobux_x882', displayName: 'Robux Giveaway', description: 'Visit giftcard.gg/free for 10,000 robux!', created: new Date(Date.now() - 86400000).toISOString() },
-      { id: 1827364, name: 'BlockyGamer_Ethan', displayName: 'Ethan', description: 'Builder & Anime fan. Add me!', created: new Date(Date.now() - 86400000 * 400).toISOString(), badgeCount: 22, friendsCount: 30 },
-      { id: 2938475, name: 'free_rbx_bot99', displayName: 'FreeRobux', description: 'ro-bux generator link in bio', created: new Date(Date.now() - 86400000 * 2).toISOString() },
-      { id: 3847561, name: 'PixelSammy', displayName: 'Sammy', description: 'hello world', created: new Date(Date.now() - 86400000 * 700).toISOString(), badgeCount: 12, friendsCount: 45 }
-    ];
-
-    let botsCount = 0;
-    let playersCount = 0;
-    let reviewCount = 0;
-
-    for (const applicant of demoRequesters) {
-      const evaluation = await detectionEngine.evaluateProfile(applicant, { forUserId: userId });
-
-      if (evaluation.verdict === 'DECLINE') botsCount++;
-      else if (evaluation.verdict === 'ACCEPT') playersCount++;
-      else reviewCount++;
-
-      await db.run(
-        `INSERT INTO scan_activity_logs (user_id, roblox_id, target_id, target_username, verdict, threat_score, reason)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [userId, account.roblox_id, String(applicant.id), applicant.name, evaluation.verdict, evaluation.threatScore, evaluation.reasons[0] || '']
-      );
+  async getRequests(userId) {
+    const account = await db.get(`SELECT filter_level, last_scan_at, last_error, is_active FROM roblox_accounts WHERE user_id = ?`, [userId]);
+    if (!account) return { connected: false };
+    const level = account.filter_level || 'normal';
+    const rows = await db.all(
+      `SELECT * FROM friend_requests WHERE user_id = ? AND (status = 'pending' OR (status = 'declined' AND auto = 1 AND updated_at > datetime('now', '-7 days')))
+       ORDER BY COALESCE(sent_at, checked_at) DESC LIMIT 300`,
+      [userId]
+    );
+    const visible = [], hidden = [];
+    for (const r of rows) {
+      const item = {
+        id: r.target_id, name: r.name, displayName: r.display_name, avatar: r.avatar_url,
+        verdict: r.verdict, score: r.score, reasons: safeJson(r.reasons, []), facts: safeJson(r.facts, {}),
+        status: r.status, sentAt: r.sent_at
+      };
+      if (r.status === 'declined' || isHidden(level, r.verdict, r.score)) hidden.push(item);
+      else visible.push(item);
     }
-
-    await keyService.recordStats(activeLicense.id, {
-      filtered: demoRequesters.length,
-      blocked: botsCount,
-      accepted: playersCount
-    });
-
-    await db.run(`UPDATE roblox_accounts SET last_scan_at = CURRENT_TIMESTAMP WHERE id = ?`, [account.id]);
-
     return {
-      scanned: demoRequesters.length,
-      botsDeclined: botsCount,
-      playersAccepted: playersCount,
-      heldReview: reviewCount,
-      simulated: true
+      connected: true, level, active: !!account.is_active, lastScanAt: account.last_scan_at, lastError: account.last_error,
+      requests: visible, hidden
     };
+  }
+
+  async setFilterLevel(userId, level) {
+    if (!['relaxed', 'normal', 'strict'].includes(level)) throw new Error('Pick relaxed, normal or strict');
+    await db.run(`UPDATE roblox_accounts SET filter_level = ? WHERE user_id = ?`, [level, userId]);
+    return { success: true, level };
+  }
+
+  /**
+   * Customer pressed Accept or Decline on the Friend requests page.
+   */
+  async answerRequest(userId, targetId, accept) {
+    const row = await db.get(`SELECT * FROM friend_requests WHERE user_id = ? AND target_id = ?`, [userId, String(targetId)]);
+    if (!row) throw new Error('That request is gone');
+    const account = await db.get(`SELECT * FROM roblox_accounts WHERE user_id = ?`, [userId]);
+    if (!account) throw new Error('Link your Roblox account first');
+    const cookie = this.decrypt(account.encrypted_cookie, account.cookie_iv);
+    if (!isTestCookie(cookie)) {
+      const r = await this.robloxRequest(
+        `https://friends.roblox.com/v1/users/${row.target_id}/${accept ? 'accept' : 'decline'}-friend-request`,
+        'POST', cookie, null, account.roblox_id
+      );
+      if (!r.ok && r.status !== 400) throw new Error(`Roblox didn't allow that (error ${r.status}). Try again.`);
+    }
+    await db.run(`UPDATE friend_requests SET status = ?, auto = 0, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND target_id = ?`,
+      [accept ? 'accepted' : 'declined', userId, row.target_id]);
+    // Accepting something the filter thought was a bot teaches it that this account is real
+    if (accept && row.verdict !== 'ACCEPT') await detectionEngine.recordReport(row.target_id, userId, false);
+    await db.run(
+      `INSERT INTO scan_activity_logs (user_id, roblox_id, target_id, target_username, verdict, threat_score, reason) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [userId, account.roblox_id, row.target_id, row.name, accept ? 'ACCEPT' : 'DECLINE', row.score, accept ? 'You accepted' : 'You declined']
+    );
+    return { success: true };
+  }
+
+  async reportBot(userId, targetId) {
+    await detectionEngine.recordReport(String(targetId), userId, true);
+    return this.answerRequest(userId, targetId, false);
   }
 
   /**

@@ -169,4 +169,17 @@ function pickDefined(o) {
   return r;
 }
 
-module.exports = { getProfile, getProfiles, getNames };
+/**
+ * Avatar pictures for many accounts in one call. Returns a Map of id -> image URL.
+ */
+async function getHeadshots(ids) {
+  const out = new Map();
+  const list = [...new Set(ids.map(String))].filter(Boolean);
+  for (let i = 0; i < list.length; i += 50) {
+    const d = await getJson(`https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${list.slice(i, i + 50).join(',')}&size=150x150&format=Png&isCircular=false`);
+    for (const t of d?.data || []) if (t.imageUrl) out.set(String(t.targetId), t.imageUrl);
+  }
+  return out;
+}
+
+module.exports = { getProfile, getProfiles, getNames, getHeadshots };
