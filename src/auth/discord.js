@@ -9,17 +9,51 @@ class DiscordAuth {
   /**
    * Generates the Discord OAuth2 URL
    */
-  getOAuthUrl() {
-    if (!DISCORD_CLIENT_ID) {
+  getOAuthUrl(state) {
+    if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET) {
       return null;
     }
     const params = new URLSearchParams({
       client_id: DISCORD_CLIENT_ID,
       redirect_uri: DISCORD_REDIRECT_URI,
       response_type: 'code',
-      scope: 'identify'
+      scope: 'identify',
+      state
     });
-    return `https://discord.com/api/oauth2/authorize?${params.toString()}`;
+    return `https://discord.com/oauth2/authorize?${params.toString()}`;
+  }
+
+  /**
+   * Trades the ?code= Discord sent back for the user's Discord profile,
+   * then finds or creates the matching Waurks user.
+   */
+  async loginWithCode(code) {
+    const tokenResp = await fetch('https://discord.com/api/oauth2/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: DISCORD_CLIENT_ID,
+        client_secret: DISCORD_CLIENT_SECRET,
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: DISCORD_REDIRECT_URI
+      })
+    });
+    if (!tokenResp.ok) throw new Error(`token exchange failed (${tokenResp.status})`);
+    const { access_token } = await tokenResp.json();
+
+    const meResp = await fetch('https://discord.com/api/users/@me', {
+      headers: { Authorization: `Bearer ${access_token}` }
+    });
+    if (!meResp.ok) throw new Error(`profile fetch failed (${meResp.status})`);
+    const me = await meResp.json();
+
+    return await this.upsertDiscordUser({
+      discordId: me.id,
+      username: me.global_name || me.username,
+      discriminator: me.discriminator || '0',
+      avatar: me.avatar ? `https://cdn.discordapp.com/avatars/${me.id}/${me.avatar}.png` : null
+    });
   }
 
   /**

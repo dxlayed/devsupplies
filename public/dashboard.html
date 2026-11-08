@@ -402,7 +402,12 @@
   let accountData = null;
 
   window.addEventListener('DOMContentLoaded', async () => {
+    try {
+      const s = await (await fetch('/api/v1/auth/status')).json();
+      user = s.loggedIn ? s.user : null;
+    } catch (e) { user = null; }
     if (!user) {
+      localStorage.removeItem('waurks_user');
       window.location.href = '/checkout.html';
       return;
     }

@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const crypto = require('crypto');
 const db = require('./database');
 const { keyService, TIER_CONFIG } = require('./services/keyService');
 const detectionEngine = require('./services/detectionEngine');
@@ -17,17 +18,75 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
-// Simple session helper: parses 'x-user-id' header or query for authenticated requests
+// -------------------------------------------------------------
+// SESSIONS (signed, HttpOnly cookie — the browser can't forge or read it)
+// -------------------------------------------------------------
+const DEV_MODE = process.env.ALLOW_DEV_LOGIN === 'true';
+const SESSION_COOKIE = 'waurks_session';
+const SESSION_DAYS = 7;
+const IS_HTTPS = (process.env.DISCORD_REDIRECT_URI || '').startsWith('https://');
+let SESSION_SECRET = process.env.SESSION_SECRET;
+if (!SESSION_SECRET || SESSION_SECRET.length < 32) {
+  SESSION_SECRET = crypto.randomBytes(32).toString('hex');
+  console.warn('[auth] SESSION_SECRET missing or shorter than 32 chars: using a random one. Everyone is logged out on restart.');
+}
+if (DEV_MODE) console.warn('[auth] ALLOW_DEV_LOGIN=true: fake logins and simulated payments are ON. Never use this on the live site.');
+
+function sign(value) {
+  return crypto.createHmac('sha256', SESSION_SECRET).update(value).digest('base64url');
+}
+
+function safeEqual(a, b) {
+  const ab = Buffer.from(String(a));
+  const bb = Buffer.from(String(b));
+  return ab.length === bb.length && crypto.timingSafeEqual(ab, bb);
+}
+
+function parseCookies(req) {
+  const out = {};
+  for (const part of (req.headers.cookie || '').split(';')) {
+    const i = part.indexOf('=');
+    if (i > 0) out[part.slice(0, i).trim()] = decodeURIComponent(part.slice(i + 1).trim());
+  }
+  return out;
+}
+
+function setCookie(res, name, value, maxAgeSeconds) {
+  const parts = [`${name}=${encodeURIComponent(value)}`, 'Path=/', 'HttpOnly', 'SameSite=Lax', `Max-Age=${maxAgeSeconds}`];
+  if (IS_HTTPS) parts.push('Secure');
+  const prev = res.getHeader('Set-Cookie');
+  res.setHeader('Set-Cookie', [].concat(prev || [], parts.join('; ')));
+}
+
+function startSession(res, userId) {
+  const expires = Date.now() + SESSION_DAYS * 86400000;
+  const payload = `${userId}.${expires}`;
+  setCookie(res, SESSION_COOKIE, `${payload}.${sign(payload)}`, SESSION_DAYS * 86400);
+}
+
+async function getSessionUser(req) {
+  const raw = parseCookies(req)[SESSION_COOKIE];
+  if (!raw) return null;
+  const [userId, expires, sig] = raw.split('.');
+  if (!userId || !expires || !sig) return null;
+  if (!safeEqual(sig, sign(`${userId}.${expires}`))) return null;
+  if (Date.now() > Number(expires)) return null;
+  return (await db.get(`SELECT * FROM users WHERE id = ?`, [userId])) || null;
+}
+
 async function authMiddleware(req, res, next) {
-  const userId = req.headers['x-user-id'] || req.query.user_id;
-  if (!userId) {
-    return res.status(401).json({ error: 'Unauthorized: Discord login required' });
+  try {
+    const user = await getSessionUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized: Discord login required' });
+    req.user = user;
+    next();
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
-  const user = await db.get(`SELECT * FROM users WHERE id = ?`, [userId]);
-  if (!user) {
-    return res.status(401).json({ error: 'User not found' });
-  }
-  req.user = user;
+}
+
+function devOnly(req, res, next) {
+  if (!DEV_MODE) return res.status(404).json({ error: 'Not found' });
   next();
 }
 
@@ -35,33 +94,55 @@ async function authMiddleware(req, res, next) {
 // AUTH ROUTES
 // -------------------------------------------------------------
 app.get('/api/v1/auth/status', async (req, res) => {
-  const userId = req.headers['x-user-id'] || req.query.user_id;
-  if (!userId) return res.json({ loggedIn: false });
-
-  const user = await db.get(`SELECT * FROM users WHERE id = ?`, [userId]);
-  if (!user) return res.json({ loggedIn: false });
-
-  res.json({ loggedIn: true, user });
+  const user = await getSessionUser(req);
+  if (!user) return res.json({ loggedIn: false, devLogin: DEV_MODE });
+  res.json({ loggedIn: true, user, devLogin: DEV_MODE });
 });
 
-// One-click instant login for testing/demo
-app.post('/api/v1/auth/dev-login', async (req, res) => {
+app.post('/api/v1/auth/logout', (req, res) => {
+  setCookie(res, SESSION_COOKIE, '', 0);
+  res.json({ success: true });
+});
+
+// One-click fake login — only when ALLOW_DEV_LOGIN=true (local testing)
+app.post('/api/v1/auth/dev-login', devOnly, async (req, res) => {
   try {
-    const username = req.body.username || 'RobloxPlayer';
+    const username = String(req.body.username || 'RobloxPlayer').slice(0, 32);
     const user = await discordAuth.devLogin(username);
+    startSession(res, user.id);
     res.json({ success: true, user });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Real Discord OAuth2 entrypoint
+// Real Discord OAuth2: step 1, send the user to Discord
 app.get('/api/v1/auth/discord/login', (req, res) => {
-  const url = discordAuth.getOAuthUrl();
+  const state = crypto.randomBytes(16).toString('hex');
+  const url = discordAuth.getOAuthUrl(state);
   if (!url) {
     return res.redirect('/checkout.html?error=discord_not_configured');
   }
+  setCookie(res, 'waurks_oauth_state', state, 600);
   res.redirect(url);
+});
+
+// Real Discord OAuth2: step 2, Discord sends the user back here
+app.get('/api/v1/auth/discord/callback', async (req, res) => {
+  const { code, state } = req.query;
+  const expected = parseCookies(req).waurks_oauth_state;
+  setCookie(res, 'waurks_oauth_state', '', 0);
+  if (!code || !state || !expected || !safeEqual(state, expected)) {
+    return res.redirect('/checkout.html?error=discord_login_failed');
+  }
+  try {
+    const user = await discordAuth.loginWithCode(String(code));
+    startSession(res, user.id);
+    res.redirect('/checkout.html?login=ok');
+  } catch (err) {
+    console.error('[auth] Discord login failed:', err.message);
+    res.redirect('/checkout.html?error=discord_login_failed');
+  }
 });
 
 // -------------------------------------------------------------
@@ -110,7 +191,7 @@ app.get('/api/v1/orders/:orderId', async (req, res) => {
 });
 
 // Simulate instant payment for testing & demo
-app.post('/api/v1/orders/:orderId/simulate-pay', async (req, res) => {
+app.post('/api/v1/orders/:orderId/simulate-pay', devOnly, async (req, res) => {
   try {
     const result = await paymentService.completeOrder(req.params.orderId);
     res.json({ success: true, result });
@@ -121,6 +202,12 @@ app.post('/api/v1/orders/:orderId/simulate-pay', async (req, res) => {
 
 // Live webhook for crypto processors (NowPayments, Coinbase Commerce, Cryptomus, etc.)
 app.post('/api/v1/payments/crypto-webhook', async (req, res) => {
+  // Without this check anyone could POST {status:"completed"} and get a free key.
+  const secret = process.env.WEBHOOK_SECRET;
+  const given = req.headers['x-webhook-secret'] || req.query.secret;
+  if (!secret || secret.length < 16 || !given || !safeEqual(given, secret)) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
   try {
     const { order_id, status } = req.body;
     if (status === 'confirmed' || status === 'finished' || status === 'completed') {
@@ -330,11 +417,14 @@ app.post('/api/v1/roblox/disconnect', authMiddleware, async (req, res) => {
 // ADMIN BACKOFFICE API
 // Protected management endpoints for seller/staff
 // -------------------------------------------------------------
-const ADMIN_SECRET = process.env.ADMIN_KEY || 'waurks-admin-2026';
+const ADMIN_SECRET = process.env.ADMIN_KEY || '';
+if (ADMIN_SECRET.length < 16) {
+  console.warn('[admin] ADMIN_KEY is not set (or under 16 chars): the admin panel is locked.');
+}
 
 function adminAuthMiddleware(req, res, next) {
-  const adminKey = req.headers['x-admin-key'] || req.query.admin_key;
-  if (!adminKey || adminKey !== ADMIN_SECRET) {
+  const adminKey = req.headers['x-admin-key'];
+  if (ADMIN_SECRET.length < 16 || !adminKey || !safeEqual(adminKey, ADMIN_SECRET)) {
     return res.status(403).json({ error: 'Forbidden: Invalid Admin Secret' });
   }
   next();
