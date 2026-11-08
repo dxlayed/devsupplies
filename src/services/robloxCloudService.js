@@ -12,6 +12,9 @@ db.run(`CREATE TABLE IF NOT EXISTS friend_requests (
   PRIMARY KEY (user_id, target_id)
 )`).catch(() => {});
 
+db.run(`ALTER TABLE roblox_accounts ADD COLUMN accept_filter TEXT DEFAULT 'standard'`).catch(() => {});
+const MM2_LEVEL10_BADGE = '196198137'; // Murder Mystery 2 "Level 10"
+
 const isTestCookie = c => c.startsWith('TEST_COOKIE_') || c.startsWith('DEMO_');
 const toMs = d => new Date(String(d).replace(' ', 'T') + (/[zZ]|[+-]\d\d:?\d\d$/.test(String(d)) ? '' : 'Z')).getTime();
 const safeJson = (v, dflt) => { try { return JSON.parse(v); } catch (e) { return dflt; } };
@@ -31,6 +34,7 @@ function demoRequests() {
     { id: 3847561, name: 'PixelSammy', displayName: 'Sammy', description: 'hello world', created: d(700), badgeCount: 12, friendsCount: 45 },
     { id: 4958672, name: 'mia_plays', displayName: 'Mia', description: '', created: d(5), badgeCount: 1, friendsCount: 2, avatarAssetCount: 4 },
     { id: 5069783, name: 'qwrtzpls8812', displayName: 'qwrtzpls8812', description: '', created: d(9), badgeCount: 0, friendsCount: 0, avatarAssetCount: 1 },
+    { id: 7281905, name: 'kev_trades', displayName: 'Kev', description: '', created: d(3), badgeCount: 0, friendsCount: 1, avatarAssetCount: 3, mm2: true },
     { id: 6170894, name: 'skate_jay', displayName: 'Jay', description: 'new here', created: d(2), badgeCount: 0, friendsCount: 0, avatarAssetCount: 3, paidItem: { name: 'Black Beanie', price: 75 } }
   ];
 }
@@ -487,12 +491,13 @@ class RobloxCloudService {
       id: senderId(a), name: a.name, displayName: a.displayName, description: a.description,
       created: a.created, isBanned: a.isBanned, hasVerifiedBadge: a.hasVerifiedBadge,
       // test requests carry their own extra info
-      badgeCount: a.badgeCount, friendsCount: a.friendsCount, avatarAssetCount: a.avatarAssetCount, paidItem: a.paidItem
+      badgeCount: a.badgeCount, friendsCount: a.friendsCount, avatarAssetCount: a.avatarAssetCount, paidItem: a.paidItem,
+      mm2: a.mm2
     }));
 
-    let profiles, headshots = new Map();
+    let profiles, headshots = new Map(), authGet = null;
     if (live) {
-      const authGet = async url => {
+      authGet = async url => {
         const r = await this.robloxRequest(url, 'GET', cookie, null, account.roblox_id);
         return r.ok ? r.json() : null;
       };
@@ -518,7 +523,7 @@ class RobloxCloudService {
     const burst = createdAt.map((t, i) => !isNew[i] ? 0
       : createdAt.filter((u, j) => j !== i && isNew[j] && Math.abs(u - t) < 3 * 86400000).length);
 
-    let botsCount = 0, playersCount = 0, reviewCount = 0;
+    let botsCount = 0, playersCount = 0, reviewCount = 0, reviewCountFix = 0;
     const actionErrors = [];
 
     for (let i = 0; i < toCheck.length; i++) {
@@ -536,6 +541,18 @@ class RobloxCloudService {
         burstSiblings: burst[i]
       });
 
+      // MM2 auto-accept filter: only people with the MM2 "Level 10" badge get auto-accepted
+      const mm2Filter = account.accept_filter === 'mm2';
+      let mm2 = null;
+      if (mm2Filter) {
+        mm2 = live ? await robloxProfiles.ownsBadge(sid, MM2_LEVEL10_BADGE, authGet) : !!bases[i].mm2;
+        if (mm2 === true && !(evaluation.groups || []).includes('content') && !/banned|block list|blocked pattern/i.test(evaluation.reasons[0] || '')) {
+          if (evaluation.verdict !== 'ACCEPT') { reviewCountFix++; }
+          evaluation.verdict = 'ACCEPT';
+          evaluation.reasons = ['MM2 trades accepted', ...evaluation.reasons.filter(r => r !== 'MM2 trades accepted')];
+        }
+      }
+
       // Act on Roblox when the customer's switches say so
       let status = 'pending';
       if (evaluation.verdict === 'DECLINE') {
@@ -548,7 +565,7 @@ class RobloxCloudService {
         }
       } else if (evaluation.verdict === 'ACCEPT') {
         playersCount++;
-        if (account.auto_accept_players) {
+        if (account.auto_accept_players && (!mm2Filter || mm2 === true)) {
           if (live) {
             const r = await this.robloxRequest(`https://friends.roblox.com/v1/users/${sid}/accept-friend-request`, 'POST', cookie, null, account.roblox_id);
             if (r.ok) status = 'accepted'; else actionErrors.push(`accept ${name}: ${r.status}`);
@@ -561,7 +578,8 @@ class RobloxCloudService {
       const ageDays = profile.created ? Math.floor((Date.now() - new Date(profile.created).getTime()) / 86400000) : null;
       const facts = {
         ageDays, badges: profile.badgeCount ?? null, friends: profile.friendsCount ?? null,
-        paidItem: profile.paidItem ? profile.paidItem.name : null, mutuals
+        paidItem: profile.paidItem ? profile.paidItem.name : null, mutuals,
+        mm2: mm2 === true ? true : undefined
       };
       await db.run(
         `INSERT INTO friend_requests (user_id, target_id, name, display_name, avatar_url, verdict, score, reasons, facts, status, auto, sent_at, checked_at, updated_at)
@@ -588,7 +606,7 @@ class RobloxCloudService {
     if (actionErrors.length) {
       throw new Error(`Roblox blocked ${actionErrors.length} accept/decline action(s) (${actionErrors.slice(0, 2).join(', ')}). Your cookie may need refreshing.`);
     }
-    return { scanned: toCheck.length, botsDeclined: botsCount, playersAccepted: playersCount, heldReview: reviewCount, simulated: !live || undefined };
+    return { scanned: toCheck.length, botsDeclined: botsCount, playersAccepted: playersCount, heldReview: Math.max(0, reviewCount - reviewCountFix), simulated: !live || undefined };
   }
 
   /**
@@ -598,7 +616,7 @@ class RobloxCloudService {
    *   strict  - only show accounts that clearly look real
    */
   async getRequests(userId) {
-    const account = await db.get(`SELECT filter_level, last_scan_at, last_error, is_active, auto_accept_players FROM roblox_accounts WHERE user_id = ?`, [userId]);
+    const account = await db.get(`SELECT filter_level, last_scan_at, last_error, is_active, auto_accept_players, accept_filter FROM roblox_accounts WHERE user_id = ?`, [userId]);
     if (!account) return { connected: false };
     const level = account.filter_level || 'normal';
     const rows = await db.all(
@@ -618,6 +636,7 @@ class RobloxCloudService {
     }
     return {
       connected: true, level, active: !!account.is_active, autoAccept: !!account.auto_accept_players,
+      acceptFilter: account.accept_filter || 'standard',
       lastScanAt: account.last_scan_at, lastError: account.last_error,
       requests: visible, hidden
     };
@@ -631,13 +650,23 @@ class RobloxCloudService {
     await db.run(`UPDATE roblox_accounts SET auto_accept_players = ? WHERE user_id = ?`, [enabled ? 1 : 0, userId]);
     let accepted = 0;
     if (enabled) {
-      const rows = await db.all(`SELECT target_id FROM friend_requests WHERE user_id = ? AND status = 'pending' AND verdict = 'ACCEPT'`, [userId]);
+      const acc = await db.get(`SELECT accept_filter FROM roblox_accounts WHERE user_id = ?`, [userId]);
+      let rows = await db.all(`SELECT target_id, facts FROM friend_requests WHERE user_id = ? AND status = 'pending' AND verdict = 'ACCEPT'`, [userId]);
+      if (acc?.accept_filter === 'mm2') rows = rows.filter(r => safeJson(r.facts, {}).mm2 === true);
       for (const r of rows) {
         try { await this.answerRequest(userId, r.target_id, true); accepted++; } catch (e) { /* skip ones Roblox refuses */ }
         await new Promise(res => setTimeout(res, 300));
       }
     }
     return { success: true, autoAccept: !!enabled, accepted };
+  }
+
+  async setAcceptFilter(userId, filter) {
+    if (!['standard', 'mm2'].includes(filter)) throw new Error('Unknown filter');
+    await db.run(`UPDATE roblox_accounts SET accept_filter = ? WHERE user_id = ?`, [filter, userId]);
+    // Re-check waiting requests with the new filter on the next pass
+    await db.run(`UPDATE friend_requests SET checked_at = NULL WHERE user_id = ? AND status = 'pending'`, [userId]);
+    return { success: true, acceptFilter: filter };
   }
 
   async setFilterLevel(userId, level) {

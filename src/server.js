@@ -487,6 +487,14 @@ app.post('/api/v1/roblox/auto-accept', authMiddleware, async (req, res) => {
   }
 });
 
+app.post('/api/v1/roblox/accept-filter', authMiddleware, async (req, res) => {
+  try {
+    res.json(await robloxCloudService.setAcceptFilter(req.user.id, String(req.body.filter || '')));
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 app.post('/api/v1/roblox/filter', authMiddleware, async (req, res) => {
   try {
     res.json(await robloxCloudService.setFilterLevel(req.user.id, String(req.body.level || '')));

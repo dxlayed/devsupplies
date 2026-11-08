@@ -132,7 +132,7 @@ class DetectionEngine {
 
     const bot = (group, pts, why) => { score += pts; botGroups.add(group); reasons.push(why); };
     const human = (pts, why) => { score -= pts; humanReasons.push(why); };
-    const result = (verdict, s, why) => ({ id, name, displayName: displayName || name, threatScore: s, verdict, reasons: why });
+    const result = (verdict, s, why) => ({ id, name, displayName: displayName || name, threatScore: s, verdict, reasons: why, groups: [...botGroups] });
 
     // ---- Instant answers ----
     if (id) {

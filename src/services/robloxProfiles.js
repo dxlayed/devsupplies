@@ -182,4 +182,32 @@ async function getHeadshots(ids) {
   return out;
 }
 
-module.exports = { getProfile, getProfiles, getNames, getHeadshots };
+db.run(`CREATE TABLE IF NOT EXISTS badge_owned (
+  roblox_id TEXT NOT NULL, badge_id TEXT NOT NULL, owned INTEGER NOT NULL,
+  fetched_at DATETIME DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (roblox_id, badge_id)
+)`).catch(() => {});
+
+/**
+ * Does this account own a badge? true / false, or null if Roblox won't say (private inventory).
+ * "Owned" answers are kept forever (badges can't be lost); "not owned" is re-checked after 6 hours.
+ */
+async function ownsBadge(userId, badgeId, authGet = null) {
+  const uid = String(userId), bid = String(badgeId);
+  const row = await db.get(
+    `SELECT owned FROM badge_owned WHERE roblox_id = ? AND badge_id = ? AND (owned = 1 OR fetched_at > datetime('now', '-6 hours'))`,
+    [uid, bid]
+  ).catch(() => null);
+  if (row) return !!row.owned;
+  const url = `https://inventory.roblox.com/v1/users/${uid}/items/Badge/${bid}/is-owned`;
+  let ans = await getJson(url, 2);
+  if (typeof ans !== 'boolean' && authGet) ans = await authGet(url).catch(() => null);
+  if (typeof ans !== 'boolean') return null;
+  db.run(
+    `INSERT INTO badge_owned (roblox_id, badge_id, owned, fetched_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+     ON CONFLICT(roblox_id, badge_id) DO UPDATE SET owned = excluded.owned, fetched_at = excluded.fetched_at`,
+    [uid, bid, ans ? 1 : 0]
+  ).catch(() => {});
+  return ans;
+}
+
+module.exports = { getProfile, getProfiles, getNames, getHeadshots, ownsBadge };
