@@ -509,11 +509,12 @@ class RobloxCloudService {
 
     // Only score new ones, plus anything not re-checked in the last hour
     // Anything we already handled or checked in the last hour (declined, accepted or waiting) is skipped
-    const recent = await db.all(`SELECT target_id FROM friend_requests WHERE user_id = ? AND checked_at > datetime('now', '-1 hour')`, [userId]);
-    const fresh = new Set(recent.map(r => String(r.target_id)));
+    const recent = await db.all(`SELECT target_id, reasons FROM friend_requests WHERE user_id = ? AND checked_at > datetime('now', '-1 hour')`, [userId]);
+    // Only skip ones checked by the CURRENT filter (switching Standard <-> MM2 re-checks them)
+    const fresh = new Set(recent.filter(r => mm2Filter === /MM2/.test(r.reasons || '')).map(r => String(r.target_id)));
     // Newest first, at most 40 per pass so new requests show up within seconds even during a flood.
     // The rest get picked up on the next passes (every few seconds).
-    const MAX_PER_PASS = 16;
+    const MAX_PER_PASS = mm2Filter ? 60 : 16;
     const unchecked = pendingList.filter(a => senderId(a) && !fresh.has(String(senderId(a))));
     const toCheck = unchecked.slice(0, MAX_PER_PASS);
     this.backlog = this.backlog || new Map();
@@ -673,7 +674,16 @@ class RobloxCloudService {
         verdict: r.verdict, score: r.score, reasons: safeJson(r.reasons, []), facts: safeJson(r.facts, {}),
         status: r.status, sentAt: r.sent_at
       };
-      if (r.status === 'declined' || (account.accept_filter !== 'mm2' && isHidden(level, r.verdict, r.score))) hidden.push(item);
+      if (account.accept_filter === 'mm2') {
+        // MM2 filter: only people confirmed to have the Level 10 badge are shown. Everything else is filtered.
+        if (r.status === 'pending' && item.facts.mm2 === true) visible.push(item);
+        else {
+          if (r.status === 'pending' && !item.reasons.some(x => /MM2/.test(x))) item.reasons = ['Checking for MM2 badge...'];
+          hidden.push(item);
+        }
+        continue;
+      }
+      if (r.status === 'declined' || isHidden(level, r.verdict, r.score)) hidden.push(item);
       else visible.push(item);
     }
     return {
