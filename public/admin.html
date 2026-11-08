@@ -3,446 +3,285 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Waurks — Backoffice & Admin Portal</title>
+<title>Waurks — Admin</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --ink:#0a0e16;
-    --surface:#121826;
-    --surface-2:#1a2234;
-    --line:#26304480;
-    --line-solid:#263044;
-    --guard:#4d8dff;
-    --guard-glow:#4d8dff33;
-    --pass:#34d17e;
-    --gold:#f0b429;
-    --block:#ff4d5e;
-    --text:#e8edf6;
-    --muted:#8b97ad;
-    --radius:14px;
+    --ink:#0a0e16; --surface:#121826; --surface-2:#1a2234; --line:#26304480; --line-solid:#263044;
+    --guard:#4d8dff; --guard-glow:#4d8dff33; --pass:#34d17e; --gold:#f0b429; --block:#ff4d5e;
+    --text:#e8edf6; --muted:#8b97ad; --radius:14px;
   }
   *{box-sizing:border-box;margin:0;padding:0}
-  body{
-    background:var(--ink);color:var(--text);
-    font-family:"Inter",sans-serif;line-height:1.55;
-    padding-bottom:80px;
-  }
-  .wrap{max-width:1100px;margin:0 auto;padding:0 24px}
-  header{display:flex;align-items:center;justify-content:space-between;padding:22px 0;border-bottom:1px solid var(--line)}
-  .brand{display:flex;align-items:center;gap:10px;font-family:"Archivo";font-weight:900;font-size:19px}
-  .brand svg{width:26px;height:26px}
-  .badge-admin{background:rgba(240,180,41,0.15);color:var(--gold);font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;border:1px solid rgba(240,180,41,0.3)}
-
-  .stats-grid{display:grid;grid-template-columns:repeat(5, 1fr);gap:14px;margin:24px 0}
-  .stat-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:18px}
-  .stat-val{font-family:"Archivo";font-size:26px;font-weight:900}
+  body{background:var(--ink);color:var(--text);font-family:"Inter",sans-serif;line-height:1.55;padding-bottom:80px}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 20px}
+  header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:20px 0;border-bottom:1px solid var(--line)}
+  .brand{font-family:"Archivo";font-weight:900;font-size:19px}
+  .badge-admin{background:rgba(240,180,41,.15);color:var(--gold);font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;border:1px solid rgba(240,180,41,.3)}
+  .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:22px 0}
+  .stat-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px}
+  .stat-val{font-family:"Archivo";font-size:24px;font-weight:900}
   .stat-lbl{font-size:11px;color:var(--muted);text-transform:uppercase;margin-top:2px}
-
-  .section{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:24px;margin-bottom:24px}
-  .sec-title{font-family:"Archivo";font-size:18px;font-weight:800;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between}
-
+  .section{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:20px;margin-bottom:24px}
+  .sec-title{font-family:"Archivo";font-size:17px;font-weight:800;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
   table{width:100%;border-collapse:collapse;font-size:13px}
-  th{text-align:left;padding:10px 12px;color:var(--muted);font-weight:600;border-bottom:1px solid var(--line-solid)}
-  td{padding:12px;border-bottom:1px solid #182236}
+  th{text-align:left;padding:10px;color:var(--muted);font-weight:600;border-bottom:1px solid var(--line-solid)}
+  td{padding:10px;border-bottom:1px solid #182236;vertical-align:middle}
   tr:last-child td{border-bottom:none}
-
-  .btn{
-    font-family:"Inter";font-weight:600;font-size:12px;
-    padding:6px 12px;border-radius:6px;cursor:pointer;border:none;transition:.15s;
-    display:inline-flex;align-items:center;gap:4px;
-  }
+  .btn{font-family:"Inter";font-weight:600;font-size:12px;padding:6px 11px;border-radius:6px;cursor:pointer;border:none;display:inline-flex;align-items:center;gap:4px}
   .btn-approve{background:var(--pass);color:#0a0e16;font-weight:700}
-  .btn-danger{background:transparent;color:var(--block);border:1px solid rgba(255,77,94,0.3)}
-  .btn-danger:hover{background:rgba(255,77,94,0.15)}
+  .btn-danger{background:transparent;color:var(--block);border:1px solid rgba(255,77,94,.3)}
+  .btn-danger:hover{background:rgba(255,77,94,.15)}
   .btn-ghost{background:var(--surface-2);color:var(--text);border:1px solid var(--line-solid)}
   .btn-ghost:hover{border-color:var(--guard);color:var(--guard)}
-
   .login-card{max-width:400px;margin:80px auto;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:32px;text-align:center}
-  .input-field{width:100%;background:#090d15;border:1px solid var(--line-solid);border-radius:8px;padding:12px;color:#fff;margin:14px 0;font-size:13px}
-
-  @media(max-width:860px){
-    .stats-grid{grid-template-columns:1fr 1fr}
-  }
+  .input-field{width:100%;background:#090d15;border:1px solid var(--line-solid);border-radius:8px;padding:10px;color:#fff;margin:12px 0;font-size:13px}
+  .tabs{display:flex;gap:6px;margin:4px 0 18px;flex-wrap:wrap}
+  .tab{padding:8px 14px;border-radius:8px;background:var(--surface);border:1px solid var(--line-solid);color:var(--muted);cursor:pointer;font-weight:600;font-size:13px}
+  .tab.on{background:var(--guard);border-color:var(--guard);color:#fff}
+  .pane{display:none}.pane.on{display:block}
+  .search{max-width:300px;margin:0}
+  .av{width:24px;height:24px;border-radius:50%;vertical-align:middle;margin-right:6px}
+  .mono{font-family:monospace}
+  select.input-field{width:auto;margin:0;padding:6px}
+  .nowrap{white-space:nowrap}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--surface-2);border:1px solid var(--line-solid);padding:10px 18px;border-radius:10px;display:none;font-size:13px;z-index:9}
+  @media(max-width:760px){.stats-grid{grid-template-columns:1fr 1fr}}
 </style>
 </head>
 <body>
-
 <div class="wrap">
-  <!-- Auth Screen -->
-  <div id="loginView" class="login-card">
-    <div style="width:48px;height:48px;border-radius:50%;background:rgba(240,180,41,0.15);color:var(--gold);display:flex;align-items:center;justify-content:center;margin:0 auto 12px">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-    </div>
-    <h2 style="font-family:'Archivo';font-size:22px;margin-bottom:6px">Staff Backoffice</h2>
-    <p style="color:var(--muted);font-size:13px">Enter admin secret key to access order escrow and licenses.</p>
-    <input type="password" id="adminSecretInput" class="input-field" placeholder="Admin Secret Key" value="waurks-admin-2026">
-    <button class="btn btn-approve" style="width:100%;padding:10px" onclick="loginAdmin()">Unlock Admin Portal</button>
+  <div id="loginView" class="login-card" style="display:none">
+    <h2 style="font-family:'Archivo';font-size:22px;margin-bottom:6px">Admin Panel</h2>
+    <p style="color:var(--muted);font-size:13px;margin-bottom:16px">Sign in with an admin Discord account.</p>
+    <a class="btn btn-approve" style="width:100%;padding:10px;justify-content:center" href="/api/v1/auth/discord/login">Sign in with Discord</a>
+    <p id="notAdmin" style="display:none;color:var(--block);font-size:13px;margin-top:14px">This Discord account isn't an admin.</p>
+    <details style="margin-top:18px;text-align:left;font-size:12px;color:var(--muted)"><summary>Use admin key instead</summary>
+      <input type="password" id="adminSecretInput" class="input-field" placeholder="ADMIN_KEY from your settings">
+      <button class="btn btn-ghost" onclick="loginWithKey()">Unlock</button>
+    </details>
   </div>
 
-  <!-- Main Admin Portal -->
   <div id="adminPortal" style="display:none">
     <header>
-      <div class="brand">
-        <svg viewBox="0 0 24 24" fill="none"><path d="M12 2l8 3v6c0 5-3.5 8.5-8 11-4.5-2.5-8-6-8-11V5l8-3z" fill="#4d8dff" fill-opacity=".2" stroke="#4d8dff" stroke-width="1.6"/><path d="M8.5 12l2.5 2.5 4.5-5" stroke="#34d17e" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        Waurks Master Backoffice
-      </div>
-      <div style="display:flex;gap:12px;align-items:center">
-        <span class="badge-admin">STAFF ACCESS</span>
-        <button class="btn btn-ghost" onclick="logoutAdmin()">Lock Out</button>
+      <div class="brand">Waurks Admin</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <span class="badge-admin" id="whoami">ADMIN</span>
+        <a class="btn btn-ghost" href="/dashboard.html">Dashboard</a>
+        <button class="btn btn-ghost" onclick="loadAll()">↻ Refresh</button>
+        <button class="btn btn-ghost" onclick="logoutAdmin()">Log out</button>
       </div>
     </header>
 
-    <!-- Top Key Metrics -->
     <div class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-val" id="admRevenue" style="color:var(--pass)">$0</div>
-        <div class="stat-lbl">Gross Revenue</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-val" id="admActiveKeys" style="color:var(--guard)">0</div>
-        <div class="stat-lbl">Active Keys</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-val" id="admPendingTrades" style="color:var(--gold)">0</div>
-        <div class="stat-lbl">Pending Escrow</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-val" id="admConnectedRoblox">0</div>
-        <div class="stat-lbl">Roblox Accounts</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-val" id="admBotsBlocked" style="color:var(--block)">0</div>
-        <div class="stat-lbl">Bots Blocked</div>
-      </div>
+      <div class="stat-card"><div class="stat-val" id="sRevenue" style="color:var(--pass)">$0</div><div class="stat-lbl">Total revenue</div></div>
+      <div class="stat-card"><div class="stat-val" id="sWeek" style="color:var(--pass)">$0</div><div class="stat-lbl">Revenue, last 7 days</div></div>
+      <div class="stat-card"><div class="stat-val" id="sUsers">0</div><div class="stat-lbl">Users</div></div>
+      <div class="stat-card"><div class="stat-val" id="sKeys" style="color:var(--guard)">0</div><div class="stat-lbl">Active keys</div></div>
+      <div class="stat-card"><div class="stat-val" id="sPending" style="color:var(--gold)">0</div><div class="stat-lbl">Pending trades</div></div>
+      <div class="stat-card"><div class="stat-val" id="sRoblox">0</div><div class="stat-lbl">Roblox accounts</div></div>
+      <div class="stat-card"><div class="stat-val" id="sBots" style="color:var(--block)">0</div><div class="stat-lbl">Bots blocked</div></div>
+      <div class="stat-card"><div class="stat-val" id="sOrders">0</div><div class="stat-lbl">Completed orders</div></div>
     </div>
 
-    <!-- Section 1: In-Game Item Escrow Trades -->
-    <div class="section">
-      <div class="sec-title">
-        <span>🎮 Pending Middleman In-Game Item Trades</span>
-        <button class="btn btn-ghost" onclick="loadAllData()">↻ Refresh</button>
-      </div>
-      <div style="overflow-x:auto">
-        <table>
-          <thead>
-            <tr>
-              <th>Ticket ID</th>
-              <th>Customer</th>
-              <th>Tier</th>
-              <th>Price</th>
-              <th>Method</th>
-              <th>Status</th>
-              <th>Created</th>
-              <th>Middleman Action</th>
-            </tr>
-          </thead>
-          <tbody id="tradeOrdersTable">
-            <tr><td colspan="8" style="text-align:center;color:var(--muted)">No pending item trades</td></tr>
-          </tbody>
-        </table>
-      </div>
+    <div class="tabs">
+      <div class="tab on" data-p="users">👤 Users</div>
+      <div class="tab" data-p="orders">🧾 Orders</div>
+      <div class="tab" data-p="keys">🔑 Keys</div>
+      <div class="tab" data-p="blacklist">🛡️ Blacklist</div>
+      <div class="tab" data-p="audit">📜 Activity log</div>
     </div>
 
-    <!-- Section 2: License Management -->
-    <div class="section">
-      <div class="sec-title">
-        <span>🔑 Customer License Keys</span>
-      </div>
-      <div style="overflow-x:auto">
-        <table>
-          <thead>
-            <tr>
-              <th>License Key</th>
-              <th>Discord Owner</th>
-              <th>Tier</th>
-              <th>Status</th>
-              <th>Expires</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="licensesTable"></tbody>
-        </table>
-      </div>
+    <div class="pane section on" id="p-users">
+      <div class="sec-title"><span>Users</span><input class="input-field search" id="qUsers" placeholder="Search name or Discord ID"></div>
+      <div style="overflow-x:auto"><table><thead><tr><th>User</th><th>Discord ID</th><th>Roblox</th><th>Active keys</th><th>Spent</th><th>Joined</th><th>Actions</th></tr></thead><tbody id="tUsers"></tbody></table></div>
     </div>
 
-    <!-- Section 3: Global Bot Blacklist Manager -->
-    <div class="section">
-      <div class="sec-title">
-        <span>🛡️ Global Botnet Blacklist</span>
-      </div>
+    <div class="pane section" id="p-orders">
+      <div class="sec-title"><span>Orders (pending first)</span></div>
+      <div style="overflow-x:auto"><table><thead><tr><th>Order / Ticket</th><th>Customer</th><th>Plan</th><th>Price</th><th>Method</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead><tbody id="tOrders"></tbody></table></div>
+    </div>
+
+    <div class="pane section" id="p-keys">
+      <div class="sec-title"><span>License keys</span><input class="input-field search" id="qKeys" placeholder="Search key, name or Discord ID"></div>
+      <div style="overflow-x:auto"><table><thead><tr><th>Key</th><th>Owner</th><th>Plan</th><th>Status</th><th>Device</th><th>Expires</th><th>Actions</th></tr></thead><tbody id="tKeys"></tbody></table></div>
+    </div>
+
+    <div class="pane section" id="p-blacklist">
+      <div class="sec-title"><span>Global bot blacklist</span></div>
       <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
-        <input type="text" id="newRobloxId" class="input-field" style="margin:0;flex:1" placeholder="Roblox User ID (Optional)">
-        <input type="text" id="newPattern" class="input-field" style="margin:0;flex:1" placeholder="Username Regex Pattern (e.g. ^CLAIM_NOW_.*)">
-        <input type="text" id="newReason" class="input-field" style="margin:0;flex:1" placeholder="Reason (e.g. Mass Bot Generator)">
-        <button class="btn btn-approve" onclick="addBlacklistRule()">+ Add Blacklist Rule</button>
+        <input id="newRobloxId" class="input-field" style="margin:0;flex:1;min-width:160px" placeholder="Roblox user ID (optional)">
+        <input id="newPattern" class="input-field" style="margin:0;flex:1;min-width:160px" placeholder="Username pattern, e.g. ^CLAIM_NOW_.*">
+        <input id="newReason" class="input-field" style="margin:0;flex:1;min-width:160px" placeholder="Reason">
+        <button class="btn btn-approve" onclick="addBlacklist()">+ Add rule</button>
       </div>
-      <div style="overflow-x:auto">
-        <table>
-          <thead>
-            <tr>
-              <th>Roblox ID</th>
-              <th>Pattern</th>
-              <th>Reason</th>
-              <th>Added</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody id="blacklistTable"></tbody>
-        </table>
-      </div>
+      <div style="overflow-x:auto"><table><thead><tr><th>Roblox ID</th><th>Pattern</th><th>Reason</th><th>Added</th><th></th></tr></thead><tbody id="tBlacklist"></tbody></table></div>
+    </div>
+
+    <div class="pane section" id="p-audit">
+      <div class="sec-title"><span>Activity log (last 100)</span></div>
+      <div style="overflow-x:auto"><table><thead><tr><th>When</th><th>Action</th><th>Details</th></tr></thead><tbody id="tAudit"></tbody></table></div>
     </div>
   </div>
 </div>
+<div class="toast" id="toast"></div>
 
 <script>
-  let adminKey = localStorage.getItem('waurks_admin_key') || '';
+  let adminKey = sessionStorage.getItem('waurks_admin_key') || '';
+  const $ = id => document.getElementById(id);
+  // Escape everything that comes from users (Discord names etc.) so nobody can inject code into this page.
+  const esc = v => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const toDate = d => { if (!d) return null; const s = String(d); return new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(s) ? s : s.replace(' ', 'T') + 'Z'); };
+  const day = d => d ? toDate(d).toLocaleDateString() : '—';
+  const when = d => d ? toDate(d).toLocaleString() : '—';
+  const empty = (cols, msg) => `<tr><td colspan="${cols}" style="text-align:center;color:var(--muted)">${msg}</td></tr>`;
 
-  window.addEventListener('DOMContentLoaded', () => {
-    if (adminKey) {
-      showPortal();
+  function toast(msg) { const t = $('toast'); t.textContent = msg; t.style.display = 'block'; clearTimeout(t._h); t._h = setTimeout(() => t.style.display = 'none', 3500); }
+
+  async function api(path, body) {
+    const headers = { 'Content-Type': 'application/json' };
+    if (adminKey) headers['x-admin-key'] = adminKey;
+    const r = await fetch('/api/v1/admin' + path, { method: body ? 'POST' : 'GET', headers, body: body ? JSON.stringify(body) : undefined });
+    const data = await r.json().catch(() => ({}));
+    if (r.status === 403) { showLogin(); throw new Error('Not an admin'); }
+    if (!r.ok) throw new Error(data.error || ('Error ' + r.status));
+    return data;
+  }
+  const post = (path, body) => api(path, body || {});
+
+  function showLogin(notAdmin) {
+    $('adminPortal').style.display = 'none'; $('loginView').style.display = 'block';
+    $('notAdmin').style.display = notAdmin ? 'block' : 'none';
+  }
+
+  async function boot() {
+    try {
+      const me = await api('/me');
+      $('whoami').textContent = 'ADMIN · ' + me.admin;
+      $('loginView').style.display = 'none'; $('adminPortal').style.display = 'block';
+      loadAll();
+    } catch (e) {
+      const s = await fetch('/api/v1/auth/status').then(r => r.json()).catch(() => ({}));
+      showLogin(s.loggedIn && !s.isAdmin);
     }
+  }
+
+  function loginWithKey() { adminKey = $('adminSecretInput').value.trim(); sessionStorage.setItem('waurks_admin_key', adminKey); boot(); }
+  async function logoutAdmin() { sessionStorage.removeItem('waurks_admin_key'); adminKey = ''; await fetch('/api/v1/auth/logout', { method: 'POST' }); showLogin(); }
+
+  document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x === t));
+    document.querySelectorAll('.pane').forEach(p => p.classList.toggle('on', p.id === 'p-' + t.dataset.p));
+  });
+  const debounce = fn => { let h; return () => { clearTimeout(h); h = setTimeout(fn, 250); }; };
+  $('qUsers').oninput = debounce(() => loadUsers()); $('qKeys').oninput = debounce(() => loadKeys());
+
+  function loadAll() { loadStats(); loadUsers(); loadOrders(); loadKeys(); loadBlacklist(); loadAudit(); }
+  const safe = fn => (...a) => fn(...a).catch(e => toast(e.message));
+
+  const loadStats = safe(async () => {
+    const d = await api('/stats');
+    $('sRevenue').textContent = '$' + (+d.revenueUsd).toFixed(2); $('sWeek').textContent = '$' + (+d.revenue7dUsd).toFixed(2);
+    $('sUsers').textContent = d.totalUsers; $('sKeys').textContent = d.activeSubscriptions; $('sPending').textContent = d.pendingTradeTickets;
+    $('sRoblox').textContent = d.connectedRobloxAccounts; $('sBots').textContent = d.totalBotsBlocked; $('sOrders').textContent = d.totalOrders;
   });
 
-  function loginAdmin() {
-    const key = document.getElementById('adminSecretInput').value.trim();
-    if (!key) return;
-    adminKey = key;
-    localStorage.setItem('waurks_admin_key', key);
-    showPortal();
-  }
-
-  function logoutAdmin() {
-    adminKey = '';
-    localStorage.removeItem('waurks_admin_key');
-    document.getElementById('adminPortal').style.display = 'none';
-    document.getElementById('loginView').style.display = 'block';
-  }
-
-  async function showPortal() {
-    document.getElementById('loginView').style.display = 'none';
-    document.getElementById('adminPortal').style.display = 'block';
-    await loadAllData();
-  }
-
-  async function loadAllData() {
-    await loadStats();
-    await loadOrders();
-    await loadLicenses();
-    await loadBlacklist();
-  }
-
-  async function loadStats() {
-    try {
-      const resp = await fetch('/api/v1/admin/stats', {
-        headers: { 'x-admin-key': adminKey }
-      });
-      if (resp.status === 403) {
-        alert('Invalid admin secret');
-        logoutAdmin();
-        return;
-      }
-      const data = await resp.json();
-      document.getElementById('admRevenue').textContent = '$' + (data.revenueUsd || 0);
-      document.getElementById('admActiveKeys').textContent = data.activeSubscriptions;
-      document.getElementById('admPendingTrades').textContent = data.pendingTradeTickets;
-      document.getElementById('admConnectedRoblox').textContent = data.connectedRobloxAccounts;
-      document.getElementById('admBotsBlocked').textContent = data.totalBotsBlocked;
-    } catch (e) {
-      console.error(e);
+  // Users table — buttons use data-id attributes, never names, so names can't break the page.
+  const loadUsers = safe(async () => {
+    const { users } = await api('/users?q=' + encodeURIComponent($('qUsers').value));
+    $('tUsers').innerHTML = users.length ? users.map(u => `<tr style="${u.banned ? 'opacity:.55' : ''}">
+      <td>${u.avatar ? `<img class="av" src="${esc(u.avatar)}" alt="">` : ''}<b>${esc(u.username)}</b>${u.banned ? ' <span style="color:var(--block);font-weight:700">BANNED</span>' : ''}</td>
+      <td class="mono">${esc(u.discord_id)}</td><td>${esc(u.roblox_username || '—')}</td><td>${+u.active_keys}</td><td>$${(+u.spent_usd).toFixed(2)}</td><td>${day(u.created_at)}</td>
+      <td class="nowrap"><select class="input-field" id="tier${+u.id}"><option value="weekly">7 days</option><option value="monthly">30 days</option><option value="yearly">1 year</option></select>
+        <button class="btn btn-approve" data-act="grant" data-id="${+u.id}">Give key</button>
+        ${u.banned ? `<button class="btn btn-ghost" data-act="unban" data-id="${+u.id}">Unban</button>` : `<button class="btn btn-danger" data-act="ban" data-id="${+u.id}">Ban</button>`}</td></tr>`).join('')
+      : empty(7, 'No users');
+  });
+  $('tUsers').onclick = safe(async e => {
+    const b = e.target.closest('button[data-act]'); if (!b) return;
+    const id = b.dataset.id, act = b.dataset.act;
+    if (act === 'grant') {
+      const r = await post(`/users/${id}/grant`, { tier: $('tier' + id).value });
+      try { await navigator.clipboard.writeText(r.license.keyCode); } catch (_) {}
+      toast('Key issued (copied): ' + r.license.keyCode);
+    } else if (act === 'ban') {
+      if (!confirm('Ban this user? Their keys are revoked and their cloud scanning stops.')) return;
+      await post(`/users/${id}/ban`); toast('Banned');
+    } else if (act === 'unban') {
+      await post(`/users/${id}/unban`); toast('Unbanned. Give them a key if they need one.');
     }
-  }
+    loadUsers(); loadKeys(); loadStats(); loadAudit();
+  });
 
-  async function loadOrders() {
-    try {
-      const resp = await fetch('/api/v1/admin/orders', {
-        headers: { 'x-admin-key': adminKey }
-      });
-      const data = await resp.json();
-      const tbody = document.getElementById('tradeOrdersTable');
-
-      if (!data.orders || data.orders.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted)">No orders found</td></tr>';
-        return;
-      }
-
-      tbody.innerHTML = data.orders.map(o => {
-        const isPending = o.status === 'pending';
-        return `
-          <tr>
-            <td style="font-family:monospace;font-weight:700;color:var(--gold)">${o.trade_ticket_id || o.order_id}</td>
-            <td><b>${o.discord_username}</b></td>
-            <td>${o.tier.toUpperCase()}</td>
-            <td><b>$${o.amount_usd}</b></td>
-            <td>${o.payment_method === 'items' ? '🎮 Items' : '🪙 ' + (o.crypto_currency || 'Crypto')}</td>
-            <td><span style="font-weight:700;color:${isPending ? 'var(--gold)' : 'var(--pass)'}">${o.status.toUpperCase()}</span></td>
-            <td style="font-size:11px;color:var(--muted)">${new Date(o.created_at).toLocaleDateString()}</td>
-            <td>
-              ${isPending ? `
-                <button class="btn btn-approve" onclick="approveOrder('${o.order_id}')">✓ Approve & Issue Key</button>
-                <button class="btn btn-danger" onclick="cancelOrder('${o.order_id}')">✕ Cancel</button>
-              ` : `<span style="font-family:monospace;font-size:11px;color:var(--pass)">Key: ${o.key_code || 'Issued'}</span>`}
-            </td>
-          </tr>
-        `;
-      }).join('');
-    } catch (e) {
-      console.error(e);
+  const loadOrders = safe(async () => {
+    const { orders } = await api('/orders');
+    $('tOrders').innerHTML = orders.length ? orders.map(o => { const p = o.status === 'pending'; return `<tr>
+      <td class="mono" style="color:var(--gold)">${esc(o.trade_ticket_id || o.order_id)}</td><td><b>${esc(o.discord_username)}</b></td><td>${esc(o.tier)}</td><td>$${esc(o.amount_usd)}</td>
+      <td>${o.payment_method === 'items' ? '🎮 Items' : '🪙 ' + esc(o.crypto_currency || 'Crypto')}</td>
+      <td style="font-weight:700;color:${p ? 'var(--gold)' : o.status === 'completed' ? 'var(--pass)' : 'var(--muted)'}">${esc(String(o.status).toUpperCase())}</td><td>${day(o.created_at)}</td>
+      <td class="nowrap">${p ? `<button class="btn btn-approve" data-act="approve" data-id="${esc(o.order_id)}">✓ Approve</button> <button class="btn btn-danger" data-act="cancel" data-id="${esc(o.order_id)}">✕ Cancel</button>` : `<span class="mono" style="font-size:11px">${esc(o.key_code || '')}</span>`}</td></tr>`; }).join('')
+      : empty(8, 'No orders');
+  });
+  $('tOrders').onclick = safe(async e => {
+    const b = e.target.closest('button[data-act]'); if (!b) return;
+    const id = encodeURIComponent(b.dataset.id);
+    if (b.dataset.act === 'approve') {
+      if (!confirm('Mark this order as paid and issue the key?')) return;
+      const r = await post(`/orders/${id}/approve`); toast('Key issued: ' + r.result.license.keyCode);
+    } else {
+      if (!confirm('Cancel this order?')) return;
+      await post(`/orders/${id}/cancel`);
     }
-  }
+    loadAll();
+  });
 
-  async function approveOrder(orderId) {
-    if (!confirm('Confirm receipt of in-game items trade? This will automatically unlock and issue the key to the buyer.')) return;
-    try {
-      const resp = await fetch(`/api/v1/admin/orders/${orderId}/approve`, {
-        method: 'POST',
-        headers: { 'x-admin-key': adminKey }
-      });
-      const data = await resp.json();
-      if (data.success) {
-        alert('Trade approved! Key issued: ' + data.result.license.keyCode);
-        await loadAllData();
-      } else {
-        alert('Error: ' + data.error);
-      }
-    } catch (e) {
-      alert('Error: ' + e.message);
-    }
-  }
+  const loadKeys = safe(async () => {
+    const { licenses } = await api('/licenses?q=' + encodeURIComponent($('qKeys').value));
+    $('tKeys').innerHTML = licenses.length ? licenses.map(l => { const st = l.status === 'active' && toDate(l.expires_at) < new Date() ? 'expired' : l.status; return `<tr>
+      <td class="mono" style="color:var(--pass);cursor:pointer" title="Click to copy" data-act="copy" data-key="${esc(l.key_code)}">${esc(l.key_code)}</td>
+      <td>${esc(l.owner_username)}</td><td>${esc(l.tier)}</td><td style="font-weight:700;color:${st === 'active' ? 'var(--pass)' : 'var(--block)'}">${esc(String(st).toUpperCase())}</td>
+      <td>${l.hwid_binding ? '🔒 locked' : '—'}</td><td>${day(l.expires_at)}</td>
+      <td class="nowrap"><button class="btn btn-ghost" data-act="extend" data-days="7" data-id="${+l.id}">+7d</button> <button class="btn btn-ghost" data-act="extend" data-days="30" data-id="${+l.id}">+30d</button> <button class="btn btn-ghost" data-act="extend" data-days="365" data-id="${+l.id}">+1y</button>
+        ${l.hwid_binding ? `<button class="btn btn-ghost" data-act="hwid" data-id="${+l.id}">Reset device</button>` : ''}
+        ${l.status !== 'revoked' ? `<button class="btn btn-danger" data-act="revoke" data-id="${+l.id}">Revoke</button>` : ''}</td></tr>`; }).join('')
+      : empty(7, 'No keys');
+  });
+  $('tKeys').onclick = safe(async e => {
+    const el = e.target.closest('[data-act]'); if (!el) return;
+    const id = el.dataset.id, act = el.dataset.act;
+    if (act === 'copy') { try { await navigator.clipboard.writeText(el.dataset.key); toast('Copied'); } catch (_) {} return; }
+    if (act === 'extend') { await post(`/licenses/${id}/extend`, { days: +el.dataset.days }); toast('Added ' + el.dataset.days + ' days'); }
+    if (act === 'hwid') { await post(`/licenses/${id}/reset-hwid`); toast('Device lock cleared'); }
+    if (act === 'revoke') { if (!confirm('Revoke this key? It stops working right away.')) return; await post(`/licenses/${id}/revoke`); }
+    loadKeys(); loadStats(); loadAudit();
+  });
 
-  async function cancelOrder(orderId) {
-    if (!confirm('Cancel this trade ticket?')) return;
-    try {
-      await fetch(`/api/v1/admin/orders/${orderId}/cancel`, {
-        method: 'POST',
-        headers: { 'x-admin-key': adminKey }
-      });
-      await loadAllData();
-    } catch (e) {
-      alert('Error: ' + e.message);
-    }
-  }
+  const loadBlacklist = safe(async () => {
+    const { blacklist } = await api('/blacklist');
+    $('tBlacklist').innerHTML = blacklist.length ? blacklist.map(b => `<tr><td class="mono">${esc(b.roblox_user_id || '—')}</td><td class="mono" style="color:var(--block)">${esc(b.username_pattern || '—')}</td><td>${esc(b.reason)}</td><td>${day(b.added_at)}</td>
+      <td><button class="btn btn-danger" data-id="${+b.id}">Delete</button></td></tr>`).join('') : empty(5, 'No rules');
+  });
+  $('tBlacklist').onclick = safe(async e => {
+    const b = e.target.closest('button[data-id]'); if (!b) return;
+    await post(`/blacklist/${b.dataset.id}/delete`); loadBlacklist(); loadAudit();
+  });
+  const addBlacklist = safe(async () => {
+    const robloxUserId = $('newRobloxId').value.trim(), usernamePattern = $('newPattern').value.trim(), reason = $('newReason').value.trim();
+    if (!robloxUserId && !usernamePattern) return toast('Enter a Roblox ID or a pattern');
+    await post('/blacklist/add', { robloxUserId, usernamePattern, reason });
+    ['newRobloxId', 'newPattern', 'newReason'].forEach(i => $(i).value = '');
+    loadBlacklist(); loadAudit();
+  });
 
-  async function loadLicenses() {
-    try {
-      const resp = await fetch('/api/v1/admin/licenses', {
-        headers: { 'x-admin-key': adminKey }
-      });
-      const data = await resp.json();
-      const tbody = document.getElementById('licensesTable');
+  const loadAudit = safe(async () => {
+    const { logs } = await api('/audit');
+    $('tAudit').innerHTML = logs.length ? logs.map(l => `<tr><td class="nowrap">${when(l.created_at)}</td><td class="mono">${esc(l.action)}</td><td>${esc(l.details)}</td></tr>`).join('')
+      : empty(3, 'Nothing yet');
+  });
 
-      tbody.innerHTML = (data.licenses || []).map(l => {
-        const isRevoked = l.status === 'revoked';
-        return `
-          <tr>
-            <td style="font-family:monospace;font-weight:700;color:var(--pass)">${l.key_code}</td>
-            <td>${l.owner_username}</td>
-            <td>${l.tier.toUpperCase()}</td>
-            <td><span style="font-weight:700;color:${isRevoked ? 'var(--block)' : 'var(--pass)'}">${l.status.toUpperCase()}</span></td>
-            <td style="font-size:12px;color:var(--muted)">${new Date(l.expires_at).toLocaleDateString()}</td>
-            <td>
-              <div style="display:flex;gap:4px">
-                <button class="btn btn-ghost" onclick="extendLicense(${l.id}, 7)">+7d</button>
-                <button class="btn btn-ghost" onclick="extendLicense(${l.id}, 30)">+30d</button>
-                ${!isRevoked ? `<button class="btn btn-danger" onclick="revokeLicense(${l.id})">Revoke</button>` : ''}
-              </div>
-            </td>
-          </tr>
-        `;
-      }).join('');
-    } catch (e) {
-      console.error(e);
-    }
-  }
-
-  async function extendLicense(id, days) {
-    try {
-      await fetch(`/api/v1/admin/licenses/${id}/extend`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-admin-key': adminKey },
-        body: JSON.stringify({ days })
-      });
-      await loadLicenses();
-    } catch (e) {
-      alert('Error: ' + e.message);
-    }
-  }
-
-  async function revokeLicense(id) {
-    if (!confirm('Revoke this key? It will be banned permanently.')) return;
-    try {
-      await fetch(`/api/v1/admin/licenses/${id}/revoke`, {
-        method: 'POST',
-        headers: { 'x-admin-key': adminKey }
-      });
-      await loadLicenses();
-    } catch (e) {
-      alert('Error: ' + e.message);
-    }
-  }
-
-  async function loadBlacklist() {
-    try {
-      const resp = await fetch('/api/v1/admin/blacklist', {
-        headers: { 'x-admin-key': adminKey }
-      });
-      const data = await resp.json();
-      const tbody = document.getElementById('blacklistTable');
-
-      tbody.innerHTML = (data.blacklist || []).map(b => `
-        <tr>
-          <td style="font-family:monospace">${b.roblox_user_id || '—'}</td>
-          <td style="font-family:monospace;color:var(--block)">${b.username_pattern || '—'}</td>
-          <td>${b.reason}</td>
-          <td style="font-size:11px;color:var(--muted)">${new Date(b.added_at).toLocaleDateString()}</td>
-          <td>
-            <button class="btn btn-danger" onclick="deleteBlacklist(${b.id})">Delete</button>
-          </td>
-        </tr>
-      `).join('');
-    } catch (e) {
-      console.error(e);
-    }
-  }
-
-  async function addBlacklistRule() {
-    const robloxUserId = document.getElementById('newRobloxId').value.trim();
-    const usernamePattern = document.getElementById('newPattern').value.trim();
-    const reason = document.getElementById('newReason').value.trim();
-
-    if (!robloxUserId && !usernamePattern) {
-      alert('Enter a Roblox User ID or regex pattern');
-      return;
-    }
-
-    try {
-      await fetch('/api/v1/admin/blacklist/add', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-admin-key': adminKey },
-        body: JSON.stringify({ robloxUserId, usernamePattern, reason })
-      });
-      document.getElementById('newRobloxId').value = '';
-      document.getElementById('newPattern').value = '';
-      document.getElementById('newReason').value = '';
-      await loadBlacklist();
-    } catch (e) {
-      alert('Error: ' + e.message);
-    }
-  }
-
-  async function deleteBlacklist(id) {
-    try {
-      await fetch(`/api/v1/admin/blacklist/${id}/delete`, {
-        method: 'POST',
-        headers: { 'x-admin-key': adminKey }
-      });
-      await loadBlacklist();
-    } catch (e) {
-      alert('Error: ' + e.message);
-    }
-  }
+  boot();
 </script>
 </body>
 </html>
-

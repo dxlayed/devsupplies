@@ -71,7 +71,9 @@ async function getSessionUser(req) {
   if (!userId || !expires || !sig) return null;
   if (!safeEqual(sig, sign(`${userId}.${expires}`))) return null;
   if (Date.now() > Number(expires)) return null;
-  return (await db.get(`SELECT * FROM users WHERE id = ?`, [userId])) || null;
+  const user = await db.get(`SELECT * FROM users WHERE id = ?`, [userId]);
+  if (!user || user.banned) return null;
+  return user;
 }
 
 async function authMiddleware(req, res, next) {
@@ -96,7 +98,7 @@ function devOnly(req, res, next) {
 app.get('/api/v1/auth/status', async (req, res) => {
   const user = await getSessionUser(req);
   if (!user) return res.json({ loggedIn: false, devLogin: DEV_MODE });
-  res.json({ loggedIn: true, user, devLogin: DEV_MODE });
+  res.json({ loggedIn: true, user, devLogin: DEV_MODE, isAdmin: isAdminUser(user) });
 });
 
 app.post('/api/v1/auth/logout', (req, res) => {
@@ -422,19 +424,138 @@ if (ADMIN_SECRET.length < 16) {
   console.warn('[admin] ADMIN_KEY is not set (or under 16 chars): the admin panel is locked.');
 }
 
-function adminAuthMiddleware(req, res, next) {
-  const adminKey = req.headers['x-admin-key'];
-  if (ADMIN_SECRET.length < 16 || !adminKey || !safeEqual(adminKey, ADMIN_SECRET)) {
-    return res.status(403).json({ error: 'Forbidden: Invalid Admin Secret' });
-  }
-  next();
+// Discord accounts that get the admin panel just by signing in.
+// Add more in Railway with ADMIN_DISCORD_IDS=id1,id2
+const ADMIN_DISCORD_IDS = new Set(
+  ['1094670363071361147', ...(process.env.ADMIN_DISCORD_IDS || '').split(',')]
+    .map(s => s.trim()).filter(Boolean)
+);
+function isAdminUser(user) {
+  return !!user && ADMIN_DISCORD_IDS.has(String(user.discord_id));
 }
+
+// Add the "banned" column to older databases (ignored if it already exists)
+db.run(`ALTER TABLE users ADD COLUMN banned INTEGER DEFAULT 0`).catch(() => {});
+
+async function adminAuthMiddleware(req, res, next) {
+  try {
+    const user = await getSessionUser(req);
+    if (isAdminUser(user)) {
+      req.admin = user.username;
+      return next();
+    }
+    const adminKey = req.headers['x-admin-key'];
+    if (ADMIN_SECRET.length >= 16 && adminKey && safeEqual(adminKey, ADMIN_SECRET)) {
+      req.admin = 'admin-key';
+      return next();
+    }
+    return res.status(403).json({ error: 'Forbidden: admins only' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+async function logAdmin(req, action, details, licenseId = null) {
+  try {
+    await db.run(
+      `INSERT INTO audit_logs (license_id, action, details, ip_address) VALUES (?, ?, ?, ?)`,
+      [licenseId, `ADMIN_${action}`, `${req.admin}: ${details}`, req.ip]
+    );
+  } catch (e) { /* never block an admin action on logging */ }
+}
+
+app.get('/api/v1/admin/me', adminAuthMiddleware, (req, res) => {
+  res.json({ admin: req.admin });
+});
+
+// ---- Users ----
+app.get('/api/v1/admin/users', adminAuthMiddleware, async (req, res) => {
+  try {
+    const q = `%${String(req.query.q || '').trim()}%`;
+    const users = await db.all(
+      `SELECT u.id, u.discord_id, u.username, u.avatar, u.created_at, COALESCE(u.banned,0) AS banned,
+        (SELECT COUNT(*) FROM licenses l WHERE l.user_id = u.id AND l.status = 'active' AND l.expires_at > datetime('now')) AS active_keys,
+        (SELECT COALESCE(SUM(amount_usd),0) FROM orders o WHERE o.user_id = u.id AND o.status = 'completed') AS spent_usd,
+        (SELECT roblox_username FROM roblox_accounts r WHERE r.user_id = u.id LIMIT 1) AS roblox_username
+       FROM users u
+       WHERE u.username LIKE ? OR u.discord_id LIKE ?
+       ORDER BY u.id DESC LIMIT 100`,
+      [q, q]
+    );
+    res.json({ users });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/v1/admin/users/:id/grant', adminAuthMiddleware, async (req, res) => {
+  try {
+    const tier = req.body.tier;
+    if (!TIER_CONFIG[tier]) return res.status(400).json({ error: 'Invalid tier' });
+    const user = await db.get(`SELECT * FROM users WHERE id = ?`, [req.params.id]);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    const license = await keyService.issueKey(user.id, tier);
+    await logAdmin(req, 'GRANT_KEY', `gave ${tier} key to ${user.username} (${user.discord_id})`, license.licenseId);
+    res.json({ success: true, license });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.post('/api/v1/admin/users/:id/ban', adminAuthMiddleware, async (req, res) => {
+  try {
+    const user = await db.get(`SELECT * FROM users WHERE id = ?`, [req.params.id]);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (isAdminUser(user)) return res.status(400).json({ error: 'You cannot ban an admin' });
+    await db.run(`UPDATE users SET banned = 1 WHERE id = ?`, [user.id]);
+    await db.run(`UPDATE licenses SET status = 'revoked' WHERE user_id = ? AND status = 'active'`, [user.id]);
+    await db.run(`UPDATE roblox_accounts SET is_active = 0 WHERE user_id = ?`, [user.id]);
+    await logAdmin(req, 'BAN', `banned ${user.username} (${user.discord_id}), revoked their keys`);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.post('/api/v1/admin/users/:id/unban', adminAuthMiddleware, async (req, res) => {
+  try {
+    const user = await db.get(`SELECT * FROM users WHERE id = ?`, [req.params.id]);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    await db.run(`UPDATE users SET banned = 0 WHERE id = ?`, [user.id]);
+    await logAdmin(req, 'UNBAN', `unbanned ${user.username} (${user.discord_id})`);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// ---- Admin activity log ----
+app.get('/api/v1/admin/audit', adminAuthMiddleware, async (req, res) => {
+  try {
+    const logs = await db.all(`SELECT * FROM audit_logs ORDER BY id DESC LIMIT 100`);
+    res.json({ logs });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/v1/admin/licenses/:licenseId/reset-hwid', adminAuthMiddleware, async (req, res) => {
+  try {
+    await db.run(`UPDATE licenses SET hwid_binding = NULL WHERE id = ?`, [req.params.licenseId]);
+    await logAdmin(req, 'RESET_HWID', `reset device lock on license #${req.params.licenseId}`, req.params.licenseId);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
 
 app.get('/api/v1/admin/stats', adminAuthMiddleware, async (req, res) => {
   try {
     const revenue = await db.get(`SELECT SUM(amount_usd) as total_usd, COUNT(*) as total_orders FROM orders WHERE status = 'completed'`);
     const activeKeys = await db.get(`SELECT COUNT(*) as active_count FROM licenses WHERE status = 'active' AND expires_at > datetime('now')`);
     const pendingTrades = await db.get(`SELECT COUNT(*) as pending_count FROM orders WHERE payment_method = 'items' AND status = 'pending'`);
+    const users = await db.get(`SELECT COUNT(*) as n FROM users`);
+    const week = await db.get(`SELECT COALESCE(SUM(amount_usd),0) as usd FROM orders WHERE status = 'completed' AND created_at > datetime('now','-7 days')`);
     const connectedAccounts = await db.get(`SELECT COUNT(*) as accounts_count FROM roblox_accounts`);
     const botStats = await db.get(
       `SELECT 
@@ -446,6 +567,8 @@ app.get('/api/v1/admin/stats', adminAuthMiddleware, async (req, res) => {
 
     res.json({
       revenueUsd: revenue?.total_usd || 0,
+      revenue7dUsd: week?.usd || 0,
+      totalUsers: users?.n || 0,
       totalOrders: revenue?.total_orders || 0,
       activeSubscriptions: activeKeys?.active_count || 0,
       pendingTradeTickets: pendingTrades?.pending_count || 0,
@@ -465,7 +588,7 @@ app.get('/api/v1/admin/orders', adminAuthMiddleware, async (req, res) => {
        FROM orders o 
        JOIN users u ON o.user_id = u.id 
        LEFT JOIN licenses l ON o.license_id = l.id 
-       ORDER BY o.id DESC LIMIT 50`
+       ORDER BY (o.status = 'pending') DESC, o.id DESC LIMIT 100`
     );
     res.json({ orders });
   } catch (err) {
@@ -476,6 +599,7 @@ app.get('/api/v1/admin/orders', adminAuthMiddleware, async (req, res) => {
 app.post('/api/v1/admin/orders/:orderId/approve', adminAuthMiddleware, async (req, res) => {
   try {
     const result = await paymentService.completeOrder(req.params.orderId);
+    await logAdmin(req, 'APPROVE_ORDER', `approved order ${req.params.orderId}`);
     res.json({ success: true, result });
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -485,6 +609,7 @@ app.post('/api/v1/admin/orders/:orderId/approve', adminAuthMiddleware, async (re
 app.post('/api/v1/admin/orders/:orderId/cancel', adminAuthMiddleware, async (req, res) => {
   try {
     await db.run(`UPDATE orders SET status = 'cancelled' WHERE order_id = ?`, [req.params.orderId]);
+    await logAdmin(req, 'CANCEL_ORDER', `cancelled order ${req.params.orderId}`);
     res.json({ success: true });
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -497,7 +622,9 @@ app.get('/api/v1/admin/licenses', adminAuthMiddleware, async (req, res) => {
       `SELECT l.*, u.username as owner_username, u.discord_id 
        FROM licenses l 
        JOIN users u ON l.user_id = u.id 
-       ORDER BY l.id DESC LIMIT 50`
+       WHERE l.key_code LIKE ? OR u.username LIKE ? OR u.discord_id LIKE ?
+       ORDER BY l.id DESC LIMIT 100`,
+      Array(3).fill(`%${String(req.query.q || '').trim()}%`)
     );
     res.json({ licenses });
   } catch (err) {
@@ -508,6 +635,7 @@ app.get('/api/v1/admin/licenses', adminAuthMiddleware, async (req, res) => {
 app.post('/api/v1/admin/licenses/:licenseId/revoke', adminAuthMiddleware, async (req, res) => {
   try {
     await db.run(`UPDATE licenses SET status = 'revoked' WHERE id = ?`, [req.params.licenseId]);
+    await logAdmin(req, 'REVOKE', `revoked license #${req.params.licenseId}`, req.params.licenseId);
     res.json({ success: true, message: 'License revoked' });
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -516,7 +644,8 @@ app.post('/api/v1/admin/licenses/:licenseId/revoke', adminAuthMiddleware, async 
 
 app.post('/api/v1/admin/licenses/:licenseId/extend', adminAuthMiddleware, async (req, res) => {
   try {
-    const { days = 7 } = req.body;
+    const days = Number(req.body.days);
+    if (!Number.isInteger(days) || days < 1 || days > 3650) return res.status(400).json({ error: 'Days must be 1-3650' });
     const license = await db.get(`SELECT * FROM licenses WHERE id = ?`, [req.params.licenseId]);
     if (!license) return res.status(404).json({ error: 'License not found' });
 
@@ -524,6 +653,7 @@ app.post('/api/v1/admin/licenses/:licenseId/extend', adminAuthMiddleware, async 
     const newExp = new Date(Math.max(Date.now(), currentExp) + days * 86400000).toISOString();
 
     await db.run(`UPDATE licenses SET expires_at = ?, status = 'active' WHERE id = ?`, [newExp, req.params.licenseId]);
+    await logAdmin(req, 'EXTEND', `added ${days} days to license #${req.params.licenseId}`, req.params.licenseId);
     res.json({ success: true, newExpiresAt: newExp });
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -546,6 +676,7 @@ app.post('/api/v1/admin/blacklist/add', adminAuthMiddleware, async (req, res) =>
       `INSERT INTO global_bot_blacklist (roblox_user_id, username_pattern, reason) VALUES (?, ?, ?)`,
       [robloxUserId || null, usernamePattern || null, reason || 'Flagged botnet']
     );
+    await logAdmin(req, 'BLACKLIST_ADD', `added ${robloxUserId || usernamePattern}`);
     res.json({ success: true });
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -555,6 +686,7 @@ app.post('/api/v1/admin/blacklist/add', adminAuthMiddleware, async (req, res) =>
 app.post('/api/v1/admin/blacklist/:id/delete', adminAuthMiddleware, async (req, res) => {
   try {
     await db.run(`DELETE FROM global_bot_blacklist WHERE id = ?`, [req.params.id]);
+    await logAdmin(req, 'BLACKLIST_DELETE', `removed blacklist rule #${req.params.id}`);
     res.json({ success: true });
   } catch (err) {
     res.status(400).json({ error: err.message });
