@@ -578,8 +578,8 @@ class RobloxCloudService {
       const [names, gotHeadshots, presMap] = await Promise.all([
         robloxProfiles.getNames(idsToCheck, authPost).catch(() => new Map()),
         robloxProfiles.getHeadshots(idsToCheck).catch(() => new Map()),
-        // Only check presence for Standard filter. MM2 mode only checks badge.
-        mm2Filter ? null : presence.getUserPresences(idsToCheck, ext ? publicPost : (url, body) => this.robloxRequest(url, 'POST', cookie, body, account.roblox_id)).catch(() => null)
+        // Online status for both filters (Step 2)
+        presence.getUserPresences(idsToCheck, ext ? publicPost : (url, body) => this.robloxRequest(url, 'POST', cookie, body, account.roblox_id)).catch(() => null)
       ]);
       headshots = gotHeadshots || new Map();
       allPresences = presMap;
@@ -655,10 +655,14 @@ class RobloxCloudService {
 
       let evaluation, mm2 = null;
       if (mm2Filter) {
-        // MM2 filter: only checks the MM2 Level 10 badge (no online check)
+        // MM2 filter: Step 1 = MM2 Level 10 badge, Step 2 = online right now
         mm2 = live ? mm2BadgeMap.get(sid) : !!bases[i].mm2;
         if (mm2 !== true) {
+          // Step 1 failed: no badge
           evaluation = { verdict: 'DECLINE', threatScore: 100, reasons: [mm2 === null ? 'No MM2 Level 10 badge (inventory private)' : 'No MM2 Level 10 badge'] };
+        } else if (online[i] === false) {
+          // Step 2 failed: has the badge but is offline
+          evaluation = { verdict: 'DECLINE', threatScore: 70, reasons: ['Offline (failed step 2)', 'Has MM2 Level 10 badge'] };
         } else {
           evaluation = { verdict: 'ACCEPT', threatScore: 0, reasons: ['MM2 trades accepted'] };
         }
