@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Waurks",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Filters bot friend requests on Roblox. Uses the Roblox login already in your browser.",
   "permissions": ["storage", "alarms"],
   "host_permissions": [

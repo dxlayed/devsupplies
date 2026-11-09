@@ -27,6 +27,15 @@ db.run(`CREATE TABLE IF NOT EXISTS ext_actions (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP, done INTEGER DEFAULT 0
 )`).catch(() => {});
 
+// Browser extension sign-in (no key needed): one-time connect codes and per-browser tokens
+db.run(`CREATE TABLE IF NOT EXISTS ext_connect (
+  code TEXT PRIMARY KEY, device TEXT NOT NULL, user_id INTEGER, created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+)`).catch(() => {});
+db.run(`CREATE TABLE IF NOT EXISTS ext_tokens (
+  token_hash TEXT PRIMARY KEY, user_id INTEGER NOT NULL, device TEXT NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP, last_used_at DATETIME
+)`).catch(() => {});
+
 const isTestCookie = c => c.startsWith('TEST_COOKIE_') || c.startsWith('DEMO_');
 const toMs = d => new Date(String(d).replace(' ', 'T') + (/[zZ]|[+-]\d\d:?\d\d$/.test(String(d)) ? '' : 'Z')).getTime();
 const safeJson = (v, dflt) => {
@@ -660,8 +669,11 @@ class RobloxCloudService {
       const fr = toCheck[i].friendRequest || {};
       const mutuals = Array.isArray(toCheck[i].mutualFriendsList) ? toCheck[i].mutualFriendsList.length : 0;
 
-      let evaluation, mm2 = null;
-      if (mm2Filter) {
+      let evaluation, mm2 = null, recheckSoon = false;
+      const blocked = await db.get(`SELECT reason FROM global_bot_blacklist WHERE roblox_user_id = ?`, [sid]).catch(() => null);
+      if (blocked) {
+        evaluation = { verdict: 'DECLINE', threatScore: 100, reasons: ['On the Waurks block list'] };
+      } else if (mm2Filter) {
         // MM2 filter: only checks the MM2 Level 10 badge (no online check)
         mm2 = live ? mm2BadgeMap.get(sid) : !!bases[i].mm2;
         if (mm2 !== true) {
@@ -678,6 +690,14 @@ class RobloxCloudService {
           burstSiblings: burst[i],
           wave: waveOf(toCheck[i])
         });
+        // Badge rule: 0 badges, or badges we can't see, = flagged
+        if (evaluation.verdict !== 'DECLINE' && live && !(profile.badgeCount > 0)) {
+          const unknown = profile.badgeCount === null || profile.badgeCount === undefined;
+          evaluation.verdict = 'DECLINE';
+          evaluation.threatScore = Math.max(evaluation.threatScore, 70);
+          evaluation.reasons = [unknown ? 'Badges hidden or unknown' : 'No badges', ...evaluation.reasons];
+          if (unknown) recheckSoon = true;
+        }
         // STEP 2: anyone who passed Step 1 also has to be online right now (bots are usually offline)
         if (evaluation.verdict !== 'DECLINE' && online[i] === false) {
           evaluation.verdict = 'DECLINE';
@@ -714,13 +734,14 @@ class RobloxCloudService {
       };
       await db.run(
         `INSERT INTO friend_requests (user_id, target_id, name, display_name, avatar_url, verdict, score, reasons, facts, status, auto, sent_at, checked_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', ?), CURRENT_TIMESTAMP)
          ON CONFLICT(user_id, target_id) DO UPDATE SET name = excluded.name, display_name = excluded.display_name,
            avatar_url = COALESCE(excluded.avatar_url, friend_requests.avatar_url), verdict = excluded.verdict, score = excluded.score,
            reasons = excluded.reasons, facts = excluded.facts, status = excluded.status, auto = excluded.auto,
-           checked_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP`,
+           checked_at = excluded.checked_at, updated_at = CURRENT_TIMESTAMP`,
         [userId, sid, name, displayName, headshots.get(sid) || null, evaluation.verdict, evaluation.threatScore,
-         JSON.stringify(evaluation.reasons.slice(0, 4)), JSON.stringify(facts), status, status === 'pending' ? 0 : 1, fr.sentAt || null]
+         JSON.stringify(evaluation.reasons.slice(0, 4)), JSON.stringify(facts), status, status === 'pending' ? 0 : 1, fr.sentAt || null,
+         recheckSoon ? '-55 minutes' : '+0 minutes']
       );
 
       await db.run(
@@ -869,6 +890,31 @@ class RobloxCloudService {
   async reportBot(userId, targetId) {
     await detectionEngine.recordReport(String(targetId), userId, true);
     return this.answerRequest(userId, targetId, false);
+  }
+
+  /**
+   * Admin pressed "This is a bot": put the account on the global block list so it's a bot
+   * for EVERY customer (hidden, never auto-accepted), and update everyone's lists right away.
+   */
+  async adminMarkBot(adminUser, targetId) {
+    const tid = String(targetId).replace(/\D/g, '');
+    if (!tid) throw new Error('Bad account ID');
+    const row = await db.get(`SELECT name FROM friend_requests WHERE target_id = ? LIMIT 1`, [tid]);
+    await db.run(
+      `INSERT OR IGNORE INTO global_bot_blacklist (roblox_user_id, username_pattern, reason) VALUES (?, NULL, ?)`,
+      [tid, `Marked as a bot by admin ${adminUser.username}`]
+    );
+    await detectionEngine.recordReport(tid, adminUser.id, true);
+    await db.run(
+      `UPDATE friend_requests SET verdict = 'DECLINE', score = 100, reasons = ?, updated_at = CURRENT_TIMESTAMP
+       WHERE target_id = ? AND status = 'pending'`,
+      [JSON.stringify(['On the Waurks block list']), tid]
+    );
+    await db.run(
+      `INSERT INTO audit_logs (license_id, action, details) VALUES (NULL, 'ADMIN_BLACKLIST_ADD', ?)`,
+      [`${adminUser.username}: marked ${row?.name || tid} (${tid}) as a bot from the Friend requests page`]
+    ).catch(() => {});
+    return { success: true };
   }
 
   /**

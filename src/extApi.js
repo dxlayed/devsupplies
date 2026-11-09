@@ -15,6 +15,36 @@ const db = require('./database');
 const { keyService } = require('./services/keyService');
 const robloxCloudService = require('./services/robloxCloudService');
 
+const crypto = require('crypto');
+const hashToken = t => crypto.createHash('sha256').update(String(t)).digest('hex');
+
+/**
+ * Find the customer behind a request: a sign-in token from the Connect flow (normal),
+ * or a license key (older extension versions). Returns { user, license } or { error, status }.
+ */
+async function identify(b, ip) {
+  const device = String(b.device || '').slice(0, 100);
+  if (b.token) {
+    const t = await db.get(`SELECT * FROM ext_tokens WHERE token_hash = ?`, [hashToken(b.token)]);
+    if (!t || t.device !== device) return { status: 401, error: 'This browser is not connected anymore. Press Connect in the extension.', reconnect: true };
+    await db.run(`UPDATE ext_tokens SET last_used_at = CURRENT_TIMESTAMP WHERE token_hash = ?`, [t.token_hash]);
+    const user = await db.get(`SELECT * FROM users WHERE id = ?`, [t.user_id]);
+    const license = await db.get(
+      `SELECT * FROM licenses WHERE user_id = ? AND status = 'active' AND expires_at > datetime('now') ORDER BY expires_at DESC LIMIT 1`,
+      [t.user_id]
+    );
+    if (!license) return { status: 401, error: 'You need an active key. Get one on the site.', expired: true };
+    return { user, license };
+  }
+  const key = String(b.key || '').trim();
+  if (!key || !device) return { status: 400, error: 'Press Connect in the extension' };
+  const v = await keyService.validateKey(key, device, ip);
+  if (!v.valid) return { status: 401, error: v.reason, expired: !!v.expired };
+  const license = await db.get(`SELECT * FROM licenses WHERE id = ?`, [v.licenseId]);
+  const user = await db.get(`SELECT * FROM users WHERE id = ?`, [license.user_id]);
+  return { user, license };
+}
+
 const lastSync = new Map(); // licenseId -> time of last sync (rate limit)
 const MAX_REQUESTS_PER_SYNC = 1200; // supports 500+ backlogs in one go
 
@@ -36,17 +66,14 @@ function mount(app) {
   app.post('/api/v1/ext/sync', async (req, res) => {
     try {
       const b = req.body || {};
-      const key = String(b.key || '').trim();
-      const device = String(b.device || '').slice(0, 100);
       const robloxId = cleanId(b.roblox?.id);
-      if (!key || !device) return res.status(400).json({ error: 'Missing key' });
       if (!robloxId) return res.status(400).json({ error: 'Log in to roblox.com in this browser first' });
 
-      // 1) Key + device lock
+      // 1) Who is this? (sign-in token from Connect, or an old-style key)
       const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-      const v = await keyService.validateKey(key, device, ip);
-      if (!v.valid) return res.status(401).json({ error: v.reason, expired: !!v.expired });
-      const license = await db.get(`SELECT * FROM licenses WHERE id = ?`, [v.licenseId]);
+      const who = await identify(b, ip);
+      if (who.error) return res.status(who.status).json({ error: who.error, expired: !!who.expired, reconnect: !!who.reconnect });
+      const license = who.license;
 
       // 2) One Roblox account per key
       if (license.roblox_id && license.roblox_id !== robloxId) {
@@ -162,6 +189,41 @@ function mount(app) {
     } catch (err) {
       console.error('[ext] sync failed:', err.message);
       res.status(500).json({ error: 'Server error, retrying soon', nextMs: 10000 });
+    }
+  });
+
+  // ---- Connect flow (no key needed) ----
+  // 1) Extension asks for a one-time code and opens the site's /connect page with it
+  app.post('/api/v1/ext/connect/start', async (req, res) => {
+    try {
+      const device = String(req.body?.device || '').slice(0, 100);
+      if (!device) return res.status(400).json({ error: 'Missing device' });
+      await db.run(`DELETE FROM ext_connect WHERE created_at < datetime('now', '-15 minutes')`);
+      const code = crypto.randomBytes(9).toString('base64url');
+      await db.run(`INSERT INTO ext_connect (code, device) VALUES (?, ?)`, [code, device]);
+      res.json({ code, path: '/connect?code=' + encodeURIComponent(code) });
+    } catch (err) {
+      res.status(500).json({ error: 'Server error' });
+    }
+  });
+
+  // 3) Extension waits here until the person approves on the site, then gets its sign-in token
+  app.post('/api/v1/ext/connect/poll', async (req, res) => {
+    try {
+      const code = String(req.body?.code || '');
+      const device = String(req.body?.device || '').slice(0, 100);
+      const row = await db.get(`SELECT * FROM ext_connect WHERE code = ? AND created_at > datetime('now', '-15 minutes')`, [code]);
+      if (!row || row.device !== device) return res.status(404).json({ error: 'Connect link expired. Press Connect again.' });
+      if (!row.user_id) return res.json({ pending: true });
+      const token = crypto.randomBytes(32).toString('base64url');
+      // One connected browser per account: connecting a new one signs the old one out
+      await db.run(`DELETE FROM ext_tokens WHERE user_id = ?`, [row.user_id]);
+      await db.run(`INSERT INTO ext_tokens (token_hash, user_id, device) VALUES (?, ?, ?)`, [hashToken(token), row.user_id, device]);
+      await db.run(`DELETE FROM ext_connect WHERE code = ?`, [code]);
+      const user = await db.get(`SELECT username FROM users WHERE id = ?`, [row.user_id]);
+      res.json({ token, username: user?.username || '' });
+    } catch (err) {
+      res.status(500).json({ error: 'Server error' });
     }
   });
 

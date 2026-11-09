@@ -1,11 +1,14 @@
-// Popup: shows status and lets you enter your key. No filtering logic here either.
+// Popup: shows status and the Connect button. No filtering logic here either.
 const $ = id => document.getElementById(id);
 const DEFAULT_API = 'https://devsupplies.cc';
 
 async function render() {
-  const s = await chrome.storage.local.get(['key', 'apiBase', 'status', 'device']);
+  const s = await chrome.storage.local.get(['key', 'token', 'account', 'apiBase', 'status', 'device']);
   const api = (s.apiBase || DEFAULT_API).replace(/\/+$/, '');
-  $('key').value = s.key || '';
+  const connected = !!(s.token || s.key);
+  $('connect').style.display = connected ? 'none' : 'block';
+  $('disconnect').style.display = connected ? 'block' : 'none';
+  $('connectedAs').textContent = connected ? ('Connected' + (s.account ? ' as ' + s.account : '')) : 'Not connected yet';
   $('api').value = s.apiBase || '';
   $('openSite').href = api + '/requests';
 
@@ -18,24 +21,19 @@ async function render() {
   $('last').textContent = st.lastSync ? new Date(st.lastSync).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' }) : '-';
 }
 
-$('save').onclick = async () => {
-  const key = $('key').value.trim();
-  const { apiBase, device } = await chrome.storage.local.get(['apiBase', 'device']);
-  $('keyMsg').textContent = 'Checking...';
-  try {
-    const r = await fetch((apiBase || DEFAULT_API).replace(/\/+$/, '') + '/api/v1/ext/check', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key, device })
-    });
-    const d = await r.json();
-    if (!r.ok) throw new Error(d.error || 'That key did not work');
-    await chrome.storage.local.set({ key });
-    $('keyMsg').textContent = 'Saved. Plan: ' + d.plan + (d.daysLeft ? ` (${d.daysLeft} days left)` : '');
-    $('keyMsg').style.color = '#3ddc84';
-    chrome.runtime.sendMessage({ type: 'sync-now' });
-  } catch (e) {
-    $('keyMsg').textContent = e.message;
-    $('keyMsg').style.color = '#ff5470';
-  }
+$('connect').onclick = async () => {
+  $('connectMsg').textContent = 'Opening the Waurks site... approve it there.';
+  $('connectMsg').style.color = '';
+  const r = await chrome.runtime.sendMessage({ type: 'connect' });
+  if (r && !r.ok) { $('connectMsg').textContent = r.error; $('connectMsg').style.color = '#ff5470'; }
+  else if (r && r.ok) { $('connectMsg').textContent = 'Connected!'; $('connectMsg').style.color = '#3ddc84'; }
+  render();
+};
+
+$('disconnect').onclick = async () => {
+  await chrome.storage.local.remove(['token', 'key', 'account']);
+  $('connectMsg').textContent = 'Disconnected';
+  render();
 };
 
 $('saveApi').onclick = async () => {

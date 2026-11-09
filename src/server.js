@@ -186,6 +186,9 @@ app.post('/api/v1/auth/dev-login', devOnly, async (req, res) => {
 // Real Discord OAuth2: step 1, send the user to Discord
 app.get('/api/v1/auth/discord/login', (req, res) => {
   const state = crypto.randomBytes(16).toString('hex');
+  // Only same-site paths like /connect?code=... are allowed (no other websites)
+  const next = String(req.query.next || '');
+  if (/^\/[a-zA-Z0-9_\-\/?=&.]*$/.test(next) && !next.startsWith('//')) setCookie(res, 'waurks_next', next, 600);
   const url = discordAuth.getOAuthUrl(state);
   if (!url) {
     return res.redirect('/checkout?error=discord_not_configured');
@@ -205,6 +208,9 @@ app.get('/api/v1/auth/discord/callback', async (req, res) => {
   try {
     const user = await discordAuth.loginWithCode(String(code));
     startSession(res, user.id);
+    const next = parseCookies(req).waurks_next;
+    setCookie(res, 'waurks_next', '', 0);
+    if (next && /^\/[a-zA-Z0-9_\-\/?=&.]*$/.test(next) && !next.startsWith('//')) return res.redirect(next);
     res.redirect('/checkout?login=ok');
   } catch (err) {
     console.error('[auth] Discord login failed:', err.message);
@@ -462,6 +468,20 @@ app.post('/api/v1/roblox/review-action', authMiddleware, async (req, res) => {
   }
 });
 
+// Extension connect page: approve this browser for the signed-in account
+app.post('/api/v1/ext/connect/approve', authMiddleware, async (req, res) => {
+  try {
+    const code = String(req.body?.code || '');
+    const row = await db.get(`SELECT * FROM ext_connect WHERE code = ? AND created_at > datetime('now', '-15 minutes')`, [code]);
+    if (!row) return res.status(404).json({ error: 'This connect link expired. Press Connect in the extension again.' });
+    await db.run(`UPDATE ext_connect SET user_id = ? WHERE code = ?`, [req.user.id, code]);
+    const lic = await db.get(`SELECT id FROM licenses WHERE user_id = ? AND status = 'active' AND expires_at > datetime('now') LIMIT 1`, [req.user.id]);
+    res.json({ success: true, hasKey: !!lic });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ---- Browser extension API (the extension only fetches + clicks; all logic is here) ----
 require('./extApi').mount(app);
 
@@ -493,7 +513,10 @@ app.post('/api/v1/roblox/requests/:targetId/:action', authMiddleware, async (req
     const { targetId, action } = req.params;
     if (action === 'accept') return res.json(await robloxCloudService.answerRequest(req.user.id, targetId, true));
     if (action === 'decline') return res.json(await robloxCloudService.answerRequest(req.user.id, targetId, false));
-    if (action === 'bot') return res.json(await robloxCloudService.reportBot(req.user.id, targetId));
+    if (action === 'bot') {
+      if (!isAdminUser(req.user)) return res.status(403).json({ error: 'Only admins can mark bots' });
+      return res.json(await robloxCloudService.adminMarkBot(req.user, targetId));
+    }
     res.status(400).json({ error: 'Unknown action' });
   } catch (err) {
     res.status(400).json({ error: err.message });

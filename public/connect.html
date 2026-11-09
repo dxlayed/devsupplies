@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Connect extension - Waurks</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/theme.css">
+<style>
+  .card{max-width:440px;margin:60px auto;text-align:center}
+  .card h1{font-size:26px;margin-bottom:8px}
+  .card p{color:var(--muted);margin-bottom:20px}
+  .me{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:18px;font-weight:600}
+  .me img{width:36px;height:36px;border-radius:50%}
+  .done{color:var(--green);font-weight:600}
+  .bad{color:var(--red)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="topbar">
+    <a href="/" class="logo"><span class="logo-mark">W</span>Waurks</a>
+  </header>
+</div>
+
+<main class="box card" id="card">
+  <h1>Connect your browser</h1>
+  <p id="msg">Loading...</p>
+  <div id="area"></div>
+</main>
+
+<script>
+  const esc = v => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const code = new URLSearchParams(location.search).get('code') || '';
+  const msg = document.getElementById('msg');
+  const area = document.getElementById('area');
+
+  async function start() {
+    if (!code) {
+      msg.textContent = 'Open this page from the Waurks extension: click the extension icon, then Connect.';
+      return;
+    }
+    const s = await fetch('/api/v1/auth/status').then(r => r.json()).catch(() => ({}));
+    if (!s.loggedIn) {
+      msg.textContent = 'Sign in with Discord to connect the extension to your account.';
+      area.innerHTML = `<a class="btn btn-main" href="/api/v1/auth/discord/login?next=${encodeURIComponent('/connect?code=' + code)}">Sign in with Discord</a>`;
+      return;
+    }
+    msg.textContent = 'Connect the Waurks extension in this browser to this account?';
+    area.innerHTML = `
+      <div class="me"><img src="${esc(s.user.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png')}" alt="">${esc(s.user.username)}</div>
+      <button class="btn btn-main btn-block" id="go">Connect this browser</button>`;
+    document.getElementById('go').onclick = approve;
+  }
+
+  async function approve() {
+    const b = document.getElementById('go');
+    b.disabled = true; b.textContent = 'Connecting...';
+    try {
+      const r = await fetch('/api/v1/ext/connect/approve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code }) });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Could not connect');
+      msg.innerHTML = '<span class="done">Connected!</span> The extension will start in a few seconds. You can close this tab.';
+      area.innerHTML = d.hasKey
+        ? '<a class="btn btn-line" href="/requests">Go to my friend requests</a>'
+        : '<p>You still need a key for the filter to run.</p><a class="btn btn-main" href="/checkout">Get a key</a>';
+    } catch (e) {
+      msg.innerHTML = '<span class="bad">' + esc(e.message) + '</span>';
+      b.disabled = false; b.textContent = 'Connect this browser';
+    }
+  }
+
+  start();
+</script>
+</body>
+</html>

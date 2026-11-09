@@ -19,12 +19,12 @@ const badgeCache = new Map(); // userId -> badge count (data only, the server de
 
 // ---------- storage helpers ----------
 async function getSettings() {
-  const s = await chrome.storage.local.get(['key', 'device', 'apiBase']);
+  const s = await chrome.storage.local.get(['key', 'token', 'device', 'apiBase']);
   if (!s.device) {
     s.device = 'ext-' + crypto.randomUUID();
     await chrome.storage.local.set({ device: s.device });
   }
-  return { key: s.key || '', device: s.device, apiBase: (s.apiBase || DEFAULT_API).replace(/\/+$/, '') };
+  return { key: s.key || '', token: s.token || '', device: s.device, apiBase: (s.apiBase || DEFAULT_API).replace(/\/+$/, '') };
 }
 async function setStatus(patch) {
   const { status = {} } = await chrome.storage.local.get('status');
@@ -111,8 +111,8 @@ async function doAction(a) {
 
 // ---------- one sync with the server ----------
 async function syncOnce() {
-  const { key, device, apiBase } = await getSettings();
-  if (!key) { await setStatus({ state: 'nokey', message: 'Enter your key to start' }); return 30000; }
+  const { key, token, device, apiBase } = await getSettings();
+  if (!token && !key) { await setStatus({ state: 'nokey', message: 'Press Connect to start' }); return 30000; }
 
   const me = await getMe();
   if (!me) { await setStatus({ state: 'nologin', message: 'Log in to roblox.com in this browser' }); return 15000; }
@@ -143,10 +143,12 @@ async function syncOnce() {
     const r = await fetch(apiBase + '/api/v1/ext/sync', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key, device, roblox: me, requests: cleanRequests, complete, badges, done: lastDone })
+      body: JSON.stringify({ token: token || undefined, key: token ? undefined : key, device, roblox: me, requests: cleanRequests, complete, badges, done: lastDone })
     });
     reply = await r.json().catch(() => ({}));
     if (!r.ok) {
+      // Signed out on the site (or connected another browser): forget the sign-in
+      if (reply.reconnect) await chrome.storage.local.remove('token');
       await setStatus({ state: 'error', message: reply.error || ('Server error ' + r.status), roblox: me.name });
       return reply.nextMs || 5000;
     }
@@ -197,4 +199,43 @@ chrome.runtime.onStartup.addListener(() => runFor(28000));
 chrome.runtime.onInstalled.addListener(() => runFor(28000));
 chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
   if (msg && msg.type === 'sync-now') { runFor(28000); reply({ ok: true }); }
+  if (msg && msg.type === 'connect') { connect().then(reply); return true; }
 });
+
+// ---------- Connect (no key): open the site, wait for you to approve, then save the sign-in ----------
+let connecting = false;
+async function connect() {
+  if (connecting) return { ok: false, error: 'Already connecting, check the tab that opened' };
+  connecting = true;
+  try {
+    const { device, apiBase } = await getSettings();
+    const r = await fetch(apiBase + '/api/v1/ext/connect/start', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device })
+    });
+    const d = await r.json();
+    if (!r.ok) return { ok: false, error: d.error || "Can't reach Waurks" };
+    await chrome.tabs.create({ url: apiBase + d.path });
+    await setStatus({ state: 'nokey', message: 'Approve the connection in the tab that opened' });
+    // Wait up to 10 minutes for the approval
+    const end = Date.now() + 10 * 60000;
+    while (Date.now() < end) {
+      await new Promise(res => setTimeout(res, 2000));
+      const p = await fetch(apiBase + '/api/v1/ext/connect/poll', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: d.code, device })
+      }).catch(() => null);
+      if (!p) continue;
+      const pd = await p.json().catch(() => ({}));
+      if (!p.ok) return { ok: false, error: pd.error || 'Connect failed' };
+      if (pd.token) {
+        await chrome.storage.local.set({ token: pd.token, account: pd.username || '' });
+        await chrome.storage.local.remove('key');
+        await setStatus({ state: 'ok', message: 'Connected' });
+        runFor(28000);
+        return { ok: true };
+      }
+    }
+    return { ok: false, error: 'Took too long. Press Connect again.' };
+  } finally {
+    connecting = false;
+  }
+}
