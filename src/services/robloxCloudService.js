@@ -557,6 +557,14 @@ class RobloxCloudService {
     const recent = await db.all(`SELECT target_id, reasons FROM friend_requests WHERE user_id = ? AND checked_at > datetime('now', '-1 hour')`, [userId]);
     // Only skip ones checked by the CURRENT filter (switching Standard <-> MM2 re-checks them)
     const fresh = new Set(recent.filter(r => mm2Filter === /MM2/.test(r.reasons || '')).map(r => String(r.target_id)));
+    // Once filtered as a bot, always a bot for this customer: never re-checked, never shown, never auto-accepted.
+    // ("Checking..." isn't a decision yet, so those still get checked. Accepting by hand is the only way out.)
+    const settledBots = await db.all(
+      `SELECT target_id FROM friend_requests WHERE user_id = ? AND verdict = 'DECLINE' AND status = 'pending'
+         AND COALESCE(reasons, '') NOT LIKE '%Checking%'`,
+      [userId]
+    );
+    for (const r of settledBots) fresh.add(String(r.target_id));
     // Newest first, up to 60-120 per pass so requests show up within seconds even during a massive 500+ flood.
     // The rest get picked up on the rapid next passes.
     const MAX_PER_PASS = mm2Filter ? 120 : 60;
