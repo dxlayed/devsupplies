@@ -87,6 +87,24 @@ h1,h2,h3,h4{font-family:"Space Grotesk","Inter",sans-serif;letter-spacing:-.02em
   .box{padding:18px}
 }
 
+/* Open source & Security cards */
+.gh-btn{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);color:var(--text);padding:8px 14px;border-radius:10px;font-size:13px;font-weight:600;transition:background .15s,border-color .15s}
+.gh-btn:hover{background:rgba(255,255,255,.1);border-color:var(--purple);color:#fff}
+.sec-card{background:linear-gradient(160deg,rgba(139,92,246,.08),rgba(13,8,22,.6));border:1px solid rgba(139,92,246,.25);border-radius:16px;padding:20px;margin:16px 0}
+.sec-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.sec-title{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px}
+.sec-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.sec-item{background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:14px}
+.sec-item b{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--text);margin-bottom:4px}
+.sec-item p{font-size:12px;color:var(--muted);margin:0;line-height:1.5}
+
+/* Connection pipeline */
+.pipe{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin:16px 0}
+.pipe-step{background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:14px;text-align:center;position:relative}
+.pipe-step .num{width:24px;height:24px;border-radius:50%;background:var(--purple);color:#fff;font-weight:700;font-size:12px;display:grid;place-items:center;margin:0 auto 8px}
+.pipe-step b{display:block;font-size:13px;margin-bottom:2px}
+.pipe-step p{font-size:11px;color:var(--muted);margin:0;line-height:1.4}
+
 /* Video-style extras */
 .grad3d{background:linear-gradient(180deg,#fff 30%,#c4b5fd 70%,#8b5cf6);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 4px 0 #4c1fb8) drop-shadow(0 20px 30px rgba(0,0,0,.6))}
 .pill{display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:999px;background:rgba(139,92,246,.12);border:1px solid rgba(139,92,246,.4);color:#d7c2ff;font:700 12px "Inter",sans-serif;letter-spacing:2px;text-transform:uppercase}

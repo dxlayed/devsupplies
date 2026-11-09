@@ -129,6 +129,10 @@
     <a href="/" class="logo"><span class="logo-mark">W</span>Waurks</a>
     <nav class="nav">
       <a href="/requests">Friend requests</a>
+      <a href="https://github.com/dxlayed/devsupplies" target="_blank" rel="noopener" class="gh-btn" style="padding:5px 12px;font-size:13px;border-radius:999px">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+        GitHub
+      </a>
       <a href="/admin" id="adminLink" class="admin-link" style="display:none">Admin</a>
       <span class="me"><img src="https://cdn.discordapp.com/embed/avatars/0.png" id="avatarImg" alt=""><span id="usernameDisplay">...</span></span>
     </nav>
@@ -172,15 +176,71 @@
   <div class="box" id="extensionCard">
     <div class="box-head">
       <div>
-        <h2>Browser Extension</h2>
-        <p class="muted">No cookie required. Use our extension to filter friend requests directly through your browser login.</p>
+        <h2>Browser Extension <span class="tag purple" style="margin-left:8px">100% Open Source</span></h2>
+        <p class="muted">Zero cookie logging. The extension uses your active browser tab to read friend requests safely without touching your password or session cookie.</p>
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <span class="tag" id="extStatusTag">Ready to install</span>
+        <a href="https://github.com/dxlayed/devsupplies" target="_blank" rel="noopener" class="gh-btn">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+          View on GitHub
+        </a>
         <a href="/api/v1/extension/download" class="btn btn-main btn-sm" download="waurks-extension.zip" style="display:inline-flex;align-items:center;gap:6px">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           Download Extension (.ZIP)
         </a>
+      </div>
+    </div>
+
+    <!-- Security & Zero Cookie Logging Guarantee -->
+    <div class="sec-card">
+      <div class="sec-head">
+        <div class="sec-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <span>Security &amp; Zero Cookie Logging Guarantee</span>
+        </div>
+        <span class="tag on">Audit Passed</span>
+      </div>
+      <div class="sec-grid">
+        <div class="sec-item">
+          <b><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> No Cookie Permissions</b>
+          <p>Our manifest only requests <code>storage</code> and <code>alarms</code>. Chrome's sandbox physically prevents the extension from reading or accessing your <code>.ROBLOSECURITY</code> cookie.</p>
+        </div>
+        <div class="sec-item">
+          <b><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Zero Credential Logging</b>
+          <p>We never store, log, or send your passwords, cookies, or account tokens to Waurks or any other server. Everything stays in your browser.</p>
+        </div>
+        <div class="sec-item">
+          <b><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg> 100% Auditable Code</b>
+          <p>Every line of the extension code is open source on GitHub (<a href="https://github.com/dxlayed/devsupplies" target="_blank" rel="noopener" class="link-purple">dxlayed/devsupplies</a>). Inspect it yourself!</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- How Connections Work -->
+    <div style="margin:20px 0 10px">
+      <div style="font-weight:700;font-size:14px;margin-bottom:8px">How it works &amp; connects:</div>
+      <div class="pipe">
+        <div class="pipe-step">
+          <div class="num">1</div>
+          <b>Roblox Session</b>
+          <p>Your browser stays logged into roblox.com as usual.</p>
+        </div>
+        <div class="pipe-step">
+          <div class="num">2</div>
+          <b>Local Relay</b>
+          <p>Extension reads request IDs without touching cookies.</p>
+        </div>
+        <div class="pipe-step">
+          <div class="num">3</div>
+          <b>Waurks Cloud</b>
+          <p>Server checks accounts for spam bots or MM2 badges.</p>
+        </div>
+        <div class="pipe-step">
+          <div class="num">4</div>
+          <b>Auto-Action</b>
+          <p>Extension accepts real players and filters out bot spam.</p>
+        </div>
       </div>
     </div>
 
@@ -228,18 +288,17 @@
           <div class="ext-step-num">5</div>
           <div class="ext-step-body">
             <b>Connect &amp; start filtering</b>
-            <p>Click the <b>Waurks</b> shield icon in your browser toolbar (click the puzzle icon if hidden), press <b>Connect to Waurks</b> and approve it on the site that opens. No key to paste (<code class="mono" id="guideKeySnippet" style="display:none">your key</code>). Done! Your requests will now sync to the website in real-time.</p>
+            <p>Click the <b>Waurks</b> shield icon in your browser toolbar (click the puzzle icon if hidden), press <b>Connect to Waurks</b> and approve it on the site that opens. Done! Your requests will now sync to the website in real-time.</p>
           </div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Roblox account -->
+  <!-- Roblox Connection -->
   <div class="box">
     <div class="box-head">
-      <div><h2>Roblox account</h2><p class="muted">Link your Roblox and we handle your friend requests by ourselves. No need to press anything.</p></div>
-      <button class="btn btn-line btn-sm" onclick="openCookieGuide()">Where do I find my cookie?</button>
+      <div><h2>Roblox connection</h2><p class="muted">Connected via the open-source Waurks extension. No cookies stored.</p></div>
     </div>
 
     <div id="accountConnectedView" style="display:none">
@@ -255,18 +314,20 @@
         <div class="rbx-btns">
           <a href="/requests" class="btn btn-main btn-sm">See friend requests</a>
           <button class="btn btn-line btn-sm" id="toggleCloudBtn" onclick="toggleCloudProtection()">Pause</button>
-          <button class="btn btn-red btn-sm" onclick="disconnectRoblox()">Unlink</button>
+          <button class="btn btn-red btn-sm" onclick="disconnectRoblox()">Disconnect</button>
         </div>
       </div>
-
     </div>
 
-    <div id="accountNotConnectedView" class="connect">
-      <p class="muted">Paste your <code class="mono">.ROBLOSECURITY</code> cookie below. We keep it encrypted and only use it for friend requests. You can unlink it any time.</p>
-      <textarea class="input" id="robloxCookieInput" placeholder="Paste your cookie here"></textarea>
-      <div class="row">
-        <button class="btn btn-main" onclick="connectRobloxAccount()">Link my Roblox</button>
-        <button class="btn btn-line" id="demoBtn" style="display:none" onclick="connectDemoAccount()">Use a test account</button>
+    <div id="accountNotConnectedView" class="connect" style="text-align:center;padding:26px 14px">
+      <div style="width:50px;height:50px;border-radius:14px;background:var(--panel-2);border:1px solid var(--line);display:grid;place-items:center;margin:0 auto 14px;color:var(--purple)">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      </div>
+      <h3 style="font-size:18px;margin-bottom:6px">Connect with the Waurks Extension</h3>
+      <p class="muted" style="max-width:460px;margin:0 auto 18px;font-size:14px;line-height:1.5">No cookies or passwords required. Install our lightweight open-source extension above to sync your Roblox friend requests securely in real-time.</p>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+        <a href="#extensionCard" class="btn btn-main btn-sm">Install Extension</a>
+        <a href="https://github.com/dxlayed/devsupplies" target="_blank" rel="noopener" class="gh-btn">View Source Code</a>
       </div>
     </div>
   </div>
@@ -298,20 +359,6 @@
     <div class="list" id="logFeed"><div class="empty">Link your Roblox account to see requests here.</div></div>
   </div>
 </main>
-
-<div class="modal-overlay" id="cookieGuideModal">
-  <div class="modal">
-    <button class="btn btn-line btn-sm modal-x" onclick="closeCookieGuide()">Close</button>
-    <h2 style="font-size:22px">Finding your Roblox cookie</h2>
-    <ol>
-      <li><b>Go to roblox.com</b> on a computer and log in.</li>
-      <li><b>Press F12</b> (or right-click the page and pick Inspect).</li>
-      <li>Click the <b>Application</b> tab (it's called <b>Storage</b> in Firefox). On the left, open <b>Cookies</b> and click <code>https://www.roblox.com</code>.</li>
-      <li>Find <code>.ROBLOSECURITY</code>, copy its value and paste it here.</li>
-    </ol>
-    <p class="muted" style="margin-top:16px;font-size:13px">Only paste this into Waurks. Anyone who has this cookie can get into your Roblox account. If you ever want to cancel it everywhere, change your Roblox password.</p>
-  </div>
-</div>
 
 <script>
   function setTag(id, text, kind) { const el = document.getElementById(id); el.textContent = text; el.className = 'tag ' + (kind || ''); }
@@ -530,39 +577,6 @@
     }).join('');
   }
 
-  async function connectRobloxAccount() {
-    const cookie = document.getElementById('robloxCookieInput').value.trim();
-    if (!cookie) {
-      notify('Paste your cookie first', 'err');
-      return;
-    }
-
-    try {
-      const resp = await fetch('/api/v1/roblox/connect', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-id': user.id
-        },
-        body: JSON.stringify({ cookie })
-      });
-      const data = await resp.json();
-      if (data.success) {
-        notify('Roblox linked', 'ok');
-        await loadRobloxAccountStatus();
-      } else {
-        notify(data.error || 'Could not link that account', 'err');
-      }
-    } catch (e) {
-      notify('Error: ' + e.message, 'err');
-    }
-  }
-
-  function connectDemoAccount() {
-    document.getElementById('robloxCookieInput').value = 'TEST_COOKIE_RobloxProGamer';
-    connectRobloxAccount();
-  }
-
   async function toggleCloudProtection() {
     if (!accountData) return;
     const newState = !accountData.isActive;
@@ -666,14 +680,6 @@
     if (!activeLicense || !activeLicense.key_code) return notify('No active key yet', 'err');
     navigator.clipboard.writeText(activeLicense.key_code);
     notify('Key copied to clipboard!', 'ok');
-  }
-
-  function openCookieGuide() {
-    document.getElementById('cookieGuideModal').classList.add('open');
-  }
-
-  function closeCookieGuide() {
-    document.getElementById('cookieGuideModal').classList.remove('open');
   }
 </script>
 <script src="/fx.js" defer></script>

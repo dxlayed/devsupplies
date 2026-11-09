@@ -1,21 +1,19 @@
-# Waurks — 100% Cloud-Powered Roblox Anti-Botter
+# Waurks — Modern Roblox Anti-Botter & MM2 Trader
 
-Waurks is a commercial, server-authoritative Roblox anti-bot platform that runs **24/7 directly on the cloud**. 
+Waurks is a high-speed, server-authoritative Roblox anti-bot platform powered by an **open-source browser extension** and server-side heuristic detection engine.
 
-Users log into the website, connect their Roblox account, and the Waurks cloud servers automatically monitor, decline spam botnets, and approve real players around the clock.
-
-**Zero browser extensions, zero desktop software, zero keeping user PCs running.**
+- **100% Open Source Extension**: Zero cookie logging. Does not request or touch `.ROBLOSECURITY` cookies or account passwords.
+- **Server-Authoritative Heuristics**: Multi-layered threat scoring (entropy, scam links, account age, badges, flood waves, MM2 level badges).
+- **Public GitHub Repository**: [github.com/dxlayed/devsupplies](https://github.com/dxlayed/devsupplies)
 
 ---
 
-## 🔒 Why This Model is 100% Uncrackable
+## 🔒 Security & Zero Cookie Logging Guarantee
 
-With traditional desktop tools or browser extensions, attackers decompile the JavaScript or binary and remove the `if (keyValid)` check.
-
-**Waurks is physically uncrackable because 100% of the botting code lives exclusively on your private backend server:**
-1. **No Client Code**: There is no browser extension or executable distributed to users. The user connects their account to the site, and the backend cloud worker executes all friend sorting tasks.
-2. **Key-Gated Cloud Daemon**: Every cloud scan requires a valid, unexpired cryptographic license key (`WAURKS-XXXX-...`) in the database. If a key expires or is deleted, the server immediately halts background scanning for that account.
-3. **Encrypted Vault Storage**: User Roblox session tokens are encrypted at rest using AES-256-CBC with dynamic initialization vectors (IV).
+Waurks prioritizes account security and full transparency:
+1. **No Cookie Permissions in Extension**: The Chrome extension manifest (`manifest.json`) strictly declares only `"storage"` and `"alarms"` permissions. Chrome prevents the extension from reading or intercepting your `.ROBLOSECURITY` cookie.
+2. **Official In-Browser API**: The extension queries Roblox's friend request endpoint directly in your existing browser session (`credentials: 'include'`). Sensitive session tokens never leave your computer.
+3. **Uncrackable Server Detection**: 100% of the bot evaluation logic and license verification lives server-side. The extension is purely a transparent client.
 
 ---
 
