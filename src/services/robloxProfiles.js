@@ -213,4 +213,38 @@ async function ownsBadge(userId, badgeId, authGet = null) {
   return ans;
 }
 
-module.exports = { getProfile, getProfiles, getNames, getHeadshots, ownsBadge };
+// Small 6-hour memory for group / favorites lookups (true = yes, false = no, null = couldn't tell)
+const sideCache = new Map();
+async function cached(key, fn) {
+  const hit = sideCache.get(key);
+  if (hit && Date.now() - hit.t < 6 * 3600000) return hit.v;
+  const v = await fn();
+  if (v !== null) { sideCache.set(key, { v, t: Date.now() }); if (sideCache.size > 50000) sideCache.delete(sideCache.keys().next().value); }
+  return v;
+}
+
+/** Is this user in the Roblox community (group)? */
+function inGroup(userId, groupId) {
+  return cached(`g:${userId}:${groupId}`, async () => {
+    const d = await getJson(`https://groups.roblox.com/v1/users/${userId}/groups/roles`, 2);
+    if (!d || !Array.isArray(d.data)) return null;
+    return d.data.some(x => String(x.group && x.group.id) === String(groupId));
+  });
+}
+
+/** Does this user have the game in their favorites? (checks up to 100 favorites) */
+function favoritedGame(userId, universeId) {
+  return cached(`f:${userId}:${universeId}`, async () => {
+    let cursor = '', seen = false;
+    for (let page = 0; page < 2; page++) {
+      const d = await getJson(`https://games.roblox.com/v2/users/${userId}/favorite/games?limit=50&sortOrder=Desc${cursor ? '&cursor=' + encodeURIComponent(cursor) : ''}`, 2);
+      if (!d || !Array.isArray(d.data)) return seen ? false : null;
+      seen = true;
+      if (d.data.some(g => String(g.id) === String(universeId))) return true;
+      cursor = d.nextPageCursor; if (!cursor) break;
+    }
+    return false;
+  });
+}
+
+module.exports = { getProfile, getProfiles, getNames, getHeadshots, ownsBadge, inGroup, favoritedGame };

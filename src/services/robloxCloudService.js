@@ -17,6 +17,7 @@ db.run(`ALTER TABLE roblox_accounts ADD COLUMN accept_filter TEXT DEFAULT 'stand
 const MM2_LEVEL10_BADGE = '196198137'; // Murder Mystery 2 "Level 10"
 // Adopt Me (Uplift Games, universe 383310974): any of these badges = plays Adopt Me
 const ADOPTME_UNIVERSE = '383310974';
+const ADOPTME_GROUP = '295182'; // Uplift Games community
 const ADOPTME_BADGES = ['2124439922', '2124439923', '2124439924', '2124439925', '2124439926', '2124439927', '2124439928', '3720272393025103', '2344531550519489'];
 const MM2_UNIVERSE = '66654135';
 // Words that tag a request's reasons with the game mode it was checked for
@@ -661,6 +662,7 @@ class RobloxCloudService {
     };
 
     const mm2BadgeMap = new Map();
+    const adoptWhy = new Map(); // why someone passed Adopt Me step 1 (community / favorites)
     if (live && mm2Filter) {
       const idsToCheck = bases.map(b => b.id);
       const BATCH = 10;
@@ -669,7 +671,13 @@ class RobloxCloudService {
         await Promise.all(slice.map(async id => {
           const sid = String(id);
           if (game === 'mm2') { mm2BadgeMap.set(sid, await robloxProfiles.ownsBadge(sid, MM2_LEVEL10_BADGE, authGet)); return; }
-          // Adopt Me: any one of its badges counts. Stop at the first one found.
+          // Adopt Me step 1: in the Uplift Games community, or Adopt Me in favorites, or any Adopt Me badge.
+          // Any one of these is enough. Stop at the first hit.
+          const [grp, fav] = await Promise.all([
+            robloxProfiles.inGroup(sid, ADOPTME_GROUP).catch(() => null),
+            robloxProfiles.favoritedGame(sid, ADOPTME_UNIVERSE).catch(() => null)
+          ]);
+          if (grp === true || fav === true) { mm2BadgeMap.set(sid, true); adoptWhy.set(sid, grp === true ? 'in Uplift Games community' : 'Adopt Me in favorites'); return; }
           let any = false, unknown = false;
           for (let j = 0; j < ADOPTME_BADGES.length && !any; j += 3) {
             const res = await Promise.all(ADOPTME_BADGES.slice(j, j + 3).map(b => robloxProfiles.ownsBadge(sid, b, authGet)));
@@ -722,8 +730,8 @@ class RobloxCloudService {
           evaluation = mm2 === true && onlineNow
             ? { verdict: 'ACCEPT', threatScore: 0, reasons: ['Real Adopt Me player (online now)'] }
             : mm2 === true
-            ? { verdict: 'ACCEPT', threatScore: 0, reasons: [fromGame ? 'Real Adopt Me player (sent from Adopt Me)' : 'Real Adopt Me player'] }
-            : { verdict: 'DECLINE', threatScore: 100, reasons: [mm2 === null ? 'No Adopt Me badges (inventory private)' : 'No Adopt Me badges'] };
+            ? { verdict: 'ACCEPT', threatScore: 0, reasons: [fromGame ? 'Real Adopt Me player (sent from Adopt Me)' : adoptWhy.has(sid) ? 'Real Adopt Me player (' + adoptWhy.get(sid) + ')' : 'Real Adopt Me player'] }
+            : { verdict: 'DECLINE', threatScore: 100, reasons: [mm2 === null ? 'No sign of Adopt Me (inventory private), offline' : 'No sign of Adopt Me, offline'] };
         } else if (mm2 !== true) {
           evaluation = { verdict: 'DECLINE', threatScore: 100, reasons: [mm2 === null ? 'No MM2 Level 10 badge (inventory private)' : 'No MM2 Level 10 badge'] };
         } else {
@@ -854,7 +862,7 @@ class RobloxCloudService {
         const passed = gm === 'mm2' ? item.facts.mm2 === true : item.facts.game === 'adoptme';
         if (r.status === 'pending' && passed && r.verdict === 'ACCEPT') visible.push(item);
         else {
-          if (r.status === 'pending' && !item.reasons.some(x => x.includes(gTag) || /block list/.test(x))) item.reasons = [gm === 'mm2' ? 'Checking for MM2 badge...' : 'Checking for Adopt Me badges...'];
+          if (r.status === 'pending' && !item.reasons.some(x => x.includes(gTag) || /block list/.test(x))) item.reasons = [gm === 'mm2' ? 'Checking for MM2 badge...' : 'Checking for Adopt Me...'];
           hidden.push(item);
         }
         continue;
