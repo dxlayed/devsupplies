@@ -30,6 +30,8 @@
   .seg{display:inline-flex;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:999px;padding:4px}
   .seg button{background:none;border:none;color:var(--muted);font:600 13px "Inter",sans-serif;padding:8px 16px;border-radius:999px;cursor:pointer}
   .seg button.on{background:linear-gradient(160deg,#7c4dff,#4c1fb8);color:#fff;box-shadow:0 2px 0 #2a1170}
+  .seg button{display:inline-flex;align-items:center;gap:8px}
+  .seg button img{width:22px;height:22px;border-radius:6px;object-fit:cover}
   .seg-help{font-size:12px;color:var(--muted);margin-top:6px;text-align:right}
 
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(186px,1fr));gap:16px}
@@ -101,7 +103,7 @@
     </div>
     <div class="controls">
       <label class="auto"><span>Auto-accept real people</span><span class="switch"><input type="checkbox" id="autoAccept"><span></span></span></label>
-      <div class="seg" id="acceptFilter" aria-label="Filter"><button class="on" disabled style="cursor:default">MM2 filter</button></div>
+      <div class="seg" id="acceptFilter" aria-label="Game filter"><button data-filter="mm2"><img src="/img/mm2.webp" alt="">MM2</button><button data-filter="adoptme"><img src="/img/adoptme.webp" alt="">Adopt Me</button></div>
     </div>
   </div>
 
@@ -180,7 +182,7 @@
     lastData = d;
     const sw = document.getElementById('autoAccept');
     if (document.activeElement !== sw) sw.checked = !!d.autoAccept;
-    document.getElementById('acceptFilter').style.opacity = d.autoAccept ? '1' : '.5';
+    document.querySelectorAll('#acceptFilter button').forEach(b => b.classList.toggle('on', b.dataset.filter === (d.acceptFilter || 'mm2')));
 
     const st = document.getElementById('status');
     if (d.lastError) { st.textContent = 'Problem: ' + d.lastError; st.className = 'status bad'; }
@@ -274,6 +276,19 @@
     b.disabled = false; b.textContent = 'Scan now';
     load();
   };
+
+  document.querySelectorAll('#acceptFilter button').forEach(b => b.onclick = async () => {
+    if (b.classList.contains('on')) return;
+    try {
+      const r = await fetch('/api/v1/roblox/accept-filter', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ filter: b.dataset.filter }) });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error);
+      document.querySelectorAll('#acceptFilter button').forEach(x => x.classList.toggle('on', x === b));
+      notify(b.dataset.filter === 'adoptme' ? 'Adopt Me filter on. Re-checking your requests...' : 'MM2 filter on. Re-checking your requests...', 'ok');
+      try { localStorage.removeItem('waurks_req_cache'); } catch (e) {}
+      load();
+    } catch (err) { notify(err.message || 'Could not change the filter', 'err'); }
+  });
 
   document.getElementById('toggleHidden').onclick = () => { showHidden = !showHidden; if (lastData) render(lastData); };
 

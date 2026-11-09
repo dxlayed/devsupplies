@@ -15,6 +15,12 @@ db.run(`CREATE TABLE IF NOT EXISTS friend_requests (
 
 db.run(`ALTER TABLE roblox_accounts ADD COLUMN accept_filter TEXT DEFAULT 'standard'`).catch(() => {});
 const MM2_LEVEL10_BADGE = '196198137'; // Murder Mystery 2 "Level 10"
+// Adopt Me (Uplift Games, universe 383310974): any of these badges = plays Adopt Me
+const ADOPTME_UNIVERSE = '383310974';
+const ADOPTME_BADGES = ['2124439922', '2124439923', '2124439924', '2124439925', '2124439926', '2124439927', '2124439928', '3720272393025103', '2344531550519489'];
+const MM2_UNIVERSE = '66654135';
+// Words that tag a request's reasons with the game mode it was checked for
+const GAME_TAG = { mm2: 'MM2', adoptme: 'Adopt Me' };
 
 db.run(`ALTER TABLE roblox_accounts ADD COLUMN last_check_at DATETIME`).catch(() => {});
 
@@ -539,7 +545,9 @@ class RobloxCloudService {
       } catch (e) { return null; }
     };
     // MM2 filter = only check for the MM2 "Level 10" badge. No bot checks, nothing declined or hidden.
-    const mm2Filter = true; // MM2 filter is the only filter now
+    const mm2Filter = true; // game filters only (MM2 or Adopt Me)
+    const game = account.accept_filter === 'adoptme' ? 'adoptme' : 'mm2';
+    const tag = GAME_TAG[game];
     const senderId = a => a.id ?? a.friendRequest?.senderId;
     const ids = new Set(pendingList.map(a => String(senderId(a))).filter(Boolean));
 
@@ -556,13 +564,14 @@ class RobloxCloudService {
     // Anything we already handled or checked in the last hour (declined, accepted or waiting) is skipped
     const recent = await db.all(`SELECT target_id, reasons FROM friend_requests WHERE user_id = ? AND checked_at > datetime('now', '-1 hour')`, [userId]);
     // Only skip ones checked by the CURRENT filter (switching Standard <-> MM2 re-checks them)
-    const fresh = new Set(recent.filter(r => mm2Filter === /MM2/.test(r.reasons || '')).map(r => String(r.target_id)));
+    const fresh = new Set(recent.filter(r => String(r.reasons || '').includes(tag)).map(r => String(r.target_id)));
     // Once filtered as a bot, always a bot for this customer: never re-checked, never shown, never auto-accepted.
     // ("Checking..." isn't a decision yet, so those still get checked. Accepting by hand is the only way out.)
     const settledBots = await db.all(
       `SELECT target_id FROM friend_requests WHERE user_id = ? AND verdict = 'DECLINE' AND status = 'pending'
-         AND COALESCE(reasons, '') NOT LIKE '%Checking%'`,
-      [userId]
+         AND COALESCE(reasons, '') NOT LIKE '%Checking%'
+         AND (COALESCE(reasons, '') LIKE ? OR COALESCE(reasons, '') LIKE '%block list%')`,
+      [userId, '%' + tag + '%']
     );
     for (const r of settledBots) fresh.add(String(r.target_id));
     // Newest first, up to 60-120 per pass so requests show up within seconds even during a massive 500+ flood.
@@ -659,8 +668,14 @@ class RobloxCloudService {
         const slice = idsToCheck.slice(i, i + BATCH);
         await Promise.all(slice.map(async id => {
           const sid = String(id);
-          const has = await robloxProfiles.ownsBadge(sid, MM2_LEVEL10_BADGE, authGet);
-          mm2BadgeMap.set(sid, has);
+          if (game === 'mm2') { mm2BadgeMap.set(sid, await robloxProfiles.ownsBadge(sid, MM2_LEVEL10_BADGE, authGet)); return; }
+          // Adopt Me: any one of its badges counts. Stop at the first one found.
+          let any = false, unknown = false;
+          for (let j = 0; j < ADOPTME_BADGES.length && !any; j += 3) {
+            const res = await Promise.all(ADOPTME_BADGES.slice(j, j + 3).map(b => robloxProfiles.ownsBadge(sid, b, authGet)));
+            if (res.includes(true)) any = true; else if (res.includes(null)) unknown = true;
+          }
+          mm2BadgeMap.set(sid, any ? true : unknown ? null : false);
         }));
       }
     }
@@ -684,7 +699,14 @@ class RobloxCloudService {
       } else if (mm2Filter) {
         // MM2 filter: only checks the MM2 Level 10 badge (no online check)
         mm2 = live ? mm2BadgeMap.get(sid) : !!bases[i].mm2;
-        if (mm2 !== true) {
+        // Sent the request from inside the game itself = clearly plays it
+        const fromGame = String(fr.sourceUniverseId || '') === (game === 'adoptme' ? ADOPTME_UNIVERSE : MM2_UNIVERSE);
+        if (fromGame) mm2 = true;
+        if (game === 'adoptme') {
+          evaluation = mm2 === true
+            ? { verdict: 'ACCEPT', threatScore: 0, reasons: [fromGame ? 'Real Adopt Me player (sent from Adopt Me)' : 'Real Adopt Me player'] }
+            : { verdict: 'DECLINE', threatScore: 100, reasons: [mm2 === null ? 'No Adopt Me badges (inventory private)' : 'No Adopt Me badges'] };
+        } else if (mm2 !== true) {
           evaluation = { verdict: 'DECLINE', threatScore: 100, reasons: [mm2 === null ? 'No MM2 Level 10 badge (inventory private)' : 'No MM2 Level 10 badge'] };
         } else {
           evaluation = { verdict: 'ACCEPT', threatScore: 0, reasons: ['MM2 trades accepted'] };
@@ -740,7 +762,8 @@ class RobloxCloudService {
       const facts = {
         ageDays, badges: profile.badgeCount ?? null, friends: profile.friendsCount ?? null,
         paidItem: profile.paidItem ? profile.paidItem.name : null, mutuals,
-        mm2: mm2 === true ? true : undefined
+        mm2: mm2 === true && game === 'mm2' ? true : undefined,
+        game: mm2 === true ? game : undefined
       };
       await db.run(
         `INSERT INTO friend_requests (user_id, target_id, name, display_name, avatar_url, verdict, score, reasons, facts, status, auto, sent_at, checked_at, updated_at)
@@ -809,9 +832,11 @@ class RobloxCloudService {
       };
       {
         // MM2 filter: only people confirmed to have the Level 10 badge are shown. Everything else is filtered.
-        if (r.status === 'pending' && item.facts.mm2 === true && r.verdict === 'ACCEPT') visible.push(item);
+        const gm = account.accept_filter === 'adoptme' ? 'adoptme' : 'mm2', gTag = GAME_TAG[gm];
+        const passed = gm === 'mm2' ? item.facts.mm2 === true : item.facts.game === 'adoptme';
+        if (r.status === 'pending' && passed && r.verdict === 'ACCEPT') visible.push(item);
         else {
-          if (r.status === 'pending' && !item.reasons.some(x => /MM2/.test(x))) item.reasons = ['Checking for MM2 badge...'];
+          if (r.status === 'pending' && !item.reasons.some(x => x.includes(gTag) || /block list/.test(x))) item.reasons = [gm === 'mm2' ? 'Checking for MM2 badge...' : 'Checking for Adopt Me badges...'];
           hidden.push(item);
         }
         continue;
@@ -826,7 +851,7 @@ class RobloxCloudService {
       mode: account.mode || 'cloud',
       extensionOnline: account.mode === 'extension' && !!account.last_check_at
         && Date.now() - new Date(String(account.last_check_at).replace(' ', 'T') + 'Z').getTime() < 45000,
-      acceptFilter: 'mm2',
+      acceptFilter: account.accept_filter === 'adoptme' ? 'adoptme' : 'mm2',
       lastScanAt: [account.last_check_at, account.last_scan_at].filter(Boolean).sort().pop() || null, lastError: account.last_error,
       checking: (this.backlog && this.backlog.get(userId)) || 0, busy: !!(this.activeScans && this.activeScans.has(userId)),
       requests: visible, hidden
@@ -842,7 +867,9 @@ class RobloxCloudService {
     let accepted = 0;
     if (enabled) {
       let rows = await db.all(`SELECT target_id, facts FROM friend_requests WHERE user_id = ? AND status = 'pending' AND verdict = 'ACCEPT'`, [userId]);
-      rows = rows.filter(r => safeJson(r.facts, {}).mm2 === true);
+      const acc = await db.get(`SELECT accept_filter FROM roblox_accounts WHERE user_id = ?`, [userId]);
+      const gm = acc && acc.accept_filter === 'adoptme' ? 'adoptme' : 'mm2';
+      rows = rows.filter(r => { const f = safeJson(r.facts, {}); return gm === 'mm2' ? f.mm2 === true : f.game === 'adoptme'; });
       for (const r of rows) {
         try { await this.answerRequest(userId, r.target_id, true); accepted++; } catch (e) { /* skip ones Roblox refuses */ }
         await new Promise(res => setTimeout(res, 300));
@@ -852,7 +879,7 @@ class RobloxCloudService {
   }
 
   async setAcceptFilter(userId, filter) {
-    if (!['standard', 'mm2'].includes(filter)) throw new Error('Unknown filter');
+    if (!['mm2', 'adoptme'].includes(filter)) throw new Error('Unknown filter');
     await db.run(`UPDATE roblox_accounts SET accept_filter = ? WHERE user_id = ?`, [filter, userId]);
     // Re-check waiting requests with the new filter on the next pass
     await db.run(`UPDATE friend_requests SET checked_at = NULL WHERE user_id = ? AND status = 'pending'`, [userId]);
