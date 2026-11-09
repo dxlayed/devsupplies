@@ -7,47 +7,53 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/theme.css">
 <style>
   :root{
-    --ink:#09080c; --surface:#121017; --surface-2:#1a1722; --line:#272233; --line-solid:#272233;
-    --guard:#9b5cff; --guard-glow:rgba(155,92,255,.2); --pass:#3ddc84; --gold:#c9a8ff; --block:#ff5470;
-    --text:#f3f1f7; --muted:#9b94a8; --radius:14px;
+    --ink:#050208; --surface:#0d0816; --surface-2:#171027; --line:#22173a; --line-solid:#2a1f40;
+    --guard:#8b5cf6; --guard-glow:rgba(139,92,246,.25); --pass:#3ddc84; --gold:#c4b5fd; --block:#ff5470;
+    --text:#f3f1f7; --muted:#8f85a6; --radius:18px;
   }
   *{box-sizing:border-box;margin:0;padding:0}
-  body{background:var(--ink);color:var(--text);font-family:"Inter",sans-serif;line-height:1.55;padding-bottom:80px}
+  body{color:var(--text);font-family:"Inter",sans-serif;line-height:1.55;padding-bottom:80px}
   a{color:inherit;text-decoration:none}
   .wrap{max-width:1180px;margin:0 auto;padding:0 20px}
-  header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:20px 0;border-bottom:1px solid var(--line)}
-  .brand{font-family:"Space Grotesk";font-weight:900;font-size:19px}
-  .badge-admin{background:rgba(240,180,41,.15);color:var(--gold);font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;border:1px solid rgba(240,180,41,.3)}
-  .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:22px 0}
-  .stat-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px}
-  .stat-val{font-family:"Space Grotesk";font-size:24px;font-weight:900}
-  .stat-lbl{font-size:11px;color:var(--muted);text-transform:uppercase;margin-top:2px}
-  .section{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:20px;margin-bottom:24px}
-  .sec-title{font-family:"Space Grotesk";font-size:17px;font-weight:800;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
-  table{width:100%;border-collapse:collapse;font-size:13px}
-  th{text-align:left;padding:10px;color:var(--muted);font-weight:600;border-bottom:1px solid var(--line-solid)}
-  td{padding:10px;border-bottom:1px solid #182236;vertical-align:middle}
-  tr:last-child td{border-bottom:none}
-  .btn{font-family:"Inter";font-weight:600;font-size:12px;padding:6px 11px;border-radius:6px;cursor:pointer;border:none;display:inline-flex;align-items:center;gap:4px}
-  .btn-approve{background:var(--guard);color:#fff;font-weight:700}
-  .btn-danger{background:transparent;color:var(--block);border:1px solid rgba(255,77,94,.3)}
-  .btn-danger:hover{background:rgba(255,77,94,.15)}
-  .btn-ghost{background:var(--surface-2);color:var(--text);border:1px solid var(--line-solid)}
-  .btn-ghost:hover{border-color:var(--guard);color:var(--guard)}
-  .login-card{max-width:400px;margin:80px auto;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:32px;text-align:center}
-  .input-field{width:100%;background:#090d15;border:1px solid var(--line-solid);border-radius:8px;padding:10px;color:#fff;margin:12px 0;font-size:13px}
-  .tabs{display:flex;gap:6px;margin:4px 0 18px;flex-wrap:wrap}
-  .tab{padding:8px 14px;border-radius:8px;background:var(--surface);border:1px solid var(--line-solid);color:var(--muted);cursor:pointer;font-weight:600;font-size:13px}
-  .tab.on{background:var(--guard);border-color:var(--guard);color:#fff}
+  header{position:sticky;top:12px;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:14px 0 6px;padding:12px 14px 12px 18px;
+    border-radius:20px;background:rgba(20,13,34,.55);border:1px solid rgba(255,255,255,.08);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);box-shadow:0 20px 40px rgba(0,0,0,.4)}
+  .brand{display:flex;align-items:center;gap:10px;font-family:"Space Grotesk";font-weight:700;font-size:20px}
+  .badge-admin{background:rgba(139,92,246,.14);color:#d7c2ff;font-size:11px;font-weight:800;letter-spacing:2px;padding:5px 12px;border-radius:999px;border:1px solid rgba(139,92,246,.4)}
+  .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:22px 0}
+  .stat-card{background:linear-gradient(165deg,#140d22,#08050e);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px;box-shadow:0 20px 40px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.04)}
+  .stat-val{font-family:"Space Grotesk";font-size:34px;font-weight:700;letter-spacing:-1px;line-height:1.1}
+  .stat-lbl{font-size:11px;font-weight:700;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-top:6px}
+  .section{background:linear-gradient(165deg,#120c1f,#08050e);border:1px solid var(--line);border-radius:22px;padding:22px;margin-bottom:24px;box-shadow:0 30px 60px rgba(0,0,0,.45)}
+  .sec-title{font-family:"Space Grotesk";font-size:20px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  table{width:100%;border-collapse:separate;border-spacing:0 6px;font-size:13px}
+  th{text-align:left;padding:6px 12px;color:var(--muted);font-weight:700;font-size:11px;letter-spacing:1.5px;text-transform:uppercase}
+  td{padding:12px;background:#110b1c;vertical-align:middle;border-top:1px solid transparent;border-bottom:1px solid transparent}
+  td:first-child{border-radius:12px 0 0 12px} td:last-child{border-radius:0 12px 12px 0}
+  tbody tr:hover td{background:#170f27}
+  .btn{font-family:"Inter";font-weight:600;font-size:12px;padding:7px 12px;border-radius:9px;cursor:pointer;border:1px solid transparent;display:inline-flex;align-items:center;gap:4px;transition:transform .1s,background .15s,border-color .15s}
+  .btn:hover{translate:0 -1px}
+  .btn-approve{background:linear-gradient(160deg,#7c4dff,#4c1fb8);color:#fff;font-weight:700;box-shadow:0 3px 0 #2a1170,0 8px 18px rgba(139,92,246,.3)}
+  .btn-danger{background:rgba(255,84,112,.06);color:var(--block);border-color:rgba(255,84,112,.3)}
+  .btn-danger:hover{background:rgba(255,84,112,.15)}
+  .btn-ghost{background:rgba(255,255,255,.04);color:var(--text);border-color:rgba(255,255,255,.1)}
+  .btn-ghost:hover{border-color:var(--guard);color:#d7c2ff}
+  .login-card{max-width:420px;margin:120px auto;background:linear-gradient(165deg,#140d22,#08050e);border:1px solid var(--line);border-radius:24px;padding:36px;text-align:center;box-shadow:0 40px 80px rgba(0,0,0,.5)}
+  .input-field{width:100%;background:#0a0612;border:1px solid var(--line-solid);border-radius:12px;padding:11px 13px;color:#fff;margin:12px 0;font-size:13px;outline:none}
+  .input-field:focus{border-color:var(--guard);box-shadow:0 0 0 3px rgba(139,92,246,.18)}
+  .tabs{display:inline-flex;gap:4px;margin:4px 0 18px;flex-wrap:wrap;padding:5px;border-radius:16px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.08);backdrop-filter:blur(12px)}
+  .tab{padding:8px 16px;border-radius:11px;color:var(--muted);cursor:pointer;font-weight:600;font-size:13px;transition:background .15s,color .15s}
+  .tab:hover{color:var(--text)}
+  .tab.on{background:linear-gradient(160deg,#7c4dff,#4c1fb8);color:#fff;box-shadow:0 3px 0 #2a1170}
   .pane{display:none}.pane.on{display:block}
   .search{max-width:300px;margin:0}
-  .av{width:24px;height:24px;border-radius:50%;vertical-align:middle;margin-right:6px}
-  .mono{font-family:monospace}
-  select.input-field{width:auto;margin:0;padding:6px}
+  .av{width:28px;height:28px;border-radius:50%;vertical-align:middle;margin-right:8px;object-fit:cover}
+  .mono{font-family:ui-monospace,Consolas,monospace}
+  select.input-field{width:auto;margin:0;padding:7px}
   .nowrap{white-space:nowrap}
-  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--surface-2);border:1px solid var(--line-solid);padding:10px 18px;border-radius:10px;display:none;font-size:13px;z-index:9}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--surface-2);border:1px solid var(--line-solid);padding:11px 18px;border-radius:12px;display:none;font-size:13px;z-index:9;box-shadow:0 12px 30px rgba(0,0,0,.5)}
   @media(max-width:760px){.stats-grid{grid-template-columns:1fr 1fr}}
 </style>
 </head>
@@ -62,7 +68,7 @@
 
   <div id="adminPortal" style="display:none">
     <header>
-      <div class="brand">Waurks Admin</div>
+      <a href="/" class="brand"><span class="logo-mark"></span>Waurks <span style="color:var(--muted);font-weight:500">Admin</span></a>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <span class="badge-admin" id="whoami">ADMIN</span>
         <a class="btn btn-ghost" href="/dashboard">Dashboard</a>

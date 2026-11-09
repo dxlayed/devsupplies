@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -118,7 +118,7 @@
     }
     if (f.badges !== null && f.badges !== undefined) bits.push(`${f.badges >= 25 ? '25+' : f.badges} badges`);
     if (f.friends !== null && f.friends !== undefined) bits.push(`${f.friends} friends`);
-    return bits.join(' Â· ');
+    return bits.join(' · ');
   }
 
   const profileUrl = id => 'https://www.roblox.com/users/' + encodeURIComponent(String(id).replace(/\D/g, '')) + '/profile';
@@ -171,7 +171,7 @@
     else {
       const t = d.lastScanAt ? new Date(String(d.lastScanAt).replace(' ', 'T') + 'Z').toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' }) : null;
       const how = d.mode === 'extension' ? (d.extensionOnline ? 'Connected in your browser' : 'Browser extension not running') : 'Updates by itself';
-      st.textContent = (d.checking ? `Checking ${d.checking > 1 ? d.checking + ' more' : 'more'} requests...` : how) + (t ? ` Â· last checked ${t}` : '');
+      st.textContent = (d.checking ? `Checking ${d.checking > 1 ? d.checking + ' more' : 'more'} requests...` : how) + (t ? ` · last checked ${t}` : '');
       st.className = 'status' + (d.mode === 'extension' && !d.extensionOnline ? ' warnline' : '');
     }
 

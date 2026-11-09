@@ -1,4 +1,4 @@
-﻿// Waurks site effects: things slide in as you scroll, and cards tilt in 3D toward your mouse.
+// Waurks site effects: things slide in as you scroll, and cards tilt in 3D toward your mouse.
 (function () {
   const reduce = false; // always animate
   const touch = matchMedia('(hover: none)').matches;
