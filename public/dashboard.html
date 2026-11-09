@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -101,7 +101,6 @@
     <a href="/" class="logo"><span class="logo-mark">W</span>Waurks</a>
     <nav class="nav">
       <a href="/requests">Friend requests</a>
-      <a href="/friends">Friend remover</a>
       <a href="/admin" id="adminLink" class="admin-link" style="display:none">Admin</a>
       <span class="me"><img src="https://cdn.discordapp.com/embed/avatars/0.png" id="avatarImg" alt=""><span id="usernameDisplay">...</span></span>
     </nav>
@@ -166,7 +165,7 @@
                 <code class="mono">chrome://extensions</code>
                 <button class="btn btn-line btn-xs" onclick="navigator.clipboard.writeText('chrome://extensions');notify('Copied chrome://extensions to clipboard','ok')">Copy URL</button>
               </div>
-              <span class="muted" style="display:block;margin-top:4px;font-size:12px">(Brave users: <code class="mono">brave://extensions</code> · Edge users: <code class="mono">edge://extensions</code>)</span>
+              <span class="muted" style="display:block;margin-top:4px;font-size:12px">(Brave users: <code class="mono">brave://extensions</code> Â· Edge users: <code class="mono">edge://extensions</code>)</span>
             </p>
           </div>
         </div>
@@ -633,5 +632,6 @@
     document.getElementById('cookieGuideModal').classList.remove('open');
   }
 </script>
+<script src="/fx.js" defer></script>
 </body>
 </html>

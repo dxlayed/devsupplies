@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -59,6 +59,7 @@
   .stat b{display:block;font:700 44px/1 "Space Grotesk",sans-serif}
   .stat span{font:700 11px Inter,sans-serif;color:var(--muted);letter-spacing:2px;text-transform:uppercase}
   .stat.bad b{color:var(--red)} .stat.good b{color:#c4b5fd}
+  .panel.fx-tilt,.panel{transform:perspective(1400px) rotateY(calc(-12deg + var(--ry,0deg))) rotateX(calc(5deg + var(--rx,0deg)))}
   .panel{padding:20px;border-radius:24px;background:linear-gradient(170deg,#140d22,#08050e);border:1px solid #2a1f40;position:relative;overflow:hidden;
     transform:perspective(1400px) rotateY(-12deg) rotateX(5deg);box-shadow:-30px 40px 80px rgba(0,0,0,.6),0 0 0 1px rgba(139,92,246,.12)}
   .phead{display:flex;justify-content:space-between;align-items:center;font:700 18px "Space Grotesk",sans-serif;margin:0 4px 14px}
@@ -71,7 +72,20 @@
   .row.bot .st{background:rgba(255,84,112,.15);color:var(--red)}
   .row.real{border-color:var(--purple);background:rgba(139,92,246,.14)}
   .row.real .st{background:var(--purple);color:#fff}
-  .beam{position:absolute;left:0;right:0;height:90px;top:-100px;background:linear-gradient(180deg,transparent,rgba(139,92,246,.18) 70%,rgba(196,181,253,.8) 98%,transparent);animation:scan 3.2s linear infinite;pointer-events:none}
+  .row{transition:opacity .4s,background .4s,border-color .4s,transform .4s}
+  .row .st{transition:opacity .3s,transform .3s}
+  .row.wait{opacity:1;background:#110b1c;border-color:transparent}
+  .row.wait .st{opacity:0;transform:scale(.6)}
+  .row.real{transform:translateX(-6px)}
+  .row.bot{transform:translateX(10px)}
+  #allBots{display:inline-block}
+  .htoasts{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+  .ht{position:absolute;display:flex;align-items:center;gap:12px;padding:10px 16px 10px 10px;border-radius:14px;background:rgba(22,15,34,.9);border:1px solid #2e2245;box-shadow:0 16px 30px rgba(0,0,0,.5);font-size:13px;color:#a99fbb;white-space:nowrap}
+  .ht img{width:36px;height:36px;border-radius:50%;object-fit:cover;background:#e9e6ef}
+  .ht b{display:block;color:#fff;font-size:14px}
+  .ht i{width:9px;height:9px;border-radius:50%;background:var(--red);box-shadow:0 0 10px var(--red);margin-left:6px}
+  @media (max-width:1100px){.htoasts{display:none}}
+  .beam{position:absolute;left:0;right:0;height:90px;top:-100px;background:linear-gradient(180deg,transparent,rgba(139,92,246,.18) 70%,rgba(196,181,253,.8) 98%,transparent);top:-100px;pointer-events:none}
   @keyframes scan{to{transform:translateY(620px)}}
 
   /* ---------- steps ---------- */
@@ -87,8 +101,8 @@
   .plans{display:flex;gap:26px;justify-content:center;align-items:center;margin-top:50px;perspective:1600px;flex-wrap:wrap}
   .plan{width:290px;min-height:380px;border-radius:26px;padding:34px 28px;display:flex;flex-direction:column;position:relative;overflow:hidden;
     background:linear-gradient(165deg,#1c1230,#0a0611);border:1px solid var(--line);box-shadow:0 40px 80px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.07);transition:transform .3s}
-  .plan.l{transform:rotateY(16deg) translateZ(-40px)} .plan.r{transform:rotateY(-16deg) translateZ(-40px)}
-  .plan:hover{transform:translateY(-8px)}
+  .plan.l{transform:perspective(1000px) rotateY(calc(16deg + var(--ry,0deg))) rotateX(var(--rx,0deg)) translateZ(-40px)}
+  .plan.r{transform:perspective(1000px) rotateY(calc(-16deg + var(--ry,0deg))) rotateX(var(--rx,0deg)) translateZ(-40px)}
   .plan::after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,transparent 35%,rgba(255,255,255,.08) 50%,transparent 65%);transform:translateX(-100%);animation:shine 3s ease-in-out infinite;pointer-events:none}
   @keyframes shine{60%,100%{transform:translateX(100%)}}
   .plan .len{font:700 14px Inter;color:var(--muted);letter-spacing:3px;text-transform:uppercase}
@@ -96,7 +110,7 @@
   .plan .price small{font-size:34px;vertical-align:top;margin-right:3px;color:#c4b5fd}
   .plan .per{color:var(--muted);margin-bottom:22px}
   .plan .btn{margin-top:auto}
-  .plan.best{background:linear-gradient(165deg,#7c4dff,#3b1a8f);border-color:#a78bfa;box-shadow:0 50px 100px rgba(139,92,246,.4),inset 0 1px 0 rgba(255,255,255,.3);transform:translateY(-14px) translateZ(40px)}
+  .plan.best{background:linear-gradient(165deg,#7c4dff,#3b1a8f);border-color:#a78bfa;box-shadow:0 50px 100px rgba(139,92,246,.4),inset 0 1px 0 rgba(255,255,255,.3);transform:perspective(1000px) rotateY(var(--ry,0deg)) rotateX(var(--rx,0deg)) translateY(-14px) translateZ(40px)}
   .plan.best .len,.plan.best .per{color:#e9e1ff}
   .plan.best .price small{color:#fff}
   .plan.best .btn{background:#fff;color:#3b1a8f;box-shadow:0 4px 0 #8b7cc4}
@@ -123,12 +137,6 @@
 </head>
 <body>
 
-<!-- One-time intro video. Can't be skipped; after it ends you land on the site. -->
-<div id="intro" style="display:none">
-  <button class="enter" id="enter"><span class="logo-mark"></span>CLICK TO ENTER</button>
-  <video id="introVid" src="/intro.mp4" playsinline preload="auto" disablepictureinpicture controlslist="nodownload nofullscreen noremoteplayback"></video>
-</div>
-
 <div class="wrap">
   <header class="topbar">
     <a href="/" class="logo"><span class="logo-mark">W</span>Waurks</a>
@@ -137,7 +145,6 @@
       <a href="#pricing">Pricing</a>
       <a href="#faq">FAQ</a>
       <a href="/requests">Friend requests</a>
-      <a href="/friends">Friend remover</a>
       <a href="/dashboard">My account</a>
       <a href="/admin" id="adminNavLink" class="admin-link" style="display:none">Admin</a>
       <a href="/checkout" class="btn btn-main btn-sm">Get a key</a>
@@ -146,12 +153,13 @@
 </div>
 
 <section class="hero">
-  <div class="rays"></div>
+  <div class="rays" id="rays"></div>
+  <div class="htoasts fx-no" id="htoasts"></div>
   <div class="halo"><i></i><i></i></div>
   <div class="wrap">
     <div class="shield"><span class="logo-mark"></span></div>
     <span class="pill">Anti bot for Roblox</span>
-    <h1 class="grad3d">648 friend requests.<br><span class="r">All bots.</span></h1>
+    <h1 class="grad3d"><span id="heroCount">648</span> friend requests.<br><span class="r" id="allBots">All bots.</span></h1>
     <p class="lead">Waurks filters out the bots and only shows you real players. Turn on auto-accept and it adds the real ones for you.</p>
     <div class="hero-btns">
       <a href="/checkout" class="btn btn-main">Get a key</a>
@@ -172,11 +180,11 @@
       <h2 style="margin-top:16px">Waurks sorts them <span style="color:var(--purple)">for you.</span></h2>
       <p class="lead">Every request gets checked in seconds. Bots get filtered and never show up again. Real players stay.</p>
       <div class="stats">
-        <div class="stat bad"><b>5</b><span>bots filtered</span></div>
-        <div class="stat good"><b>3</b><span>real players</span></div>
+        <div class="stat bad"><b id="nBot">0</b><span>bots filtered</span></div>
+        <div class="stat good"><b id="nReal">0</b><span>real players</span></div>
       </div>
     </div>
-    <div class="panel">
+    <div class="panel" data-tilt="6" id="panel">
       <div class="phead"><span>Friend requests</span><i>LIVE</i></div>
       <div class="row bot"><img src="/img/20.webp" alt=""><span class="un">@Builderman8273641</span><span class="st">BOT</span></div>
       <div class="row real"><img src="/img/16.webp" alt=""><span class="un">@NovaTrades</span><span class="st">REAL</span></div>
@@ -242,7 +250,7 @@
 <div class="wrap">
   <footer class="footer">
     <span class="madeby"><img src="/img/waurk.webp" alt=""><span>made by <b>waurk.</b></span></span>
-    <span>devsupplies.cc · Not made by or connected to Roblox.</span>
+    <span>devsupplies.cc Â· Not made by or connected to Roblox.</span>
   </footer>
 </div>
 
@@ -251,33 +259,80 @@
     if (s.isAdmin) document.getElementById('adminNavLink').style.display = '';
   }).catch(() => {});
 
-  // ---- Intro video: shows once per person, can't be skipped ----
-  (function () {
-    let seen = false;
-    try { seen = localStorage.getItem('waurks_intro_seen') === '1'; } catch (e) {}
-    if (!seen) seen = document.cookie.includes('waurks_intro=1');
-    if (seen) return;
-    const box = document.getElementById('intro'), vid = document.getElementById('introVid'), btn = document.getElementById('enter');
-    box.style.display = ''; document.body.classList.add('locked');
-    const done = () => {
-      try { localStorage.setItem('waurks_intro_seen', '1'); } catch (e) {}
-      document.cookie = 'waurks_intro=1; max-age=31536000; path=/; SameSite=Lax';
-      box.classList.add('hide'); document.body.classList.remove('locked');
-      setTimeout(() => box.remove(), 900);
-    };
-    // A click is needed so the browser allows sound
-    btn.onclick = () => {
-      btn.style.display = 'none'; vid.style.display = 'block';
-      vid.play().catch(() => { vid.muted = true; vid.play().catch(done); });
-    };
-    vid.addEventListener('ended', done);
-    vid.addEventListener('error', done);
-    // No skipping: keep it playing and don't let it jump ahead
-    let last = 0;
-    vid.addEventListener('timeupdate', () => { if (vid.currentTime > last + 1.5) vid.currentTime = last; else last = vid.currentTime; });
-    vid.addEventListener('pause', () => { if (!vid.ended && vid.style.display === 'block') vid.play().catch(() => {}); });
-    vid.addEventListener('contextmenu', e => e.preventDefault());
+  const reduceMotion = false; // always animate
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+  // ---- Hero: count up to 648 like the video, then "All bots." pops in ----
+  (async () => {
+    const el = document.getElementById('heroCount'), ab = document.getElementById('allBots');
+    if (reduceMotion) return;
+    ab.style.opacity = 0;
+    const t0 = performance.now(), D = 1600;
+    await new Promise(res => (function f(t) { const k = Math.min(1, Math.max(0, (t - t0) / D)); el.textContent = Math.round(648 * (1 - Math.pow(1 - k, 3))); k < 1 ? requestAnimationFrame(f) : res(); })(t0));
+    el.animate([{ transform: 'scale(1.12)' }, { transform: 'scale(1)' }], { duration: 400, easing: 'cubic-bezier(.2,.8,.2,1)' });
+    ab.style.opacity = 1;
+    ab.animate([{ transform: 'scale(1.5)', opacity: 0 }, { transform: 'scale(1)', opacity: 1 }], { duration: 450, easing: 'cubic-bezier(.2,.8,.2,1)' });
   })();
+
+  // ---- Hero: bot friend requests keep popping in at the sides ----
+  (async () => {
+    if (reduceMotion) return;
+    const box = document.getElementById('htoasts');
+    const names = ['user_93841272', 'Kj3h2kd1m0', 'freerobux_4u_92', 'xXbaconXx40221', 'giveaway_bot771', 'aa1z9q7pp', 'Robloxian_028371', 'trademe2938412', 'robuxgen_77', 'bacon_4482', 'free_adm_pets22', 'tr4de_now_09'];
+    const pics = [20, 21, 22, 23, 24, 25, 29];
+    let n = 0;
+    while (true) {
+      const left = n % 2 === 0;
+      const t = document.createElement('div'); t.className = 'ht';
+      t.innerHTML = `<img src="/img/${pics[n % pics.length]}.webp" alt=""><span><b>Friend request</b>@${names[n % names.length]}</span><i></i>`;
+      t.style[left ? 'left' : 'right'] = (2 + Math.random() * 7) + '%';
+      t.style.top = (14 + Math.random() * 62) + '%';
+      box.appendChild(t);
+      const rz = (Math.random() - .5) * 8;
+      t.animate([
+        { opacity: 0, transform: `translateY(20px) rotate(${rz}deg) scale(.9)` },
+        { opacity: 1, transform: `translateY(0) rotate(${rz}deg)`, offset: .12 },
+        { opacity: 1, transform: `translateY(-10px) rotate(${rz}deg)`, offset: .75 },
+        { opacity: 0, transform: `translateY(-30px) rotate(${rz}deg) scale(.95)` }
+      ], { duration: 4200, easing: 'ease-out' }).finished.then(() => t.remove());
+      n++;
+      await sleep(900);
+    }
+  })();
+
+  // ---- Hero: light rays and rings follow the mouse a little ----
+  if (!reduceMotion && matchMedia('(hover: hover)').matches) {
+    const rays = document.getElementById('rays'), halo = document.querySelector('.halo');
+    addEventListener('mousemove', e => {
+      const x = (e.clientX / innerWidth - .5), y = (e.clientY / innerHeight - .5);
+      rays.style.translate = `${x * -30}px ${y * -20}px`;
+      halo.style.translate = `${x * 24}px ${y * 16}px`;
+    });
+  }
+
+  // ---- Live filter panel: scan line sorts the requests, counters tick, repeats ----
+  (async () => {
+    const rows = [...document.querySelectorAll('#panel .row')], beam = document.querySelector('#panel .beam');
+    const kinds = rows.map(r => r.classList.contains('bot') ? 'bot' : 'real');
+    const nb = document.getElementById('nBot'), nr = document.getElementById('nReal');
+    if (reduceMotion) { nb.textContent = kinds.filter(k => k === 'bot').length; nr.textContent = kinds.filter(k => k === 'real').length; return; }
+    while (true) {
+      rows.forEach(r => { r.classList.remove('bot', 'real'); r.classList.add('wait'); });
+      nb.textContent = 0; nr.textContent = 0;
+      await sleep(900);
+      const panelH = beam.parentElement.offsetHeight + 120, SWEEP = 2600;
+      beam.animate([{ transform: 'translateY(0)' }, { transform: `translateY(${panelH}px)` }], { duration: SWEEP, easing: 'linear' });
+      let b = 0, re = 0;
+      rows.forEach((r, i) => setTimeout(() => {
+        r.classList.remove('wait'); r.classList.add(kinds[i]);
+        if (kinds[i] === 'bot') nb.textContent = ++b; else nr.textContent = ++re;
+        (kinds[i] === 'bot' ? nb : nr).animate([{ transform: 'scale(1.25)' }, { transform: 'scale(1)' }], { duration: 300 });
+      }, (r.offsetTop + 130) / panelH * SWEEP));
+      await sleep(SWEEP + 2600);
+    }
+  })();
+
 </script>
+<script src="/fx.js" defer></script>
 </body>
 </html>

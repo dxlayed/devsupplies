@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -66,7 +66,6 @@
     <a href="/" class="logo"><span class="logo-mark">W</span>Waurks</a>
     <nav class="nav">
       <a href="/requests" style="color:var(--text)">Friend requests</a>
-      <a href="/friends">Friend remover</a>
       <a href="/dashboard">My account</a>
       <a href="/admin" id="adminLink" class="admin-link" style="display:none">Admin</a>
     </nav>
@@ -119,7 +118,7 @@
     }
     if (f.badges !== null && f.badges !== undefined) bits.push(`${f.badges >= 25 ? '25+' : f.badges} badges`);
     if (f.friends !== null && f.friends !== undefined) bits.push(`${f.friends} friends`);
-    return bits.join(' · ');
+    return bits.join(' Â· ');
   }
 
   const profileUrl = id => 'https://www.roblox.com/users/' + encodeURIComponent(String(id).replace(/\D/g, '')) + '/profile';
@@ -172,7 +171,7 @@
     else {
       const t = d.lastScanAt ? new Date(String(d.lastScanAt).replace(' ', 'T') + 'Z').toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' }) : null;
       const how = d.mode === 'extension' ? (d.extensionOnline ? 'Connected in your browser' : 'Browser extension not running') : 'Updates by itself';
-      st.textContent = (d.checking ? `Checking ${d.checking > 1 ? d.checking + ' more' : 'more'} requests...` : how) + (t ? ` · last checked ${t}` : '');
+      st.textContent = (d.checking ? `Checking ${d.checking > 1 ? d.checking + ' more' : 'more'} requests...` : how) + (t ? ` Â· last checked ${t}` : '');
       st.className = 'status' + (d.mode === 'extension' && !d.extensionOnline ? ' warnline' : '');
     }
 
@@ -291,5 +290,6 @@
   try { const c = JSON.parse(localStorage.getItem('waurks_req_cache') || 'null'); if (c && c.connected) render(c); } catch (e) {}
   load().then(() => schedulePoll());
 </script>
+<script src="/fx.js" defer></script>
 </body>
 </html>

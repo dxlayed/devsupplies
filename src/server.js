@@ -1,4 +1,4 @@
-require('dotenv').config();
+﻿require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -55,7 +55,7 @@ async function saveSetting(key, value) {
 function maintenancePage(message) {
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Waurks — Maintenance</title>
+<title>Waurks â€” Maintenance</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
 <style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#09080c;color:#f3f1f7;font-family:Inter,sans-serif;padding:20px;text-align:center}
 .card{max-width:460px;background:#121017;border:1px solid #272233;border-radius:18px;padding:36px 28px}
@@ -84,7 +84,7 @@ app.use(async (req, res, next) => {
 app.use(express.static(path.join(__dirname, '..', 'public'), { extensions: ['html'] }));
 
 // -------------------------------------------------------------
-// SESSIONS (signed, HttpOnly cookie — the browser can't forge or read it)
+// SESSIONS (signed, HttpOnly cookie â€” the browser can't forge or read it)
 // -------------------------------------------------------------
 const DEV_MODE = process.env.ALLOW_DEV_LOGIN === 'true';
 const SESSION_COOKIE = 'waurks_session';
@@ -171,7 +171,7 @@ app.post('/api/v1/auth/logout', (req, res) => {
   res.json({ success: true });
 });
 
-// One-click fake login — only when ALLOW_DEV_LOGIN=true (local testing)
+// One-click fake login â€” only when ALLOW_DEV_LOGIN=true (local testing)
 app.post('/api/v1/auth/dev-login', devOnly, async (req, res) => {
   try {
     const username = String(req.body.username || 'RobloxPlayer').slice(0, 32);
@@ -484,7 +484,6 @@ app.post('/api/v1/ext/connect/approve', authMiddleware, async (req, res) => {
 
 // ---- Browser extension API (the extension only fetches + clicks; all logic is here) ----
 require('./extApi').mount(app);
-require('./friendRemover').mount(app, authMiddleware);
 
 // Extension ZIP download endpoints
 app.get(['/api/v1/extension/download', '/download/extension', '/downloads/waurks-extension.zip'], (req, res) => {
