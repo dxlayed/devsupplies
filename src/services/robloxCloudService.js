@@ -680,6 +680,17 @@ class RobloxCloudService {
       }
     }
 
+    // Adopt Me mode only, step 2: anyone with no Adopt Me badge gets an online check. Online = counts as real.
+    // (Anyone who already has an Adopt Me badge skips this.)
+    const onlineMap = new Map();
+    if (live && game === 'adoptme') {
+      const failed = bases.map(b => String(b.id)).filter(id => mm2BadgeMap.get(id) !== true);
+      if (failed.length) {
+        const pres = await presence.getUserPresences(failed, ext ? publicPost : (url, body) => this.robloxRequest(url, 'POST', cookie, body, account.roblox_id)).catch(() => null);
+        if (pres) failed.forEach(id => { const rec = pres.get(id); onlineMap.set(id, rec ? presence.normalizePresenceStatus(rec) : false); });
+      }
+    }
+
     let botsCount = 0, playersCount = 0, reviewCount = 0;
     const actionErrors = [];
 
@@ -702,8 +713,15 @@ class RobloxCloudService {
         // Sent the request from inside the game itself = clearly plays it
         const fromGame = String(fr.sourceUniverseId || '') === (game === 'adoptme' ? ADOPTME_UNIVERSE : MM2_UNIVERSE);
         if (fromGame) mm2 = true;
+        let onlineNow = false;
+        if (game === 'adoptme' && mm2 !== true) {
+          onlineNow = live ? onlineMap.get(sid) === true : bases[i].online === true;
+          if (onlineNow) mm2 = true;
+        }
         if (game === 'adoptme') {
-          evaluation = mm2 === true
+          evaluation = mm2 === true && onlineNow
+            ? { verdict: 'ACCEPT', threatScore: 0, reasons: ['Real Adopt Me player (online now)'] }
+            : mm2 === true
             ? { verdict: 'ACCEPT', threatScore: 0, reasons: [fromGame ? 'Real Adopt Me player (sent from Adopt Me)' : 'Real Adopt Me player'] }
             : { verdict: 'DECLINE', threatScore: 100, reasons: [mm2 === null ? 'No Adopt Me badges (inventory private)' : 'No Adopt Me badges'] };
         } else if (mm2 !== true) {
