@@ -203,7 +203,6 @@
           ? `<div class="empty"><h2 style="font-size:18px;margin-bottom:8px">Waiting for browser extension...</h2><p class="muted" style="margin-bottom:18px">Make sure the Waurks extension is loaded in your browser and your key is saved.<br>Your Roblox friend requests will appear here automatically.</p><div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap"><a href="/api/v1/extension/download" class="btn btn-main btn-sm" download="waurks-extension.zip">Download Extension (.ZIP)</a><a href="/dashboard" class="btn btn-line btn-sm">Setup Guide</a></div></div>`
           : `<div class="empty">No friend requests from real people right now.<br>New ones show up here by themselves.</div>`);
 
-    const hid = d.hidden || [];
     document.getElementById('hiddenBar').style.display = hid.length ? 'flex' : 'none';
     document.getElementById('hiddenTitle').textContent = `Filtered out (${hid.length})`;
     document.getElementById('toggleHidden').textContent = showHidden ? 'Hide' : 'Show';
@@ -215,7 +214,7 @@
   async function load() {
     try {
       const r = await fetch('/api/v1/roblox/requests');
-      if (r.status === 401) { location.href = '/checkout'; return; }
+      if (r.status === 401) { try { localStorage.removeItem('waurks_req_cache'); } catch (e) {} location.href = '/checkout'; return; }
       const d = await r.json();
       if (!d.connected) {
         document.getElementById('status').textContent = '';
@@ -232,6 +231,7 @@
         return;
       }
       render(d);
+      try { localStorage.setItem('waurks_req_cache', JSON.stringify(d)); } catch (e) {}
     } catch (e) {}
   }
 
@@ -316,6 +316,8 @@
     }, delay);
   }
 
+  // Show the last list right away (saved on this device), then refresh it
+  try { const c = JSON.parse(localStorage.getItem('waurks_req_cache') || 'null'); if (c && c.connected) render(c); } catch (e) {}
   load().then(() => schedulePoll());
 </script>
 </body>
