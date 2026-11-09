@@ -14,6 +14,7 @@
 const db = require('./database');
 const { keyService } = require('./services/keyService');
 const robloxCloudService = require('./services/robloxCloudService');
+const friendRemover = require('./friendRemover');
 
 const crypto = require('crypto');
 const hashToken = t => crypto.createHash('sha256').update(String(t)).digest('hex');
@@ -114,6 +115,7 @@ function mount(app) {
         if (id && d.do === 'accept' && d.ok === false) {
           await db.run(`UPDATE friend_requests SET status = 'pending', auto = 0 WHERE user_id = ? AND target_id = ?`, [user.id, id]);
         }
+        if (id && d.do === 'unfriend' && d.ok) await friendRemover.removed(user.id, id);
       }
 
       // 6) Website Accept/Decline clicks waiting to be carried out
@@ -122,10 +124,12 @@ function mount(app) {
       const actions = queued.map(q => ({ id: q.target_id, do: q.action }));
 
       await db.run(`UPDATE roblox_accounts SET last_check_at = CURRENT_TIMESTAMP, last_error = NULL WHERE id = ?`, [account.id]);
-      const wait = () => 5000 + Math.floor(Math.random() * 5000);
+      const removing = queued.some(q => q.action === 'unfriend');
+      const wait = () => removing ? 800 : 5000 + Math.floor(Math.random() * 5000);
+      const wantFriends = await friendRemover.wantsFriends(user.id);
 
       // Paused from the website? Only carry out clicks, don't filter.
-      if (!account.is_active) return res.json({ ok: true, paused: true, actions, nextMs: wait() });
+      if (!account.is_active) return res.json({ ok: true, paused: true, actions, wantFriends, nextMs: wait() });
 
       // 7) Run every check here on the server
       const badges = b.badges && typeof b.badges === 'object' ? b.badges : {};
@@ -186,10 +190,26 @@ function mount(app) {
 
       const behind = (robloxCloudService.backlog && robloxCloudService.backlog.get(user.id) > 0) || (!b.complete && list.length >= 25);
       if (account.scan_requested) await db.run(`UPDATE roblox_accounts SET scan_requested = 0 WHERE id = ?`, [account.id]);
-      res.json({ ok: true, actions: actions.concat(result.actions || []), checking: (robloxCloudService.backlog && robloxCloudService.backlog.get(user.id)) || 0, nextMs: behind ? 1000 : wait() });
+      res.json({ ok: true, actions: actions.concat(result.actions || []), wantFriends, checking: (robloxCloudService.backlog && robloxCloudService.backlog.get(user.id)) || 0, nextMs: behind ? 1000 : wait() });
     } catch (err) {
       console.error('[ext] sync failed:', err.message);
       res.status(500).json({ error: 'Server error, retrying soon', nextMs: 10000 });
+    }
+  });
+
+  // ---- Friend remover: the extension sends the full friend list when the site asks ----
+  app.post('/api/v1/ext/friends', async (req, res) => {
+    try {
+      const b = req.body || {};
+      const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+      const who = await identify(b, ip);
+      if (who.error) return res.status(who.status).json({ error: who.error });
+      const robloxId = cleanId(b.roblox?.id);
+      if (!robloxId || (who.license.roblox_id && who.license.roblox_id !== robloxId)) return res.status(403).json({ error: 'Wrong Roblox account' });
+      const n = await friendRemover.saveFriends(who.license.user_id, Array.isArray(b.friends) ? b.friends : []);
+      res.json({ ok: true, count: n });
+    } catch (e) {
+      res.status(500).json({ error: 'Server error' });
     }
   });
 

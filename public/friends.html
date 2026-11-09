@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Friend remover - Waurks</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/theme.css">
+<style>
+  .page{max-width:1040px;margin:0 auto;padding:0 20px 80px}
+  .head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin:10px 0 18px}
+  .head h1{font-size:30px}
+  .head h1 .count{color:var(--muted);font-weight:500}
+  .status{font-size:13px;color:var(--muted);margin-top:4px}
+  .status.warnline{color:var(--yellow)}
+  .controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .tools{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+  .search{background:var(--panel);border:1px solid var(--line);border-radius:10px;color:var(--text);font:14px "Inter",sans-serif;padding:9px 12px;min-width:220px;flex:1;max-width:340px}
+  .search:focus{outline:none;border-color:var(--purple)}
+  .note{font-size:13px;color:var(--muted)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px;display:flex;flex-direction:column;align-items:center;text-align:center;transition:border-color .15s}
+  .card.kept{border-color:var(--purple);box-shadow:0 0 0 1px var(--purple) inset}
+  .card .pic{width:84px;height:84px;border-radius:50%;background:var(--panel-2);object-fit:cover;margin:4px 0 8px}
+  .card .pic.ph{display:grid;place-items:center;font:700 28px "Space Grotesk",sans-serif;color:var(--muted)}
+  .card .dn{font-weight:700;font-size:14px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .card .un{font-size:12px;color:var(--muted);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:10px}
+  .card a.who{display:flex;flex-direction:column;align-items:center;width:100%;color:inherit}
+  .card a.who:hover .dn{color:var(--purple)}
+  .card .btn{width:100%;padding:8px 0;margin-top:auto}
+  .empty{background:var(--panel);border:1px dashed var(--line);border-radius:14px;padding:40px 20px;text-align:center;color:var(--muted)}
+  .bar{height:6px;background:var(--panel-2);border-radius:99px;overflow:hidden;margin-top:8px;max-width:340px}
+  .bar span{display:block;height:100%;background:var(--purple);transition:width .4s}
+  dialog{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:14px;padding:22px;max-width:380px}
+  dialog::backdrop{background:rgba(0,0,0,.6)}
+  dialog h2{font-size:18px;margin-bottom:8px}
+  dialog p{color:var(--muted);font-size:14px;margin-bottom:18px}
+  dialog .row{display:flex;gap:8px;justify-content:flex-end}
+</style>
+</head>
+<body>
+<div id="wkToast" role="status" aria-live="polite"></div>
+
+<div class="wrap">
+  <header class="topbar">
+    <a href="/" class="logo"><span class="logo-mark">W</span>Waurks</a>
+    <nav class="nav">
+      <a href="/requests">Friend requests</a>
+      <a href="/friends" style="color:var(--text)">Friend remover</a>
+      <a href="/dashboard">My account</a>
+      <a href="/admin" id="adminLink" class="admin-link" style="display:none">Admin</a>
+    </nav>
+  </header>
+</div>
+
+<main class="page">
+  <div class="head">
+    <div>
+      <h1>Friend remover <span class="count" id="count"></span></h1>
+      <div class="status" id="status">Loading...</div>
+      <div class="bar" id="bar" style="display:none"><span id="barFill" style="width:0"></span></div>
+    </div>
+    <div class="controls">
+      <button class="btn btn-line btn-sm" id="refresh">Reload friends</button>
+      <button class="btn btn-line btn-sm" id="stop" style="display:none">Stop</button>
+      <button class="btn btn-main btn-sm" id="removeAll">Remove all except kept</button>
+    </div>
+  </div>
+
+  <div class="tools">
+    <input class="search" id="search" placeholder="Search friends" autocomplete="off">
+    <span class="note" id="keptNote"></span>
+  </div>
+
+  <div id="list"></div>
+</main>
+
+<dialog id="confirm">
+  <h2>Remove friends?</h2>
+  <p id="confirmText"></p>
+  <div class="row">
+    <button class="btn btn-line btn-sm" id="cancel">Cancel</button>
+    <button class="btn btn-main btn-sm" id="go">Remove</button>
+  </div>
+</dialog>
+
+<script>
+  function notify(msg, kind) {
+    const t = document.getElementById('wkToast');
+    t.textContent = String(msg);
+    t.className = 'show' + (kind ? ' ' + kind : '');
+    clearTimeout(t._h); t._h = setTimeout(() => { t.className = ''; }, 3000);
+  }
+  const esc = v => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const profileUrl = id => 'https://www.roblox.com/users/' + encodeURIComponent(String(id).replace(/\D/g, '')) + '/profile';
+  let data = null, startTotal = 0, asked = false;
+
+  function render() {
+    const d = data;
+    const st = document.getElementById('status');
+    const friends = d.friends || [];
+    const kept = friends.filter(f => f.kept).length;
+    document.getElementById('count').textContent = friends.length ? `(${friends.length})` : '';
+    document.getElementById('keptNote').textContent = friends.length ? `Keeping ${kept}. Removing would take off ${friends.length - kept}.` : '';
+    document.getElementById('stop').style.display = d.removing ? '' : 'none';
+    document.getElementById('removeAll').disabled = !!d.removing || friends.length - kept === 0;
+
+    if (!d.extensionOnline) { st.textContent = 'Browser extension not running. Open Roblox in a browser with the Waurks extension.'; st.className = 'status warnline'; }
+    else if (d.removing) { st.textContent = `Removing friends... ${d.removing} left`; st.className = 'status'; }
+    else if (d.loading) { st.textContent = 'Getting your friend list from Roblox...'; st.className = 'status'; }
+    else { st.textContent = 'Click Keep on anyone you want to stay friends with.'; st.className = 'status'; }
+
+    const bar = document.getElementById('bar');
+    if (d.removing) {
+      startTotal = Math.max(startTotal, d.removing);
+      bar.style.display = '';
+      document.getElementById('barFill').style.width = Math.round(100 * (startTotal - d.removing) / startTotal) + '%';
+    } else { bar.style.display = 'none'; startTotal = 0; }
+
+    const q = document.getElementById('search').value.trim().toLowerCase();
+    const shown = q ? friends.filter(f => (f.name + ' ' + f.displayName).toLowerCase().includes(q)) : friends;
+    document.getElementById('list').innerHTML = shown.length
+      ? `<div class="grid">${shown.map(f => `
+        <div class="card${f.kept ? ' kept' : ''}">
+          <a class="who" href="${profileUrl(f.id)}" target="_blank" rel="noopener">
+            ${f.avatar ? `<img class="pic" src="${esc(f.avatar)}" alt="" loading="lazy">` : `<div class="pic ph">${esc((f.displayName || '?').charAt(0).toUpperCase())}</div>`}
+            <div class="dn">${esc(f.displayName)}</div>
+            <div class="un">@${esc(f.name)}</div>
+          </a>
+          <button class="btn ${f.kept ? 'btn-main' : 'btn-line'} btn-sm" data-keep="${esc(f.id)}" data-on="${f.kept ? 1 : 0}">${f.kept ? 'Kept' : 'Keep'}</button>
+        </div>`).join('')}</div>`
+      : `<div class="empty">${d.loading ? 'Loading your friends...' : q ? 'No friends match that.' : 'No friends found. Press Reload friends.'}</div>`;
+  }
+
+  async function load() {
+    try {
+      const r = await fetch('/api/v1/roblox/friends');
+      if (r.status === 401) { location.href = '/checkout'; return; }
+      const d = await r.json();
+      if (!d.connected) {
+        document.getElementById('status').textContent = '';
+        document.getElementById('list').innerHTML = `<div class="empty">Connect the Waurks browser extension first.<br><br><a href="/api/v1/extension/download" class="btn btn-main btn-sm" download="waurks-extension.zip">Download extension</a></div>`;
+        return;
+      }
+      data = d;
+      // First visit: ask for a fresh list once
+      if (!asked && !d.syncedAt && !d.loading) { asked = true; await fetch('/api/v1/roblox/friends/refresh', { method: 'POST' }); data.loading = true; }
+      render();
+    } catch (e) {}
+  }
+
+  document.getElementById('search').oninput = () => data && render();
+
+  document.getElementById('refresh').onclick = async () => {
+    await fetch('/api/v1/roblox/friends/refresh', { method: 'POST' });
+    notify('Getting your friend list...', 'ok');
+    load();
+  };
+
+  document.getElementById('stop').onclick = async () => {
+    await fetch('/api/v1/roblox/friends/stop', { method: 'POST' });
+    notify('Stopped', 'ok');
+    load();
+  };
+
+  const dlg = document.getElementById('confirm');
+  document.getElementById('removeAll').onclick = () => {
+    const n = (data.friends || []).filter(f => !f.kept).length;
+    document.getElementById('confirmText').textContent = `This removes ${n} friend${n === 1 ? '' : 's'} on Roblox. Kept friends stay. You can't undo this.`;
+    dlg.showModal();
+  };
+  document.getElementById('cancel').onclick = () => dlg.close();
+  document.getElementById('go').onclick = async () => {
+    dlg.close();
+    const r = await fetch('/api/v1/roblox/friends/remove-all', { method: 'POST' });
+    const d = await r.json();
+    if (!r.ok) return notify(d.error || 'Could not do that', 'err');
+    notify(`Removing ${d.queued} friends`, 'ok');
+    load();
+  };
+
+  document.addEventListener('click', async e => {
+    const b = e.target.closest('button[data-keep]');
+    if (!b) return;
+    const id = b.dataset.keep, keep = b.dataset.on !== '1';
+    const f = data.friends.find(x => String(x.id) === id);
+    if (f) { f.kept = keep; render(); }
+    await fetch(`/api/v1/roblox/friends/${encodeURIComponent(id)}/keep`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ keep }) });
+  });
+
+  fetch('/api/v1/auth/status').then(r => r.json()).then(s => { if (s.isAdmin) document.getElementById('adminLink').style.display = ''; }).catch(() => {});
+
+  load();
+  setInterval(load, 2500);
+</script>
+</body>
+</html>

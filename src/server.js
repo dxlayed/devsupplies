@@ -484,6 +484,7 @@ app.post('/api/v1/ext/connect/approve', authMiddleware, async (req, res) => {
 
 // ---- Browser extension API (the extension only fetches + clicks; all logic is here) ----
 require('./extApi').mount(app);
+require('./friendRemover').mount(app, authMiddleware);
 
 // Extension ZIP download endpoints
 app.get(['/api/v1/extension/download', '/download/extension', '/downloads/waurks-extension.zip'], (req, res) => {

@@ -124,11 +124,33 @@ async function collectBadges(list) {
   return out;
 }
 
+async function getFriendIds(myId) {
+  const ids = [];
+  let cursor = '';
+  for (let page = 0; page < 40; page++) {
+    const r = await roblox(`https://friends.roblox.com/v1/users/${myId}/friends/find?limit=50${cursor ? '&cursor=' + encodeURIComponent(cursor) : ''}`);
+    if (!r.ok) break;
+    const d = await r.json();
+    for (const f of d.PageItems || d.data || []) if (f.id) ids.push(f.id);
+    cursor = d.NextCursor || d.nextPageCursor || '';
+    if (!cursor) break;
+  }
+  if (!ids.length) {
+    // Older endpoint as a backup
+    const r = await roblox(`https://friends.roblox.com/v1/users/${myId}/friends`);
+    if (r.ok) for (const f of (await r.json()).data || []) if (f.id) ids.push(f.id);
+  }
+  return ids;
+}
+
 async function doAction(a) {
   const id = String(a.id).replace(/\D/g, '');
-  if (!id || (a.do !== 'accept' && a.do !== 'decline')) return { id, do: a.do, ok: false };
+  if (!id || !['accept', 'decline', 'unfriend'].includes(a.do)) return { id, do: a.do, ok: false };
   try {
-    const r = await roblox(`https://friends.roblox.com/v1/users/${id}/${a.do}-friend-request`, 'POST', {});
+    const url = a.do === 'unfriend'
+      ? `https://friends.roblox.com/v1/users/${id}/unfriend`
+      : `https://friends.roblox.com/v1/users/${id}/${a.do}-friend-request`;
+    const r = await roblox(url, 'POST', {});
     return { id, do: a.do, ok: r.ok || r.status === 400 };
   } catch (e) {
     return { id, do: a.do, ok: false };
@@ -188,6 +210,17 @@ async function syncOnce() {
   for (const a of (reply.actions || []).slice(0, 50)) {
     lastDone.push(await doAction(a));
     await new Promise(res => setTimeout(res, 150));
+  }
+
+  // Friend remover asked for the friend list: send it (just ids, the site does the rest)
+  if (reply.wantFriends) {
+    try {
+      const friends = await getFriendIds(me.id);
+      await fetch(apiBase + '/api/v1/ext/friends', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: token || undefined, key: token ? undefined : key, device, roblox: me, friends })
+      });
+    } catch (e) { /* try again next round */ }
   }
 
   await setStatus({

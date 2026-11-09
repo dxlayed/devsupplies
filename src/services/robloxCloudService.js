@@ -539,7 +539,7 @@ class RobloxCloudService {
       } catch (e) { return null; }
     };
     // MM2 filter = only check for the MM2 "Level 10" badge. No bot checks, nothing declined or hidden.
-    const mm2Filter = account.accept_filter === 'mm2';
+    const mm2Filter = true; // MM2 filter is the only filter now
     const senderId = a => a.id ?? a.friendRequest?.senderId;
     const ids = new Set(pendingList.map(a => String(senderId(a))).filter(Boolean));
 
@@ -807,7 +807,7 @@ class RobloxCloudService {
         verdict: r.verdict, score: r.score, reasons: safeJson(r.reasons, []), facts: safeJson(r.facts, {}),
         status: r.status, sentAt: r.sent_at
       };
-      if (account.accept_filter === 'mm2') {
+      {
         // MM2 filter: only people confirmed to have the Level 10 badge are shown. Everything else is filtered.
         if (r.status === 'pending' && item.facts.mm2 === true && r.verdict === 'ACCEPT') visible.push(item);
         else {
@@ -826,7 +826,7 @@ class RobloxCloudService {
       mode: account.mode || 'cloud',
       extensionOnline: account.mode === 'extension' && !!account.last_check_at
         && Date.now() - new Date(String(account.last_check_at).replace(' ', 'T') + 'Z').getTime() < 45000,
-      acceptFilter: account.accept_filter || 'standard',
+      acceptFilter: 'mm2',
       lastScanAt: [account.last_check_at, account.last_scan_at].filter(Boolean).sort().pop() || null, lastError: account.last_error,
       checking: (this.backlog && this.backlog.get(userId)) || 0, busy: !!(this.activeScans && this.activeScans.has(userId)),
       requests: visible, hidden
@@ -841,9 +841,8 @@ class RobloxCloudService {
     await db.run(`UPDATE roblox_accounts SET auto_accept_players = ? WHERE user_id = ?`, [enabled ? 1 : 0, userId]);
     let accepted = 0;
     if (enabled) {
-      const acc = await db.get(`SELECT accept_filter FROM roblox_accounts WHERE user_id = ?`, [userId]);
       let rows = await db.all(`SELECT target_id, facts FROM friend_requests WHERE user_id = ? AND status = 'pending' AND verdict = 'ACCEPT'`, [userId]);
-      if (acc?.accept_filter === 'mm2') rows = rows.filter(r => safeJson(r.facts, {}).mm2 === true);
+      rows = rows.filter(r => safeJson(r.facts, {}).mm2 === true);
       for (const r of rows) {
         try { await this.answerRequest(userId, r.target_id, true); accepted++; } catch (e) { /* skip ones Roblox refuses */ }
         await new Promise(res => setTimeout(res, 300));

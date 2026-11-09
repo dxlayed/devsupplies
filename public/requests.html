@@ -66,6 +66,7 @@
     <a href="/" class="logo"><span class="logo-mark">W</span>Waurks</a>
     <nav class="nav">
       <a href="/requests" style="color:var(--text)">Friend requests</a>
+      <a href="/friends">Friend remover</a>
       <a href="/dashboard">My account</a>
       <a href="/admin" id="adminLink" class="admin-link" style="display:none">Admin</a>
     </nav>
@@ -84,20 +85,7 @@
     </div>
     <div class="controls">
       <label class="auto"><span>Auto-accept real people</span><span class="switch"><input type="checkbox" id="autoAccept"><span></span></span></label>
-      <div class="seg" id="acceptFilter" role="group" aria-label="Auto-accept filter">
-        <button data-filter="standard">Standard filter</button>
-        <button data-filter="mm2">MM2 filter</button>
-      </div>
-      <div class="warn" id="mm2Warn" role="note">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
-        Only recommended for MM2
-      </div>
-      <div class="seg" role="group" aria-label="Bot filter strength">
-        <button data-level="relaxed">Relaxed</button>
-        <button data-level="normal">Normal</button>
-        <button data-level="strict">Strict</button>
-      </div>
-      <div class="seg-help" id="segHelp"></div>
+      <div class="seg" id="acceptFilter" aria-label="Filter"><button class="on" disabled style="cursor:default">MM2 filter</button></div>
     </div>
   </div>
 
@@ -174,16 +162,9 @@
 
   function render(d) {
     lastData = d;
-    document.querySelectorAll('.seg:not(#acceptFilter) button').forEach(b => b.classList.toggle('on', b.dataset.level === d.level));
-    document.getElementById('segHelp').textContent = HELP[d.level] || '';
     const sw = document.getElementById('autoAccept');
     if (document.activeElement !== sw) sw.checked = !!d.autoAccept;
-    document.querySelectorAll('#acceptFilter button').forEach(b => b.classList.toggle('on', b.dataset.filter === (d.acceptFilter || 'standard')));
     document.getElementById('acceptFilter').style.opacity = d.autoAccept ? '1' : '.5';
-    const isMm2 = d.acceptFilter === 'mm2';
-    document.getElementById('mm2Warn').classList.toggle('show', isMm2);
-    document.querySelector('.seg:not(#acceptFilter)').style.display = isMm2 ? 'none' : '';
-    document.getElementById('segHelp').style.display = isMm2 ? 'none' : '';
 
     const st = document.getElementById('status');
     if (d.lastError) { st.textContent = 'Problem: ' + d.lastError; st.className = 'status bad'; }
@@ -241,23 +222,6 @@
       try { localStorage.setItem('waurks_req_cache', JSON.stringify(d)); } catch (e) {}
     } catch (e) {}
   }
-
-  document.querySelectorAll('#acceptFilter button').forEach(b => b.onclick = async () => {
-    try {
-      const r = await fetch('/api/v1/roblox/accept-filter', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ filter: b.dataset.filter }) });
-      if (!r.ok) throw new Error((await r.json()).error);
-      notify(b.textContent + ' on', 'ok');
-      load();
-    } catch (e) { notify(e.message || 'Could not change that', 'err'); }
-  });
-
-  document.querySelectorAll('.seg:not(#acceptFilter) button').forEach(b => b.onclick = async () => {
-    try {
-      const r = await fetch('/api/v1/roblox/filter', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ level: b.dataset.level }) });
-      if (!r.ok) throw new Error((await r.json()).error);
-      await load();
-    } catch (e) { notify(e.message || 'Could not change the filter', 'err'); }
-  });
 
   document.getElementById('autoAccept').onchange = async e => {
     const on = e.target.checked;
