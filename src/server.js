@@ -899,6 +899,7 @@ if (require.main === module) {
     }).catch(() => {});
     // Requests left waiting by the old MM2 rule get re-checked (now: no badge = filtered as a bot)
     db.run(`UPDATE friend_requests SET checked_at = NULL WHERE status = 'pending' AND reasons LIKE '%No MM2 Level 10 badge%'`).catch(() => {});
+    db.run(`UPDATE friend_requests SET checked_at = NULL, status = 'pending' WHERE reasons LIKE '%Offline (failed step 2)%' AND reasons LIKE '%MM2%'`).catch(() => {});
     // After an update, re-check everything still waiting with the newest rules
     db.run(`UPDATE friend_requests SET checked_at = NULL WHERE status = 'pending'`).catch(() => {});
     // Lifetime keys: make older "yearly" keys never expire too
