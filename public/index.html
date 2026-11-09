@@ -3,64 +3,131 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Waurks - Stop bot friend requests on Roblox</title>
-<meta name="description" content="Waurks declines bot friend requests on your Roblox account and accepts real players for you.">
+<title>Waurks - Anti bot for Roblox friend requests</title>
+<meta name="description" content="Waurks filters bot friend requests on Roblox and only lets real players through. Perfect for MM2 and Adopt Me.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/theme.css">
 <style>
-  .hero{display:grid;grid-template-columns:1.1fr .9fr;gap:56px;align-items:center;padding:56px 0 72px}
-  .hero h1{font-size:clamp(38px,5.4vw,60px);margin-bottom:18px}
-  .hero h1 em{font-style:normal;color:var(--purple)}
-  .hero p{font-size:18px;color:var(--muted);max-width:30em;margin-bottom:28px}
-  .hero-btns{display:flex;gap:12px;flex-wrap:wrap}
-  .hero-btns .btn{padding:14px 22px;font-size:15px}
+  /* ---------- intro video (first visit only) ---------- */
+  #intro{position:fixed;inset:0;z-index:10000;background:#000;display:grid;place-items:center;transition:opacity .8s}
+  #intro.hide{opacity:0;pointer-events:none}
+  #intro video{width:100%;height:100%;object-fit:contain;display:none}
+  #intro .enter{display:flex;flex-direction:column;align-items:center;gap:22px;background:none;border:none;color:#fff;cursor:pointer;font:600 14px Inter,sans-serif;letter-spacing:5px}
+  #intro .enter i{width:84px;height:96px;background:inherit}
+  #intro .enter .logo-mark{width:84px;height:96px;animation:pulse 1.6s ease-in-out infinite}
+  @keyframes pulse{50%{transform:scale(1.08);filter:drop-shadow(0 0 30px rgba(139,92,246,.9))}}
+  body.locked{overflow:hidden}
 
-  .req-list{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:8px}
-  .req-head{display:flex;justify-content:space-between;padding:12px 14px;font-size:13px;color:var(--muted)}
-  .req{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px}
-  .req + .req{border-top:1px solid var(--line)}
-  .req .pic{width:34px;height:34px;border-radius:50%;background:var(--panel-2);display:grid;place-items:center;font-weight:700;font-size:13px;color:var(--muted);flex:none}
-  .req .name{font-weight:600;font-size:14px}
-  .req .why{font-size:12px;color:var(--muted)}
-  .req .res{margin-left:auto;font-size:12px;font-weight:600}
-  .res.no{color:var(--red)} .res.yes{color:var(--green)}
+  /* ---------- hero ---------- */
+  .hero{position:relative;text-align:center;padding:70px 0 90px;overflow:hidden}
+  .rays{position:absolute;width:1400px;height:1400px;left:calc(50% - 700px);top:-420px;pointer-events:none;
+    background:repeating-conic-gradient(from 0deg,rgba(139,92,246,.13) 0deg 6deg,transparent 6deg 18deg);
+    mask:radial-gradient(circle,#000 0,transparent 55%);-webkit-mask:radial-gradient(circle,#000 0,transparent 55%);animation:spin 40s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .halo{position:absolute;width:620px;height:620px;left:calc(50% - 310px);top:-60px;pointer-events:none}
+  .halo i{position:absolute;inset:0;border-radius:50%;border:1.5px solid rgba(167,139,250,.35)}
+  .halo i:nth-child(1){animation:h1 9s linear infinite}
+  .halo i:nth-child(2){inset:50px;animation:h2 12s linear infinite;border-color:rgba(196,181,253,.22)}
+  @keyframes h1{from{transform:rotateX(72deg) rotateZ(0)}to{transform:rotateX(72deg) rotateZ(360deg)}}
+  @keyframes h2{from{transform:rotateY(70deg) rotateZ(0)}to{transform:rotateY(70deg) rotateZ(-360deg)}}
+  .hero > *:not(.rays):not(.halo){position:relative}
+  .hero .shield{width:92px;height:106px;margin:0 auto 22px;animation:float 3s ease-in-out infinite}
+  .hero .shield .logo-mark{width:92px;height:106px;display:block}
+  @keyframes float{50%{transform:translateY(-10px)}}
+  .hero h1{font-size:clamp(46px,8vw,96px);letter-spacing:-.04em;line-height:1;margin:18px 0 10px}
+  .hero h1 .r{color:var(--red);-webkit-text-fill-color:var(--red)}
+  .hero p.lead{font-size:18px;color:var(--muted);max-width:32em;margin:18px auto 30px}
+  .hero-btns{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+  .hero-btns .btn{padding:15px 26px;font-size:15px;border-radius:14px}
+  .games{display:flex;gap:16px;justify-content:center;margin-top:44px;flex-wrap:wrap}
+  .game{display:flex;align-items:center;gap:14px;padding:10px 22px 10px 10px;border-radius:18px;font:700 24px "Space Grotesk",sans-serif;
+    background:linear-gradient(160deg,#7c4dff,#3b1a8f);box-shadow:0 6px 0 #2a1170,0 20px 40px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.3)}
+  .game.b{background:linear-gradient(160deg,#fff,#d9ccff);color:#2a1170;box-shadow:0 6px 0 #8b7cc4,0 20px 40px rgba(0,0,0,.5),inset 0 1px 0 #fff}
+  .game img{width:52px;height:52px;border-radius:13px;object-fit:cover;transform:perspective(400px) rotateY(-14deg) rotateX(8deg);box-shadow:0 4px 0 rgba(0,0,0,.4),0 10px 18px rgba(0,0,0,.5),0 0 0 2px rgba(255,255,255,.25)}
+  .game.b img{transform:perspective(400px) rotateY(14deg) rotateX(8deg)}
+  .games-label{margin-top:40px;font:700 12px Inter,sans-serif;letter-spacing:5px;color:var(--muted);text-transform:uppercase}
 
-  section.part{padding:64px 0;border-top:1px solid var(--line)}
-  section.part h2{font-size:clamp(28px,3.6vw,38px);margin-bottom:10px}
-  section.part > .wrap > p.lead{color:var(--muted);font-size:17px;max-width:34em;margin-bottom:36px}
+  /* ---------- scanner ---------- */
+  section.part{padding:80px 0}
+  section.part h2{font-size:clamp(32px,4.4vw,52px);letter-spacing:-.03em;margin-bottom:12px}
+  section.part p.lead{color:var(--muted);font-size:17px;max-width:32em}
+  .sort{display:grid;grid-template-columns:1fr 1.05fr;gap:60px;align-items:center}
+  .stats{display:flex;gap:14px;margin-top:30px;flex-wrap:wrap}
+  .stat{padding:16px 20px;border-radius:16px;border:1px solid var(--line);background:var(--panel);min-width:150px}
+  .stat b{display:block;font:700 44px/1 "Space Grotesk",sans-serif}
+  .stat span{font:700 11px Inter,sans-serif;color:var(--muted);letter-spacing:2px;text-transform:uppercase}
+  .stat.bad b{color:var(--red)} .stat.good b{color:#c4b5fd}
+  .panel{padding:20px;border-radius:24px;background:linear-gradient(170deg,#140d22,#08050e);border:1px solid #2a1f40;position:relative;overflow:hidden;
+    transform:perspective(1400px) rotateY(-12deg) rotateX(5deg);box-shadow:-30px 40px 80px rgba(0,0,0,.6),0 0 0 1px rgba(139,92,246,.12)}
+  .phead{display:flex;justify-content:space-between;align-items:center;font:700 18px "Space Grotesk",sans-serif;margin:0 4px 14px}
+  .phead i{font:800 11px Inter;font-style:normal;letter-spacing:2px;color:var(--red);padding:5px 9px;border-radius:7px;background:rgba(255,84,112,.12)}
+  .row{display:flex;align-items:center;gap:14px;padding:9px 12px;border-radius:14px;margin-bottom:6px;background:#110b1c;border:1px solid transparent}
+  .row img{width:44px;height:44px;border-radius:50%;object-fit:cover;background:#e9e6ef;flex:none}
+  .row .un{font-weight:600;font-size:15px;color:#d6d0e0}
+  .row .st{margin-left:auto;font:800 11px Inter;letter-spacing:2px;padding:5px 10px;border-radius:7px}
+  .row.bot{opacity:.38}
+  .row.bot .st{background:rgba(255,84,112,.15);color:var(--red)}
+  .row.real{border-color:var(--purple);background:rgba(139,92,246,.14)}
+  .row.real .st{background:var(--purple);color:#fff}
+  .beam{position:absolute;left:0;right:0;height:90px;top:-100px;background:linear-gradient(180deg,transparent,rgba(139,92,246,.18) 70%,rgba(196,181,253,.8) 98%,transparent);animation:scan 3.2s linear infinite;pointer-events:none}
+  @keyframes scan{to{transform:translateY(620px)}}
 
-  .how{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
-  .how .box h3{font-size:18px;margin-bottom:6px}
-  .how .box p{color:var(--muted);font-size:15px}
-  .how .num{font-family:"Space Grotesk",sans-serif;color:var(--purple);font-weight:700;font-size:15px;margin-bottom:10px}
+  /* ---------- steps ---------- */
+  .how{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:40px}
+  .how .num{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font:700 20px "Space Grotesk",sans-serif;margin-bottom:16px;
+    background:linear-gradient(160deg,#7c4dff,#3b1a8f);box-shadow:0 4px 0 #2a1170}
+  .how h3{font-size:20px;margin-bottom:6px}
+  .how p{color:var(--muted);font-size:15px}
 
-  .prices{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;align-items:stretch}
-  .price{display:flex;flex-direction:column}
-  .price .name{color:var(--muted);font-weight:600;font-size:14px}
-  .price .amt{font-family:"Space Grotesk",sans-serif;font-size:44px;font-weight:700;margin:6px 0 2px}
-  .price .per{color:var(--muted);font-size:14px;margin-bottom:18px}
-  .price ul{list-style:none;margin-bottom:24px;display:grid;gap:8px;font-size:15px}
-  .price li{padding-left:18px;position:relative}
-  .price li::before{content:"";position:absolute;left:0;top:10px;width:7px;height:7px;border-radius:50%;background:var(--purple)}
-  .price .btn{margin-top:auto}
-  .price.top{border-color:var(--purple);background:linear-gradient(180deg,rgba(155,92,255,.10),var(--panel) 60%)}
+  /* ---------- plans ---------- */
+  .center{text-align:center}
+  .center p.lead{margin:0 auto}
+  .plans{display:flex;gap:26px;justify-content:center;align-items:center;margin-top:50px;perspective:1600px;flex-wrap:wrap}
+  .plan{width:290px;min-height:380px;border-radius:26px;padding:34px 28px;display:flex;flex-direction:column;position:relative;overflow:hidden;
+    background:linear-gradient(165deg,#1c1230,#0a0611);border:1px solid var(--line);box-shadow:0 40px 80px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.07);transition:transform .3s}
+  .plan.l{transform:rotateY(16deg) translateZ(-40px)} .plan.r{transform:rotateY(-16deg) translateZ(-40px)}
+  .plan:hover{transform:translateY(-8px)}
+  .plan::after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,transparent 35%,rgba(255,255,255,.08) 50%,transparent 65%);transform:translateX(-100%);animation:shine 3s ease-in-out infinite;pointer-events:none}
+  @keyframes shine{60%,100%{transform:translateX(100%)}}
+  .plan .len{font:700 14px Inter;color:var(--muted);letter-spacing:3px;text-transform:uppercase}
+  .plan .price{font:700 86px/1 "Space Grotesk",sans-serif;letter-spacing:-4px;margin:22px 0 6px}
+  .plan .price small{font-size:34px;vertical-align:top;margin-right:3px;color:#c4b5fd}
+  .plan .per{color:var(--muted);margin-bottom:22px}
+  .plan .btn{margin-top:auto}
+  .plan.best{background:linear-gradient(165deg,#7c4dff,#3b1a8f);border-color:#a78bfa;box-shadow:0 50px 100px rgba(139,92,246,.4),inset 0 1px 0 rgba(255,255,255,.3);transform:translateY(-14px) translateZ(40px)}
+  .plan.best .len,.plan.best .per{color:#e9e1ff}
+  .plan.best .price small{color:#fff}
+  .plan.best .btn{background:#fff;color:#3b1a8f;box-shadow:0 4px 0 #8b7cc4}
+  .plan .best-pill{position:absolute;top:22px;right:22px;background:#fff;color:#3b1a8f;font:800 11px Inter;letter-spacing:2px;padding:5px 10px;border-radius:99px}
+  .ltc{margin-top:26px;color:var(--muted);font-size:14px}
 
-  .faq{display:grid;gap:12px;max-width:760px}
-  .faq details{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+  /* ---------- faq ---------- */
+  .faq{display:grid;gap:12px;max-width:760px;margin:40px auto 0}
+  .faq details{background:linear-gradient(165deg,#140d22,#08050e);border:1px solid var(--line);border-radius:16px;padding:18px 20px}
   .faq summary{cursor:pointer;font-weight:600;list-style:none;display:flex;justify-content:space-between;gap:12px}
   .faq summary::after{content:"+";color:var(--purple);font-weight:700}
   .faq details[open] summary::after{content:"-"}
   .faq p{color:var(--muted);margin-top:10px}
 
+  .end{padding:90px 0 20px;text-align:center}
+  .end h2{font-size:clamp(34px,5vw,60px);letter-spacing:-.03em;margin-bottom:22px}
+
   @media (max-width:860px){
-    .hero{grid-template-columns:1fr;gap:36px;padding-top:28px}
-    .how,.prices{grid-template-columns:1fr}
+    .sort,.how{grid-template-columns:1fr}
+    .panel{transform:none}
+    .plan.l,.plan.r,.plan.best{transform:none}
   }
 </style>
 </head>
 <body>
+
+<!-- One-time intro video. Can't be skipped; after it ends you land on the site. -->
+<div id="intro" style="display:none">
+  <button class="enter" id="enter"><span class="logo-mark"></span>CLICK TO ENTER</button>
+  <video id="introVid" src="/intro.mp4" playsinline preload="auto" disablepictureinpicture controlslist="nodownload nofullscreen noremoteplayback"></video>
+</div>
 
 <div class="wrap">
   <header class="topbar">
@@ -76,107 +143,141 @@
       <a href="/checkout" class="btn btn-main btn-sm">Get a key</a>
     </nav>
   </header>
-
-  <section class="hero">
-    <div>
-      <h1>No more <em>bot</em> friend requests.</h1>
-      <p>Waurks goes through your Roblox friend requests for you. Bots get declined. Real players get accepted. Your list stays clean.</p>
-      <div class="hero-btns">
-        <a href="/checkout" class="btn btn-main">Get a key</a>
-        <a href="#how" class="btn btn-line">How it works</a>
-      </div>
-    </div>
-
-    <div class="req-list" aria-label="Example of sorted friend requests">
-      <div class="req-head"><span>Friend requests</span><span>Example</span></div>
-      <div class="req"><div class="pic">F</div><div><div class="name">FreeRobux_x9981</div><div class="why">New account, scam link in bio</div></div><div class="res no">Declined</div></div>
-      <div class="req"><div class="pic">M</div><div><div class="name">mia_draws</div><div class="why">2 years old, 40 badges</div></div><div class="res yes">Accepted</div></div>
-      <div class="req"><div class="pic">C</div><div><div class="name">CLAIM_NOW_7781</div><div class="why">1 day old, no friends</div></div><div class="res no">Declined</div></div>
-      <div class="req"><div class="pic">B</div><div><div class="name">Blocky_Kai</div><div class="why">Plays a lot, has friends</div></div><div class="res yes">Accepted</div></div>
-    </div>
-  </section>
 </div>
 
-<section class="part" id="how">
+<section class="hero">
+  <div class="rays"></div>
+  <div class="halo"><i></i><i></i></div>
   <div class="wrap">
-    <h2>How it works</h2>
-    <p class="lead">Set it up once. After that it keeps going on its own, even when your computer is off.</p>
-    <div class="how">
-      <div class="box">
-        <div class="num">Step 1</div>
-        <h3>Get a key</h3>
-        <p>Sign in with Discord and pick a plan. Pay with Litecoin or in-game items.</p>
-      </div>
-      <div class="box">
-        <div class="num">Step 2</div>
-        <h3>Link your Roblox</h3>
-        <p>Use our browser extension (no cookie required!) or connect directly via cloud. Both protect your friend list 24/7.</p>
-      </div>
-      <div class="box">
-        <div class="num">Step 3</div>
-        <h3>That's it</h3>
-        <p>Every few minutes we check your requests. We look at account age, badges, friends and the bio to spot bots.</p>
-      </div>
+    <div class="shield"><span class="logo-mark"></span></div>
+    <span class="pill">Anti bot for Roblox</span>
+    <h1 class="grad3d">648 friend requests.<br><span class="r">All bots.</span></h1>
+    <p class="lead">Waurks filters out the bots and only shows you real players. Turn on auto-accept and it adds the real ones for you.</p>
+    <div class="hero-btns">
+      <a href="/checkout" class="btn btn-main">Get a key</a>
+      <a href="#how" class="btn btn-line">How it works</a>
+    </div>
+    <div class="games-label">Perfect for</div>
+    <div class="games" style="margin-top:16px">
+      <div class="game"><img src="/img/mm2.webp" alt="">MM2</div>
+      <div class="game b"><img src="/img/adoptme.webp" alt="">Adopt Me</div>
     </div>
   </div>
 </section>
 
-<section class="part" id="pricing">
-  <div class="wrap">
-    <h2>Pricing</h2>
-    <p class="lead">Pay once for the time you want. No auto-renew.</p>
-    <div class="prices">
-      <div class="box price">
-        <div class="name">Weekly</div>
-        <div class="amt">$15</div>
-        <div class="per">for 7 days</div>
-        <ul><li>Declines bots</li><li>Accepts real players</li><li>Stop any time</li></ul>
-        <a href="/checkout?tier=weekly" class="btn btn-line btn-block">Choose weekly</a>
-      </div>
-      <div class="box price top">
-        <div class="name">Monthly</div>
-        <div class="amt">$45</div>
-        <div class="per">for 30 days</div>
-        <ul><li>Everything in weekly</li><li>Cheaper per week</li><li>Most people pick this</li></ul>
-        <a href="/checkout?tier=monthly" class="btn btn-main btn-block">Choose monthly</a>
-      </div>
-      <div class="box price">
-        <div class="name">Lifetime</div>
-        <div class="amt">$115</div>
-        <div class="per">pay once, keep it forever</div>
-        <ul><li>Everything in monthly</li><li>Never runs out</li><li>Best deal</li></ul>
-        <a href="/checkout?tier=yearly" class="btn btn-line btn-block">Choose lifetime</a>
+<section class="part">
+  <div class="wrap sort">
+    <div>
+      <span class="pill">Live filter</span>
+      <h2 style="margin-top:16px">Waurks sorts them <span style="color:var(--purple)">for you.</span></h2>
+      <p class="lead">Every request gets checked in seconds. Bots get filtered and never show up again. Real players stay.</p>
+      <div class="stats">
+        <div class="stat bad"><b>5</b><span>bots filtered</span></div>
+        <div class="stat good"><b>3</b><span>real players</span></div>
       </div>
     </div>
+    <div class="panel">
+      <div class="phead"><span>Friend requests</span><i>LIVE</i></div>
+      <div class="row bot"><img src="/img/20.webp" alt=""><span class="un">@Builderman8273641</span><span class="st">BOT</span></div>
+      <div class="row real"><img src="/img/16.webp" alt=""><span class="un">@NovaTrades</span><span class="st">REAL</span></div>
+      <div class="row bot"><img src="/img/22.webp" alt=""><span class="un">@user_93841272</span><span class="st">BOT</span></div>
+      <div class="row bot"><img src="/img/23.webp" alt=""><span class="un">@Kj3h2kd1m0</span><span class="st">BOT</span></div>
+      <div class="row real"><img src="/img/18.webp" alt=""><span class="un">@pastelbunny</span><span class="st">REAL</span></div>
+      <div class="row bot"><img src="/img/25.webp" alt=""><span class="un">@xXbaconXx40221</span><span class="st">BOT</span></div>
+      <div class="row real"><img src="/img/19.webp" alt=""><span class="un">@MarioMains</span><span class="st">REAL</span></div>
+      <div class="row bot"><img src="/img/29.webp" alt=""><span class="un">@giveaway_bot771</span><span class="st">BOT</span></div>
+      <div class="beam"></div>
+    </div>
+  </div>
+</section>
+
+<section class="part" id="how">
+  <div class="wrap">
+    <span class="pill">Setup</span>
+    <h2 style="margin-top:16px">Ready in a minute.</h2>
+    <p class="lead">Set it up once. It keeps checking on its own.</p>
+    <div class="how">
+      <div class="box"><div class="num">1</div><h3>Get a key</h3><p>Sign in with Discord and pick a plan. Pay with Litecoin and your key unlocks by itself.</p></div>
+      <div class="box"><div class="num">2</div><h3>Add the extension</h3><p>Download the Waurks extension, press Connect, and it links to your account. No cookie needed.</p></div>
+      <div class="box"><div class="num">3</div><h3>Done</h3><p>Open Friend requests on the site. Bots are filtered out, real players stay, and auto-accept does the rest.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="part center" id="pricing">
+  <div class="wrap">
+    <span class="pill">Plans</span>
+    <h2 style="margin-top:16px">Pick your plan.</h2>
+    <p class="lead">Pay once for the time you want. No auto-renew.</p>
+    <div class="plans">
+      <div class="plan l"><div class="len">Weekly</div><div class="price"><small>$</small>15</div><div class="per">7 days</div><a href="/checkout?tier=weekly" class="btn btn-line btn-block">Choose weekly</a></div>
+      <div class="plan best"><div class="best-pill">BEST</div><div class="len">Lifetime</div><div class="price"><small>$</small>115</div><div class="per">Yours forever</div><a href="/checkout?tier=yearly" class="btn btn-block">Choose lifetime</a></div>
+      <div class="plan r"><div class="len">Monthly</div><div class="price"><small>$</small>45</div><div class="per">30 days</div><a href="/checkout?tier=monthly" class="btn btn-line btn-block">Choose monthly</a></div>
+    </div>
+    <p class="ltc">Pay with Litecoin. Your key unlocks by itself.</p>
   </div>
 </section>
 
 <section class="part" id="faq">
-  <div class="wrap">
-    <h2>Questions</h2>
-    <p class="lead">Still not sure? Here are the things people ask most.</p>
-    <div class="faq">
-      <details><summary>Do I need to keep my computer on?</summary><p>No. Waurks runs on our servers, so it keeps working when your computer is off.</p></details>
-      <details><summary>Why do you need my Roblox cookie?</summary><p>It's how we accept and decline friend requests for you. We store it encrypted and only use it for that. You can remove it from your account page whenever you want, and changing your Roblox password logs it out too.</p></details>
-      <details><summary>What if it declines someone I know?</summary><p>If we're not sure about an account, we don't decline it. It goes in a list on your account page so you can pick yourself.</p></details>
-      <details><summary>How do I pay?</summary><p>Litecoin (LTC) or in-game items. With Litecoin your key shows up by itself a few minutes after you pay.</p></details>
-      <details><summary>What happens when my key runs out?</summary><p>Waurks stops checking your requests until you get a new key. Lifetime keys never run out.</p></details>
+  <div class="wrap center">
+    <span class="pill">FAQ</span>
+    <h2 style="margin-top:16px">Questions</h2>
+    <div class="faq" style="text-align:left">
+      <details><summary>Does it decline the bots on Roblox?</summary><p>No. Bots are just filtered out on the site so you never see them. Once a bot is filtered it stays filtered.</p></details>
+      <details><summary>Do I need to give my Roblox cookie?</summary><p>No. The Waurks browser extension uses the Roblox tab you already have open. You connect it by signing in, no key or cookie to paste.</p></details>
+      <details><summary>What is the MM2 filter?</summary><p>It only lets through players who have the MM2 Level 10 badge, so you only get real traders.</p></details>
+      <details><summary>How do I pay?</summary><p>Litecoin (LTC). Your key shows up by itself a few minutes after you pay.</p></details>
+      <details><summary>What happens when my key runs out?</summary><p>Waurks stops checking until you get a new key. Lifetime keys never run out.</p></details>
     </div>
+  </div>
+</section>
+
+<section class="end">
+  <div class="wrap">
+    <h2 class="grad3d">Stop the bots today.</h2>
+    <a href="/checkout" class="btn btn-main" style="padding:15px 28px;font-size:15px;border-radius:14px">Get a key</a>
   </div>
 </section>
 
 <div class="wrap">
   <footer class="footer">
-    <span>Waurks</span>
-    <span>Not made by or connected to Roblox.</span>
+    <span class="madeby"><img src="/img/waurk.webp" alt=""><span>made by <b>waurk.</b></span></span>
+    <span>devsupplies.cc · Not made by or connected to Roblox.</span>
   </footer>
 </div>
 
 <script>
-  // Only admin accounts see the Admin link (the server decides who is an admin)
   fetch('/api/v1/auth/status').then(r => r.json()).then(s => {
     if (s.isAdmin) document.getElementById('adminNavLink').style.display = '';
   }).catch(() => {});
+
+  // ---- Intro video: shows once per person, can't be skipped ----
+  (function () {
+    let seen = false;
+    try { seen = localStorage.getItem('waurks_intro_seen') === '1'; } catch (e) {}
+    if (!seen) seen = document.cookie.includes('waurks_intro=1');
+    if (seen) return;
+    const box = document.getElementById('intro'), vid = document.getElementById('introVid'), btn = document.getElementById('enter');
+    box.style.display = ''; document.body.classList.add('locked');
+    const done = () => {
+      try { localStorage.setItem('waurks_intro_seen', '1'); } catch (e) {}
+      document.cookie = 'waurks_intro=1; max-age=31536000; path=/; SameSite=Lax';
+      box.classList.add('hide'); document.body.classList.remove('locked');
+      setTimeout(() => box.remove(), 900);
+    };
+    // A click is needed so the browser allows sound
+    btn.onclick = () => {
+      btn.style.display = 'none'; vid.style.display = 'block';
+      vid.play().catch(() => { vid.muted = true; vid.play().catch(done); });
+    };
+    vid.addEventListener('ended', done);
+    vid.addEventListener('error', done);
+    // No skipping: keep it playing and don't let it jump ahead
+    let last = 0;
+    vid.addEventListener('timeupdate', () => { if (vid.currentTime > last + 1.5) vid.currentTime = last; else last = vid.currentTime; });
+    vid.addEventListener('pause', () => { if (!vid.ended && vid.style.display === 'block') vid.play().catch(() => {}); });
+    vid.addEventListener('contextmenu', e => e.preventDefault());
+  })();
 </script>
 </body>
 </html>
