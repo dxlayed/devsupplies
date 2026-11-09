@@ -9,22 +9,33 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/theme.css">
 <style>
-  .page{max-width:1040px;margin:0 auto;padding:0 20px 80px}
-  .head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin:10px 0 18px}
-  .head h1{font-size:30px}
-  .head h1 .count{color:var(--muted);font-weight:500}
-  .status{font-size:13px;color:var(--muted);margin-top:4px}
-  .status.bad{color:var(--red)}
-  .status.warnline{color:var(--yellow)}
+  .page{max-width:1080px;margin:0 auto;padding:0 20px 100px;position:relative}
+  .pagehero{position:relative;text-align:center;padding:56px 0 34px;overflow:hidden}
+  .pagehero::before{content:"";position:absolute;width:1100px;height:1100px;left:calc(50% - 550px);top:-640px;pointer-events:none;
+    background:repeating-conic-gradient(from 0deg,rgba(139,92,246,.12) 0deg 6deg,transparent 6deg 18deg);
+    -webkit-mask:radial-gradient(circle,#000 0,transparent 55%);mask:radial-gradient(circle,#000 0,transparent 55%);animation:pgspin 40s linear infinite}
+  @keyframes pgspin{to{transform:rotate(360deg)}}
+  .pagehero > *{position:relative}
+  .pagehero h1{font-size:clamp(40px,6vw,68px);letter-spacing:-.04em;line-height:1;margin:16px 0 14px}
+  .pagehero h1 .count{-webkit-text-fill-color:#8f85a6}
+  .status{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);padding:7px 14px;border-radius:999px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)}
+  .status::before{content:"";width:8px;height:8px;border-radius:50%;background:#3ddc84;box-shadow:0 0 10px #3ddc84}
+  .status:empty{display:none}
+  .status.bad{color:var(--red)} .status.bad::before{background:var(--red);box-shadow:0 0 10px var(--red)}
+  .status.warnline{color:var(--yellow)} .status.warnline::before{background:var(--yellow);box-shadow:0 0 10px var(--yellow)}
+  .head{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin:0 0 26px;padding:14px 16px;border-radius:22px;
+    background:rgba(20,13,34,.5);border:1px solid rgba(255,255,255,.08);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 20px 40px rgba(0,0,0,.35)}
+  .head .left{display:flex;gap:8px;flex-wrap:wrap}
 
-  .seg{display:inline-flex;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:3px}
-  .seg button{background:none;border:none;color:var(--muted);font:600 13px "Inter",sans-serif;padding:8px 14px;border-radius:8px;cursor:pointer}
-  .seg button.on{background:var(--purple);color:#fff}
+  .seg{display:inline-flex;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:999px;padding:4px}
+  .seg button{background:none;border:none;color:var(--muted);font:600 13px "Inter",sans-serif;padding:8px 16px;border-radius:999px;cursor:pointer}
+  .seg button.on{background:linear-gradient(160deg,#7c4dff,#4c1fb8);color:#fff;box-shadow:0 2px 0 #2a1170}
   .seg-help{font-size:12px;color:var(--muted);margin-top:6px;text-align:right}
 
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(176px,1fr));gap:14px}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;align-items:center;text-align:center}
-  .card .pic{width:110px;height:110px;border-radius:50%;background:var(--panel-2);object-fit:cover;margin:4px 0 10px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(186px,1fr));gap:16px}
+  .card{background:linear-gradient(165deg,#140d22,#08050e);border:1px solid var(--line);border-radius:20px;padding:16px;display:flex;flex-direction:column;align-items:center;text-align:center;box-shadow:0 20px 40px rgba(0,0,0,.4)}
+  .card:hover{border-color:rgba(139,92,246,.5)}
+  .card .pic{width:110px;height:110px;border-radius:50%;background:#e9e6ef;object-fit:cover;margin:4px 0 12px;box-shadow:0 0 0 3px #2a1f40,0 0 30px rgba(139,92,246,.35)}
   .card .pic.ph{display:grid;place-items:center;font:700 34px "Space Grotesk",sans-serif;color:var(--muted)}
   .card .dn{font-weight:700;font-size:15px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .card .un{font-size:13px;color:var(--muted);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -36,7 +47,7 @@
   .card.gone{opacity:.4;pointer-events:none}
   .card a.who{display:flex;flex-direction:column;align-items:center;width:100%;color:inherit}
   .card a.who:hover .dn{color:var(--purple)}
-  .controls{display:flex;flex-direction:column;align-items:flex-end;gap:10px}
+  .controls{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
   .auto{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600;cursor:pointer}
   .warn{display:none;align-items:center;gap:8px;background:rgba(255,200,87,.1);border:1px solid rgba(255,200,87,.4);color:var(--yellow);
     border-radius:10px;padding:8px 12px;font-size:13px;font-weight:600}
@@ -45,9 +56,11 @@
   .linkish{background:none;border:none;color:var(--muted);font:12px "Inter",sans-serif;cursor:pointer;margin-top:8px;text-decoration:underline}
   .linkish:hover{color:var(--text)}
 
-  .empty{background:var(--panel);border:1px dashed var(--line);border-radius:14px;padding:40px 20px;text-align:center;color:var(--muted)}
-  .hidden-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:28px 0 14px;flex-wrap:wrap}
-  .hidden-bar h2{font-size:18px}
+  .empty{background:linear-gradient(165deg,#140d22,#08050e);border:1px solid var(--line);border-radius:24px;padding:50px 24px;text-align:center;color:var(--muted);box-shadow:0 30px 60px rgba(0,0,0,.45)}
+  .empty h2{color:var(--text)}
+  .hidden-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:40px 0 16px;flex-wrap:wrap}
+  .hidden-bar h2{font-size:24px;letter-spacing:-.02em}
+  #hiddenList .card .pic{box-shadow:0 0 0 3px rgba(255,84,112,.35);filter:grayscale(.5)}
 </style>
 </head>
 <body>
@@ -68,16 +81,20 @@
       <a href="/requests" style="color:var(--text)">Friend requests</a>
       <a href="/dashboard">My account</a>
       <a href="/admin" id="adminLink" class="admin-link" style="display:none">Admin</a>
+      <a href="/checkout" class="btn btn-main btn-sm">Get a key</a>
     </nav>
   </header>
 </div>
 
 <main class="page">
+  <div class="pagehero">
+    <span class="pill">Live filter</span>
+    <h1 class="grad3d">Friend requests <span class="count" id="count"></span></h1>
+    <div class="status" id="status">Loading...</div>
+  </div>
   <div class="head">
     <div>
-      <h1>Friend requests <span class="count" id="count"></span></h1>
-      <div class="status" id="status">Loading...</div>
-      <div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap">
+      <div class="left">
         <button class="btn btn-line btn-sm" id="scanNow">Scan now</button>
         <a href="/api/v1/extension/download" class="btn btn-line btn-sm" download="waurks-extension.zip" title="Download browser extension">Download extension</a>
       </div>
@@ -201,6 +218,11 @@
         const st = document.getElementById('status');
         st.textContent = 'Problem loading your requests: ' + (d.error || ('error ' + r.status)) + '. Retrying...';
         st.className = 'status bad';
+        return;
+      }
+      if (!d.connected && d.noKey) {
+        document.getElementById('status').textContent = '';
+        document.getElementById('list').innerHTML = `<div class="empty"><h2 style="font-size:24px;margin-bottom:8px">You need a key first</h2><p class="muted" style="margin-bottom:20px">Get a key to start filtering bots out of your friend requests.</p><a href="/checkout" class="btn btn-main">Get a key</a></div>`;
         return;
       }
       if (!d.connected) {

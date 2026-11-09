@@ -160,10 +160,40 @@ function devOnly(req, res, next) {
 // -------------------------------------------------------------
 // AUTH ROUTES
 // -------------------------------------------------------------
+// Admin "view as member" preview: only works for real admins. 'member' = regular member with a key, 'nokey' = member without a key.
+function viewAs(req, user) {
+  if (!isAdminUser(user)) return null;
+  const v = parseCookies(req).waurks_viewas;
+  return v === 'member' || v === 'nokey' ? v : null;
+}
+
 app.get('/api/v1/auth/status', async (req, res) => {
   const user = await getSessionUser(req);
   if (!user) return res.json({ loggedIn: false, devLogin: DEV_MODE });
-  res.json({ loggedIn: true, user, devLogin: DEV_MODE, isAdmin: isAdminUser(user) });
+  const va = viewAs(req, user);
+  res.json({ loggedIn: true, user, devLogin: DEV_MODE, isAdmin: isAdminUser(user) && !va, realAdmin: isAdminUser(user), viewAs: va || 'admin' });
+});
+
+app.post('/api/v1/admin/view-as', async (req, res) => {
+  const user = await getSessionUser(req);
+  if (!isAdminUser(user)) return res.status(403).json({ error: 'Admins only' });
+  const mode = String(req.body?.mode || 'admin');
+  if (mode === 'admin') setCookie(res, 'waurks_viewas', '', 0);
+  else if (mode === 'member' || mode === 'nokey') setCookie(res, 'waurks_viewas', mode, 7 * 86400);
+  else return res.status(400).json({ error: 'Unknown view' });
+  res.json({ success: true, viewAs: mode });
+});
+
+// While previewing "member without a key", pages see an account with no key and nothing linked
+app.use(async (req, res, next) => {
+  if (req.method !== 'GET' || !req.path.startsWith('/api/v1/')) return next();
+  const fake = { '/api/v1/user/licenses': { licenses: [] }, '/api/v1/roblox/status': { connected: false }, '/api/v1/roblox/requests': { connected: false, noKey: true } }[req.path];
+  if (!fake) return next();
+  try {
+    const user = await getSessionUser(req);
+    if (viewAs(req, user) === 'nokey') return res.json(fake);
+  } catch (e) { /* fall through */ }
+  next();
 });
 
 app.post('/api/v1/auth/logout', (req, res) => {

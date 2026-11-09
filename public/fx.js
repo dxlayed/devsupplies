@@ -17,6 +17,30 @@
   `;
   document.head.appendChild(css);
 
+  // Admin-only: switch between your admin view and what a regular member sees
+  fetch('/api/v1/auth/status').then(r => r.json()).then(s => {
+    if (!s.realAdmin) return;
+    const modes = [['admin', 'Admin'], ['member', 'Member with key'], ['nokey', 'Member, no key']];
+    const bar = document.createElement('div');
+    bar.id = 'viewAs';
+    bar.innerHTML = `<span>View as</span>` + modes.map(([m, l]) => `<button data-m="${m}" class="${s.viewAs === m ? 'on' : ''}">${l}</button>`).join('');
+    const st = document.createElement('style');
+    st.textContent = `#viewAs{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:9998;display:flex;align-items:center;gap:4px;padding:5px 5px 5px 14px;border-radius:999px;
+      background:rgba(20,13,34,.6);border:1px solid rgba(255,255,255,.1);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);box-shadow:0 16px 40px rgba(0,0,0,.5);font:600 12px Inter,sans-serif;color:#8f85a6}
+      #viewAs span{margin-right:6px;letter-spacing:1.5px;text-transform:uppercase;font-size:10px;font-weight:800}
+      #viewAs button{background:none;border:none;color:#bdb3d1;font:600 12px Inter,sans-serif;padding:7px 12px;border-radius:999px;cursor:pointer}
+      #viewAs button:hover{background:rgba(255,255,255,.07);color:#fff}
+      #viewAs button.on{background:linear-gradient(160deg,#7c4dff,#4c1fb8);color:#fff;box-shadow:0 2px 0 #2a1170}
+      @media(max-width:560px){#viewAs span{display:none}#viewAs button{padding:7px 9px;font-size:11px}}`;
+    document.head.appendChild(st); document.body.appendChild(bar);
+    bar.onclick = async e => {
+      const b = e.target.closest('button'); if (!b || b.classList.contains('on')) return;
+      await fetch('/api/v1/admin/view-as', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mode: b.dataset.m }) });
+      try { localStorage.removeItem('waurks_req_cache'); } catch (er) {}
+      location.reload();
+    };
+  }).catch(() => {});
+
   // Slide in on scroll
   const rv = document.querySelectorAll('[data-rv], .box, .plan, .stat, .game, .faq details, section.part h2, section.part p.lead, .pill, .card');
   if (!reduce && 'IntersectionObserver' in window) {
