@@ -216,6 +216,12 @@
       const r = await fetch('/api/v1/roblox/requests');
       if (r.status === 401) { try { localStorage.removeItem('waurks_req_cache'); } catch (e) {} location.href = '/checkout'; return; }
       const d = await r.json();
+      if (!r.ok) {
+        const st = document.getElementById('status');
+        st.textContent = 'Problem loading your requests: ' + (d.error || ('error ' + r.status)) + '. Retrying...';
+        st.className = 'status bad';
+        return;
+      }
       if (!d.connected) {
         document.getElementById('status').textContent = '';
         document.getElementById('list').innerHTML = `

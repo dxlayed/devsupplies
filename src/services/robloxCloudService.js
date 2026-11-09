@@ -29,7 +29,14 @@ db.run(`CREATE TABLE IF NOT EXISTS ext_actions (
 
 const isTestCookie = c => c.startsWith('TEST_COOKIE_') || c.startsWith('DEMO_');
 const toMs = d => new Date(String(d).replace(' ', 'T') + (/[zZ]|[+-]\d\d:?\d\d$/.test(String(d)) ? '' : 'Z')).getTime();
-const safeJson = (v, dflt) => { try { return JSON.parse(v); } catch (e) { return dflt; } };
+const safeJson = (v, dflt) => {
+  try {
+    const out = JSON.parse(v);
+    if (out === null || out === undefined) return dflt;
+    if (Array.isArray(dflt) !== Array.isArray(out)) return dflt;
+    return out;
+  } catch (e) { return dflt; }
+};
 function isHidden(level, verdict, score) {
   if (verdict === 'DECLINE') return true;
   if (level === 'strict') return verdict !== 'ACCEPT';
@@ -778,6 +785,8 @@ class RobloxCloudService {
         }
         continue;
       }
+      // Not checked yet (saved by the extension, waiting its turn): don't show it as a real person
+      if (!r.verdict) { if (r.status === 'pending') { item.reasons = ['Checking...']; hidden.push(item); } continue; }
       if (r.status === 'declined' || isHidden(level, r.verdict, r.score)) hidden.push(item);
       else visible.push(item);
     }
