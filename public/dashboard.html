@@ -84,25 +84,26 @@
   @media (max-width:640px){ .nums{grid-template-columns:1fr} }
 
   /* Locked: no key yet. Page is blurred so nothing behind can be read. */
-  body.locked main.page{filter:blur(26px) saturate(.6);opacity:.55;pointer-events:none;user-select:none;-webkit-user-select:none}
+  body.locked main.page,body.pending main.page{filter:blur(26px) saturate(.6);opacity:.55;pointer-events:none;user-select:none;-webkit-user-select:none}
+  main.page{transition:filter .4s,opacity .4s}
   body.locked{overflow:hidden}
-  #lockOverlay{position:fixed;inset:0;z-index:40;display:none;place-items:center;padding:20px;background:radial-gradient(800px 500px at 50% 45%,rgba(139,92,246,.18),rgba(5,2,8,.55) 70%)}
+  #lockOverlay{position:fixed;inset:0;z-index:40;display:none;place-items:center;padding:20px;background:radial-gradient(900px 600px at 50% 45%,rgba(139,92,246,.14),transparent 70%);pointer-events:none}
+  #lockOverlay .lockcard{pointer-events:auto}
   body.locked #lockOverlay{display:grid}
-  .lockcard{width:100%;max-width:420px;text-align:center;padding:40px 32px 34px;border-radius:28px;background:rgba(20,13,34,.6);border:1px solid rgba(255,255,255,.1);
-    backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);box-shadow:0 40px 90px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.08);animation:lockin .6s cubic-bezier(.2,.8,.2,1)}
-  @keyframes lockin{from{opacity:0;transform:translateY(24px) scale(.96)}}
+  .lockcard{width:100%;max-width:440px;text-align:center}
   .lockicon{width:96px;height:96px;margin:0 auto 22px;border-radius:26px;display:grid;place-items:center;background:linear-gradient(160deg,#7c4dff,#3b1a8f);
     box-shadow:0 8px 0 #2a1170,0 24px 50px rgba(139,92,246,.55),inset 0 2px 0 rgba(255,255,255,.3);animation:lockfloat 3s ease-in-out infinite}
   @keyframes lockfloat{50%{transform:translateY(-8px)}}
   .lockicon svg{width:46px;height:46px}
-  .lockcard h2{font-size:30px;letter-spacing:-.03em;margin-bottom:8px}
+  .lockcard h2{font-size:clamp(36px,5vw,52px);line-height:1.05;letter-spacing:-.03em;margin-bottom:8px}
   .lockcard p{color:var(--muted);margin-bottom:24px}
-  .lockcard .btn{width:100%;padding:14px;font-size:15px;border-radius:14px}
-  .lockcard .alt{display:inline-block;margin-top:14px;font-size:13px;color:var(--muted)}
+  .lockcard .btn{padding:15px 40px;font-size:15px;border-radius:14px}
+  .lockcard .alt{display:block}
+  .lockcard .alt{display:block;margin-top:16px;font-size:13px;color:var(--muted)}
   .lockcard .alt:hover{color:var(--text)}
 </style>
 </head>
-<body>
+<body class="pending">
 <div id="wkToast" role="status" aria-live="polite"></div>
 <script>
   function notify(msg, kind) {
@@ -335,6 +336,7 @@
     document.getElementById('avatarImg').src = user.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png';
 
     await loadLicenseInfo();
+    document.body.classList.remove('pending');
     await loadRobloxAccountStatus();
     await loadReviewQueue();
 
