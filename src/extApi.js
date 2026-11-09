@@ -139,6 +139,7 @@ function mount(app) {
         };
         const bc = Number(badges[id]);
         if (Number.isFinite(bc) && bc >= 0) item.badgeCount = Math.min(bc, 25);
+        else if (bc === -1) item.badgesHidden = true;
         return item;
       }).filter(Boolean);
       if (b.complete) list.complete = true;

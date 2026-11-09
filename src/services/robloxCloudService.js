@@ -573,7 +573,7 @@ class RobloxCloudService {
       id: senderId(a), name: a.name, displayName: a.displayName, description: a.description,
       created: a.created, isBanned: a.isBanned, hasVerifiedBadge: a.hasVerifiedBadge,
       // test requests carry their own extra info
-      badgeCount: a.badgeCount, friendsCount: a.friendsCount, avatarAssetCount: a.avatarAssetCount, paidItem: a.paidItem,
+      badgeCount: a.badgeCount, badgesHidden: a.badgesHidden, friendsCount: a.friendsCount, avatarAssetCount: a.avatarAssetCount, paidItem: a.paidItem,
       mm2: a.mm2, online: a.online
     }));
 
@@ -693,10 +693,12 @@ class RobloxCloudService {
         // Badge rule: 0 badges, or badges we can't see, = flagged
         if (evaluation.verdict !== 'DECLINE' && live && !(profile.badgeCount > 0)) {
           const unknown = profile.badgeCount === null || profile.badgeCount === undefined;
+          const hidden = unknown && (profile.badgesHidden || bases[i].badgesHidden);
           evaluation.verdict = 'DECLINE';
           evaluation.threatScore = Math.max(evaluation.threatScore, 70);
-          evaluation.reasons = [unknown ? 'Badges hidden or unknown' : 'No badges', ...evaluation.reasons];
-          if (unknown) recheckSoon = true;
+          evaluation.reasons = [hidden ? 'Badges hidden' : unknown ? 'Checking badges...' : 'No badges', ...evaluation.reasons];
+          // Not looked up yet (not hidden): check again in about 30 seconds
+          if (unknown && !hidden) recheckSoon = true;
         }
         // STEP 2: anyone who passed Step 1 also has to be online right now (bots are usually offline)
         if (evaluation.verdict !== 'DECLINE' && online[i] === false) {
@@ -741,7 +743,7 @@ class RobloxCloudService {
            checked_at = excluded.checked_at, updated_at = CURRENT_TIMESTAMP`,
         [userId, sid, name, displayName, headshots.get(sid) || null, evaluation.verdict, evaluation.threatScore,
          JSON.stringify(evaluation.reasons.slice(0, 4)), JSON.stringify(facts), status, status === 'pending' ? 0 : 1, fr.sentAt || null,
-         recheckSoon ? '-55 minutes' : '+0 minutes']
+         recheckSoon ? '-3570 seconds' : '+0 seconds']
       );
 
       await db.run(

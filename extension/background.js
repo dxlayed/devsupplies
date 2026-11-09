@@ -10,12 +10,30 @@
 
 const DEFAULT_API = 'https://devsupplies.cc';
 const MAX_PAGES = 50;           // up to 1,250 requests per sync (handles 500+ backlogs instantly)
-const BADGE_LOOKUPS_PER_SYNC = 40;
+const BADGE_LOOKUPS_PER_SYNC = 100;  // badge checks per round
+const BADGE_PARALLEL = 10;           // how many at the same time
+const BADGE_CACHE_MAX = 20000;       // remembered across browser restarts
 
 let running = false;
 let csrfToken = null;
 let lastDone = [];
-const badgeCache = new Map(); // userId -> badge count (data only, the server decides what it means)
+const badgeCache = new Map(); // userId -> badge count, or -1 if Roblox hides them (data only, the server decides)
+let badgeCacheLoaded = false;
+let badgePauseUntil = 0;       // set when Roblox says "slow down"
+
+async function loadBadgeCache() {
+  if (badgeCacheLoaded) return;
+  badgeCacheLoaded = true;
+  const { badgeCacheData } = await chrome.storage.local.get('badgeCacheData');
+  if (badgeCacheData && typeof badgeCacheData === 'object') {
+    for (const [k, v] of Object.entries(badgeCacheData)) badgeCache.set(k, v);
+  }
+}
+async function saveBadgeCache() {
+  // Keep the newest entries only
+  const entries = [...badgeCache.entries()].slice(-BADGE_CACHE_MAX);
+  await chrome.storage.local.set({ badgeCacheData: Object.fromEntries(entries) });
+}
 
 // ---------- storage helpers ----------
 async function getSettings() {
@@ -69,8 +87,10 @@ async function getRequests() {
   return { list: all, complete };
 }
 
-// Badge counts need a login, so the extension looks them up in parallel batches.
+// Badge counts need a login, so the extension looks them up: up to 100 per round, 10 at a time.
+// Newest requests first (the list is already newest-first). -1 = Roblox hides this person's badges.
 async function collectBadges(list) {
+  await loadBadgeCache();
   const out = {};
   const toFetch = [];
   for (const r of list) {
@@ -79,22 +99,28 @@ async function collectBadges(list) {
     if (badgeCache.has(id)) { out[id] = badgeCache.get(id); continue; }
     if (toFetch.length < BADGE_LOOKUPS_PER_SYNC) toFetch.push(id);
   }
+  if (Date.now() < badgePauseUntil || toFetch.length === 0) return out;
 
-  // Fetch concurrently in small batches of 6 for rapid speed
-  const BATCH = 6;
-  for (let i = 0; i < toFetch.length; i += BATCH) {
-    const slice = toFetch.slice(i, i + BATCH);
+  let changed = false;
+  for (let i = 0; i < toFetch.length; i += BADGE_PARALLEL) {
+    if (Date.now() < badgePauseUntil) break;
+    const slice = toFetch.slice(i, i + BADGE_PARALLEL);
     await Promise.all(slice.map(async id => {
       try {
         const res = await roblox(`https://badges.roblox.com/v1/users/${id}/badges?limit=25&sortOrder=Desc`);
         if (res.ok) {
           const d = await res.json();
           const n = Array.isArray(d.data) ? d.data.length : null;
-          if (n !== null) { badgeCache.set(id, n); out[id] = n; }
+          if (n !== null) { badgeCache.set(id, n); out[id] = n; changed = true; }
+        } else if (res.status === 429) {
+          badgePauseUntil = Date.now() + 5000; // Roblox said slow down: pause badge checks for 5s
+        } else if (res.status === 403 || res.status === 400) {
+          badgeCache.set(id, -1); out[id] = -1; changed = true; // badges hidden by the player
         }
-      } catch (e) { /* skip */ }
+      } catch (e) { /* try again next round */ }
     }));
   }
+  if (changed) saveBadgeCache().catch(() => {});
   return out;
 }
 
