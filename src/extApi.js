@@ -27,18 +27,30 @@ async function identify(b, ip) {
   const device = String(b.device || '').slice(0, 100);
   if (b.token) {
     const t = await db.get(`SELECT * FROM ext_tokens WHERE token_hash = ?`, [hashToken(b.token)]);
-    if (!t || t.device !== device) return { status: 401, error: 'This browser is not connected anymore. Press Connect in the extension.', reconnect: true };
-    await db.run(`UPDATE ext_tokens SET last_used_at = CURRENT_TIMESTAMP WHERE token_hash = ?`, [t.token_hash]);
+    if (!t) return { status: 401, error: 'This browser is not connected anymore. Press Connect in the extension.', reconnect: true };
+    await db.run(`UPDATE ext_tokens SET last_used_at = CURRENT_TIMESTAMP, device = COALESCE(?, device) WHERE token_hash = ?`, [device || null, t.token_hash]);
     const user = await db.get(`SELECT * FROM users WHERE id = ?`, [t.user_id]);
     const license = await db.get(
       `SELECT * FROM licenses WHERE user_id = ? AND status = 'active' AND expires_at > datetime('now') ORDER BY expires_at DESC LIMIT 1`,
       [t.user_id]
     );
     if (!license) return { status: 401, error: 'You need an active key. Get one on the site.', expired: true };
+    // Connected to site: ensure license is not blocked by old device lock
+    if (license.hwid_binding && device && license.hwid_binding !== device) {
+      await db.run(`UPDATE licenses SET hwid_binding = ? WHERE id = ?`, [device, license.id]);
+    }
     return { user, license, tokenHash: t.token_hash };
   }
   const key = String(b.key || '').trim();
-  if (!key || !device) return { status: 400, error: 'Press Connect in the extension' };
+  if (!key) return { status: 400, error: 'Press Connect in the extension' };
+  const licenseRow = await db.get(
+    `SELECT * FROM licenses WHERE license_key = ? AND status = 'active' AND expires_at > datetime('now')`,
+    [key]
+  );
+  if (licenseRow && device && licenseRow.hwid_binding && licenseRow.hwid_binding !== device) {
+    await db.run(`UPDATE licenses SET hwid_binding = ? WHERE id = ?`, [device, licenseRow.id]);
+    licenseRow.hwid_binding = device;
+  }
   const v = await keyService.validateKey(key, device, ip);
   if (!v.valid) return { status: 401, error: v.reason, expired: !!v.expired };
   const license = await db.get(`SELECT * FROM licenses WHERE id = ?`, [v.licenseId]);
@@ -266,7 +278,7 @@ function mount(app) {
       const code = String(req.body?.code || '');
       const device = String(req.body?.device || '').slice(0, 100);
       const row = await db.get(`SELECT * FROM ext_connect WHERE code = ? AND created_at > datetime('now', '-15 minutes')`, [code]);
-      if (!row || row.device !== device) return res.status(404).json({ error: 'Connect link expired. Press Connect again.' });
+      if (!row) return res.status(404).json({ error: 'Connect link expired. Press Connect again.' });
       if (!row.user_id) return res.json({ pending: true });
       const token = crypto.randomBytes(32).toString('base64url');
       // One connected browser per account: connecting a new one signs the old one out
@@ -285,6 +297,10 @@ function mount(app) {
     try {
       const key = String(req.body?.key || '').trim();
       const device = String(req.body?.device || '').slice(0, 100);
+      const lic = await db.get(`SELECT * FROM licenses WHERE license_key = ? AND status = 'active' AND expires_at > datetime('now')`, [key]);
+      if (lic && device && lic.hwid_binding && lic.hwid_binding !== device) {
+        await db.run(`UPDATE licenses SET hwid_binding = ? WHERE id = ?`, [device, lic.id]);
+      }
       const v = await keyService.validateKey(key, device || null, req.headers['x-forwarded-for'] || req.socket.remoteAddress);
       if (!v.valid) return res.status(401).json({ error: v.reason });
       res.json({ ok: true, plan: v.tier === 'yearly' ? 'Lifetime' : v.tier, daysLeft: v.tier === 'yearly' ? null : v.daysRemaining });

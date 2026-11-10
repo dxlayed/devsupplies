@@ -543,6 +543,8 @@ app.post('/api/v1/ext/connect/approve', authMiddleware, async (req, res) => {
     const row = await db.get(`SELECT * FROM ext_connect WHERE code = ? AND created_at > datetime('now', '-15 minutes')`, [code]);
     if (!row) return res.status(404).json({ error: 'This connect link expired. Press Connect in the extension again.' });
     await db.run(`UPDATE ext_connect SET user_id = ? WHERE code = ?`, [req.user.id, code]);
+    // Clear any restrictive device lock on licenses for this user since they authenticated on site
+    await db.run(`UPDATE licenses SET hwid_binding = NULL WHERE user_id = ?`, [req.user.id]);
     const lic = await db.get(`SELECT id FROM licenses WHERE user_id = ? AND status = 'active' AND expires_at > datetime('now') LIMIT 1`, [req.user.id]);
     res.json({ success: true, hasKey: !!lic });
   } catch (err) {
@@ -1116,6 +1118,8 @@ if (require.main === module) {
     // Requests left waiting by the old MM2 rule get re-checked (now: no badge = filtered as a bot)
     db.run(`UPDATE friend_requests SET checked_at = NULL WHERE status = 'pending' AND reasons LIKE '%No MM2 Level 10 badge%'`).catch(() => {});
     db.run(`UPDATE friend_requests SET checked_at = NULL, status = 'pending' WHERE reasons LIKE '%Offline (failed step 2)%' AND reasons LIKE '%MM2%'`).catch(() => {});
+    // Clean up any stale friend requests where MM2 was incorrectly accepted without Level 10 badge
+    db.run(`UPDATE friend_requests SET verdict = 'DECLINE', score = 100, reasons = '["No MM2 Level 10 badge"]' WHERE status = 'pending' AND (facts NOT LIKE '%"mm2":true%' OR facts IS NULL OR reasons LIKE '%No MM2%')`).catch(() => {});
     // After an update, re-check everything still waiting with the newest rules
     db.run(`UPDATE friend_requests SET checked_at = NULL WHERE status = 'pending'`).catch(() => {});
     // Lifetime keys: make older "yearly" keys never expire too

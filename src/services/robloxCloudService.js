@@ -77,7 +77,7 @@ function demoRequests(cookie = '') {
     { id: 5069783, name: 'qwrtzpls8812', displayName: 'qwrtzpls8812', description: '', created: d(9), badgeCount: 0, friendsCount: 0, avatarAssetCount: 1 },
     { id: 7392016, name: 'old_sleeper', displayName: 'Sleeper', description: '', created: d(900), badgeCount: 25, friendsCount: 40, avatarAssetCount: 9, online: false },
     { id: 7503127, name: 'afk_trader', displayName: 'AFK', description: '', created: d(600), badgeCount: 25, friendsCount: 30, mm2: true, online: false },
-    { id: 7281905, name: 'kev_trades', displayName: 'Kev', description: '', created: d(3), badgeCount: 0, friendsCount: 1, avatarAssetCount: 3, mm2: true },
+    { id: 7281905, name: 'kev_trades', displayName: 'Kev', description: '', created: d(3), badgeCount: 12, friendsCount: 1, avatarAssetCount: 3, mm2: true },
     { id: 6170894, name: 'skate_jay', displayName: 'Jay', description: 'new here', created: d(2), badgeCount: 0, friendsCount: 0, avatarAssetCount: 3, paidItem: { name: 'Black Beanie', price: 75 } }
   ];
 }
@@ -717,25 +717,47 @@ class RobloxCloudService {
         evaluation = { verdict: 'DECLINE', threatScore: 100, reasons: ['On the Waurks block list'] };
       } else if (mm2Filter) {
         // MM2 filter: only checks the MM2 Level 10 badge (no online check)
-        mm2 = live ? mm2BadgeMap.get(sid) : !!bases[i].mm2;
-        // Sent the request from inside the game itself = clearly plays it
-        const fromGame = String(fr.sourceUniverseId || '') === (game === 'adoptme' ? ADOPTME_UNIVERSE : MM2_UNIVERSE);
-        if (fromGame) mm2 = true;
-        let onlineNow = false;
-        if (game === 'adoptme' && mm2 !== true) {
-          onlineNow = live ? onlineMap.get(sid) === true : bases[i].online === true;
-          if (onlineNow) mm2 = true;
-        }
-        if (game === 'adoptme') {
+        const isLive = live;
+        if (game === 'mm2') {
+          // For MM2: ONLY players who confirmed have the MM2 Level 10 badge (196198137) are accepted.
+          // fromGame does NOT bypass the badge requirement!
+          // If badges cannot be seen (ownsBadge is null, inventory private, badges hidden) or badgeCount === 0 -> filter them.
+          const badgeOwned = isLive ? mm2BadgeMap.get(sid) : (!!bases[i].mm2 && bases[i].badgeCount !== 0);
+          const cannotSeeBadges = isLive ? (badgeOwned === null || bases[i].badgesHidden || (profile && profile.badgesHidden)) : false;
+          const hasZeroBadges = (profile && profile.badgeCount === 0) || bases[i].badgeCount === 0;
+
+          if (badgeOwned === true && !hasZeroBadges && !cannotSeeBadges) {
+            mm2 = true;
+            evaluation = { verdict: 'ACCEPT', threatScore: 0, reasons: ['MM2 trades accepted (Level 10 badge)'] };
+          } else {
+            mm2 = false;
+            evaluation = {
+              verdict: 'DECLINE',
+              threatScore: 100,
+              reasons: [
+                cannotSeeBadges
+                  ? 'No visible MM2 Level 10 badge (badges hidden or private)'
+                  : hasZeroBadges
+                  ? 'No MM2 Level 10 badge (0 badges)'
+                  : 'No MM2 Level 10 badge'
+              ]
+            };
+          }
+        } else {
+          // Adopt Me logic
+          mm2 = live ? mm2BadgeMap.get(sid) : !!bases[i].mm2;
+          const fromGame = String(fr.sourceUniverseId || '') === ADOPTME_UNIVERSE;
+          if (fromGame) mm2 = true;
+          let onlineNow = false;
+          if (mm2 !== true) {
+            onlineNow = live ? onlineMap.get(sid) === true : bases[i].online === true;
+            if (onlineNow) mm2 = true;
+          }
           evaluation = mm2 === true && onlineNow
             ? { verdict: 'ACCEPT', threatScore: 0, reasons: ['Real Adopt Me player (online now)'] }
             : mm2 === true
             ? { verdict: 'ACCEPT', threatScore: 0, reasons: [fromGame ? 'Real Adopt Me player (sent from Adopt Me)' : adoptWhy.has(sid) ? 'Real Adopt Me player (' + adoptWhy.get(sid) + ')' : 'Real Adopt Me player'] }
             : { verdict: 'DECLINE', threatScore: 100, reasons: [mm2 === null ? 'No sign of Adopt Me (inventory private), offline' : 'No sign of Adopt Me, offline'] };
-        } else if (mm2 !== true) {
-          evaluation = { verdict: 'DECLINE', threatScore: 100, reasons: [mm2 === null ? 'No MM2 Level 10 badge (inventory private)' : 'No MM2 Level 10 badge'] };
-        } else {
-          evaluation = { verdict: 'ACCEPT', threatScore: 0, reasons: ['MM2 trades accepted'] };
         }
       } else {
         // Standard filter: the full bot checker, no badge check
@@ -939,8 +961,8 @@ class RobloxCloudService {
   async setAcceptFilter(userId, filter) {
     if (!['mm2', 'adoptme'].includes(filter)) throw new Error('Unknown filter');
     await db.run(`UPDATE roblox_accounts SET accept_filter = ? WHERE user_id = ?`, [filter, userId]);
-    // Re-check waiting requests with the new filter on the next pass
-    await db.run(`UPDATE friend_requests SET checked_at = NULL WHERE user_id = ? AND status = 'pending'`, [userId]);
+    // Reset checked_at and verdict so requests must be checked fresh before showing
+    await db.run(`UPDATE friend_requests SET checked_at = NULL, verdict = NULL WHERE user_id = ? AND status = 'pending'`, [userId]);
     return { success: true, acceptFilter: filter };
   }
 
