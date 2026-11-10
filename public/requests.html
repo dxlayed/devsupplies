@@ -164,6 +164,7 @@
         <div class="why">${esc((r.reasons || [])[0] || 'Looks like a bot')}</div>
         ${declined ? '<div class="facts">Declined for you</div>'
           : `<div class="acts"><button class="btn btn-line btn-sm" data-act="accept" data-id="${esc(r.id)}">Accept</button><button class="btn btn-line btn-sm" data-act="decline" data-id="${esc(r.id)}">Decline</button></div>`}
+        <button class="linkish" data-act="bot" data-id="${esc(r.id)}">Add to my bot list</button>
       </div>`;
     }
     return `<div class="card${off}">
@@ -177,7 +178,7 @@
         <button class="btn btn-main btn-sm" data-act="accept" data-id="${esc(r.id)}">Accept</button>
         <button class="btn btn-line btn-sm" data-act="decline" data-id="${esc(r.id)}">Decline</button>
       </div>
-      ${isAdmin ? `<button class="linkish" data-act="bot" data-id="${esc(r.id)}">This is a bot (adds to block list)</button>` : ''}
+      <button class="linkish" data-act="bot" data-id="${esc(r.id)}">This is a bot (adds to bot list)</button>
     </div>`;
   }
 
@@ -324,7 +325,7 @@
       const r = await fetch(`/api/v1/roblox/requests/${encodeURIComponent(id)}/${act}`, { method: 'POST' });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error);
-      notify(act === 'accept' ? 'Accepted' : act === 'bot' ? 'Added to the block list for everyone' : 'Declined', 'ok');
+      notify(act === 'accept' ? 'Accepted' : act === 'bot' ? 'Added to your bot list' : 'Declined', 'ok');
     } catch (err) {
       notify(err.message || 'Could not do that', 'err');
     }

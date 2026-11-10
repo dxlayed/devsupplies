@@ -616,8 +616,7 @@ app.post('/api/v1/roblox/requests/:targetId/:action', authMiddleware, async (req
     if (action === 'accept') return res.json(await robloxCloudService.answerRequest(req.user.id, targetId, true));
     if (action === 'decline') return res.json(await robloxCloudService.answerRequest(req.user.id, targetId, false));
     if (action === 'bot') {
-      if (!isAdminUser(req.user)) return res.status(403).json({ error: 'Only admins can mark bots' });
-      return res.json(await robloxCloudService.adminMarkBot(req.user, targetId));
+      return res.json(await robloxCloudService.markUserBot(req.user.id, targetId));
     }
     res.status(400).json({ error: 'Unknown action' });
   } catch (err) {

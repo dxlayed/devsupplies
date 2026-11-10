@@ -136,6 +136,10 @@ class DetectionEngine {
 
     // ---- Instant answers ----
     if (id) {
+      if (ctx.forUserId) {
+        const userBlocked = await db.get(`SELECT reason FROM user_bot_blacklist WHERE user_id = ? AND roblox_user_id = ?`, [ctx.forUserId, String(id)]).catch(() => null);
+        if (userBlocked) return result('DECLINE', 100, ['On your bot block list']);
+      }
       const listed = await db.get(`SELECT reason FROM global_bot_blacklist WHERE roblox_user_id = ?`, [String(id)]).catch(() => null);
       if (listed) return result('DECLINE', 100, [`On the Waurks block list: ${listed.reason}`]);
     }

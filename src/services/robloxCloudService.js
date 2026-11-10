@@ -712,9 +712,16 @@ class RobloxCloudService {
       const mutuals = Array.isArray(toCheck[i].mutualFriendsList) ? toCheck[i].mutualFriendsList.length : 0;
 
       let evaluation, mm2 = null, recheckSoon = false;
-      const blocked = await db.get(`SELECT reason FROM global_bot_blacklist WHERE roblox_user_id = ?`, [sid]).catch(() => null);
-      if (blocked) {
-        evaluation = { verdict: 'DECLINE', threatScore: 100, reasons: ['On the Waurks block list'] };
+      const [globalBlocked, userBlocked] = await Promise.all([
+        db.get(`SELECT reason FROM global_bot_blacklist WHERE roblox_user_id = ?`, [sid]).catch(() => null),
+        db.get(`SELECT reason FROM user_bot_blacklist WHERE user_id = ? AND roblox_user_id = ?`, [userId, sid]).catch(() => null)
+      ]);
+      if (userBlocked || globalBlocked) {
+        evaluation = {
+          verdict: 'DECLINE',
+          threatScore: 100,
+          reasons: [userBlocked ? 'On your bot block list' : 'On the Waurks block list']
+        };
       } else if (mm2Filter) {
         // MM2 filter: only checks the MM2 Level 10 badge (no online check)
         const isLive = live;
@@ -1011,6 +1018,31 @@ class RobloxCloudService {
   async reportBot(userId, targetId) {
     await detectionEngine.recordReport(String(targetId), userId, true);
     return this.answerRequest(userId, targetId, false);
+  }
+
+  /**
+   * User pressed "This is a bot (adds to bot list)":
+   * Adds the account to THIS user's personal block list so it's a bot ONLY for them.
+   * Does NOT affect any other user.
+   */
+  async markUserBot(userId, targetId) {
+    const tid = String(targetId).replace(/\D/g, '');
+    if (!tid) throw new Error('Bad account ID');
+    const row = await db.get(`SELECT name FROM friend_requests WHERE user_id = ? AND target_id = ? LIMIT 1`, [userId, tid]);
+    await db.run(
+      `INSERT OR IGNORE INTO user_bot_blacklist (user_id, roblox_user_id, reason) VALUES (?, ?, ?)`,
+      [userId, tid, 'Marked as a bot by user']
+    );
+    await detectionEngine.recordReport(tid, userId, true);
+    await db.run(
+      `UPDATE friend_requests SET verdict = 'DECLINE', score = 100, reasons = ?, updated_at = CURRENT_TIMESTAMP
+       WHERE user_id = ? AND target_id = ? AND status = 'pending'`,
+      [JSON.stringify(['On your bot block list']), userId, tid]
+    );
+    try {
+      await this.answerRequest(userId, tid, false);
+    } catch (_) {}
+    return { success: true, message: 'Added to your bot list' };
   }
 
   /**

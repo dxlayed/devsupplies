@@ -71,6 +71,18 @@ db.serialize(() => {
     )
   `);
 
+  // User personal bot blacklist (only affects the user who added it)
+  db.run(`
+    CREATE TABLE IF NOT EXISTS user_bot_blacklist (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      roblox_user_id TEXT NOT NULL,
+      reason TEXT,
+      added_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(user_id, roblox_user_id)
+    )
+  `);
+
   // Connected Roblox Accounts table (Runs 24/7 in the cloud)
   db.run(`
     CREATE TABLE IF NOT EXISTS roblox_accounts (
