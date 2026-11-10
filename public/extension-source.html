@@ -7,10 +7,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
 <link rel="stylesheet" href="/theme.css">
 <style>
-  .page { max-width: 980px; margin: 0 auto; padding: 0 20px 100px; }
-  .pagehero { position: relative; text-align: center; padding: 48px 0 32px; overflow: hidden; }
+  .page { max-width: 1140px; margin: 0 auto; padding: 0 24px 100px; }
+  .pagehero { position: relative; text-align: center; padding: 48px 0 28px; overflow: hidden; }
   .pagehero::before {
     content: ""; position: absolute; width: 1100px; height: 1100px; left: calc(50% - 550px); top: -640px; pointer-events: none;
     background: repeating-conic-gradient(from 0deg, rgba(139,92,246,.12) 0deg 6deg, transparent 6deg 18deg);
@@ -19,26 +20,26 @@
   }
   @keyframes pgspin { to { transform: rotate(360deg); } }
   .pagehero > * { position: relative; }
-  .title { font-size: clamp(32px, 5vw, 48px); letter-spacing: -0.03em; line-height: 1.1; margin: 16px 0 10px; }
+  .title { font-size: clamp(34px, 5vw, 52px); letter-spacing: -0.03em; line-height: 1.1; margin: 16px 0 10px; }
 
   .audit-card {
     background: linear-gradient(135deg, rgba(139,92,246,.12), rgba(16,185,129,.05));
     border: 1px solid rgba(139,92,246,.3);
     border-radius: 20px;
-    padding: 22px 24px;
+    padding: 22px 26px;
     margin-bottom: 24px;
   }
   .audit-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
     gap: 16px;
     margin-top: 14px;
   }
   .audit-item {
-    background: rgba(0,0,0,.25);
-    border: 1px solid rgba(255,255,255,.06);
+    background: rgba(0,0,0,.35);
+    border: 1px solid rgba(255,255,255,.07);
     border-radius: 14px;
-    padding: 14px 16px;
+    padding: 16px 18px;
   }
   .audit-item b {
     display: flex;
@@ -46,45 +47,46 @@
     gap: 8px;
     font-size: 14px;
     color: var(--text);
-    margin-bottom: 4px;
+    margin-bottom: 6px;
   }
   .audit-item p {
     font-size: 13px;
     color: var(--muted);
-    line-height: 1.45;
+    line-height: 1.5;
     margin: 0;
   }
 
   /* Code Viewer */
   .viewer {
-    background: #0d0f17;
-    border: 1px solid rgba(255,255,255,.08);
+    background: #090a10;
+    border: 1px solid rgba(255,255,255,.1);
     border-radius: 20px;
     overflow: hidden;
-    box-shadow: 0 20px 40px rgba(0,0,0,.45);
+    box-shadow: 0 24px 50px rgba(0,0,0,.55);
   }
   .viewer-tabs {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    background: #090a10;
+    background: #0f111a;
     border-bottom: 1px solid rgba(255,255,255,.08);
-    padding: 8px 12px;
-    gap: 8px;
+    padding: 10px 16px;
+    gap: 10px;
     flex-wrap: wrap;
   }
   .tab-group {
     display: flex;
-    gap: 6px;
+    gap: 8px;
     overflow-x: auto;
   }
   .file-tab {
-    background: transparent;
-    border: 1px solid transparent;
+    background: rgba(255,255,255,.03);
+    border: 1px solid rgba(255,255,255,.07);
     color: var(--muted);
     font-family: 'JetBrains Mono', monospace;
     font-size: 13px;
-    padding: 7px 14px;
+    font-weight: 500;
+    padding: 8px 16px;
     border-radius: 10px;
     cursor: pointer;
     display: inline-flex;
@@ -94,12 +96,14 @@
   }
   .file-tab:hover {
     color: var(--text);
-    background: rgba(255,255,255,.04);
+    background: rgba(255,255,255,.07);
+    border-color: rgba(255,255,255,.15);
   }
   .file-tab.active {
     color: #fff;
-    background: rgba(139,92,246,.2);
-    border-color: rgba(139,92,246,.4);
+    background: rgba(139,92,246,.25);
+    border-color: rgba(139,92,246,.5);
+    box-shadow: 0 0 16px rgba(139,92,246,.2);
   }
   .tab-dot {
     width: 7px;
@@ -114,63 +118,75 @@
 
   .viewer-actions {
     display: flex;
-    gap: 8px;
+    gap: 10px;
     align-items: center;
   }
   .action-btn {
-    background: rgba(255,255,255,.05);
-    border: 1px solid rgba(255,255,255,.08);
+    background: rgba(255,255,255,.06);
+    border: 1px solid rgba(255,255,255,.1);
     color: var(--text);
-    font-size: 12px;
-    padding: 6px 12px;
-    border-radius: 8px;
+    font-size: 12.5px;
+    font-weight: 500;
+    padding: 7px 14px;
+    border-radius: 9px;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    transition: background .15s ease;
+    transition: all .15s ease;
   }
   .action-btn:hover {
-    background: rgba(255,255,255,.1);
+    background: rgba(255,255,255,.12);
+    border-color: rgba(255,255,255,.2);
+    color: #fff;
   }
 
   .editor-wrap {
-    display: flex;
     position: relative;
-    max-height: 650px;
+    max-height: 800px;
     overflow: auto;
-    font-family: 'JetBrains Mono', Consolas, monospace;
-    font-size: 13px;
-    line-height: 1.6;
-    background: #0a0b12;
-  }
-  .line-numbers {
-    padding: 16px 12px;
-    color: rgba(255,255,255,.2);
-    text-align: right;
-    user-select: none;
-    border-right: 1px solid rgba(255,255,255,.06);
-    background: #08090e;
-    min-width: 48px;
-    font-family: inherit;
+    background: #090a10;
   }
   .code-display {
-    padding: 16px 20px;
-    color: #e2e8f0;
+    display: block;
+    padding: 26px 30px;
     margin: 0;
+    color: #f1f5f9;
+    font-family: 'JetBrains Mono', Consolas, 'Fira Code', monospace;
+    font-size: 14px;
+    line-height: 1.65;
     white-space: pre;
     tab-size: 2;
     overflow-x: auto;
-    flex: 1;
-    font-family: inherit;
+    box-sizing: border-box;
+    width: 100%;
   }
+
+  /* Override Prism styling for seamless integration */
+  pre[class*="language-"] {
+    background: transparent !important;
+    margin: 0 !important;
+    padding: 26px 30px !important;
+    font-size: 14px !important;
+    line-height: 1.65 !important;
+    font-family: 'JetBrains Mono', Consolas, 'Fira Code', monospace !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+  code[class*="language-"] {
+    font-family: inherit !important;
+    font-size: inherit !important;
+    line-height: inherit !important;
+    text-shadow: none !important;
+  }
+
   .badge-safe {
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
-    padding: 3px 8px;
+    padding: 4px 10px;
     border-radius: 999px;
     background: rgba(16,185,129,.15);
     color: var(--green);
@@ -195,7 +211,7 @@
   <div class="pagehero">
     <span class="pill">Code Audit &amp; Verification</span>
     <h1 class="title grad3d">Browser Extension Source</h1>
-    <p class="lead" style="max-width:600px;margin:0 auto">Zero cookie logging. Inspect every single line of client code powering the Waurks browser helper below.</p>
+    <p class="lead" style="max-width:640px;margin:0 auto">Zero cookie logging. Inspect every single line of client code powering the Waurks browser helper below.</p>
   </div>
 
   <div class="audit-card">
@@ -210,7 +226,7 @@
     <div class="audit-grid">
       <div class="audit-item">
         <b><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Sandbox Protected</b>
-        <p>The extension manifest only requests <code>storage</code> and <code>alarms</code>. The browser physically blocks it from accessing or reading <code>.ROBLOSECURITY</code> cookies.</p>
+        <p>The manifest only requests <code>storage</code> and <code>alarms</code>. The browser physically blocks it from accessing or reading <code>.ROBLOSECURITY</code> cookies.</p>
       </div>
       <div class="audit-item">
         <b><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> No Passwords or Tokens</b>
@@ -226,16 +242,16 @@
   <div class="viewer">
     <div class="viewer-tabs">
       <div class="tab-group" id="tabsList">
-        <button class="file-tab active" data-file="manifest.json"><span class="tab-dot"></span>manifest.json</button>
-        <button class="file-tab" data-file="background.js"><span class="tab-dot"></span>background.js</button>
-        <button class="file-tab" data-file="popup.js"><span class="tab-dot"></span>popup.js</button>
-        <button class="file-tab" data-file="popup.html"><span class="tab-dot"></span>popup.html</button>
+        <button class="file-tab active" data-file="manifest.json" data-lang="json"><span class="tab-dot"></span>manifest.json</button>
+        <button class="file-tab" data-file="background.js" data-lang="javascript"><span class="tab-dot"></span>background.js</button>
+        <button class="file-tab" data-file="popup.js" data-lang="javascript"><span class="tab-dot"></span>popup.js</button>
+        <button class="file-tab" data-file="popup.html" data-lang="markup"><span class="tab-dot"></span>popup.html</button>
       </div>
       <div class="viewer-actions">
-        <span id="fileSizeLabel" style="font-size:12px;color:var(--muted);font-family:'JetBrains Mono',monospace"></span>
+        <span id="fileSizeLabel" style="font-size:12.5px;color:var(--muted);font-family:'JetBrains Mono',monospace"></span>
         <button class="action-btn" id="copyBtn" onclick="copyCurrentCode()">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-          <span id="copyText">Copy File</span>
+          <span id="copyText">Copy Code</span>
         </button>
         <a href="/api/v1/extension/download" class="action-btn" download="waurks-extension.zip" style="text-decoration:none">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -245,43 +261,48 @@
     </div>
 
     <div class="editor-wrap">
-      <div class="line-numbers" id="lineNumbers">1</div>
-      <pre class="code-display" id="codeContent">Loading source code...</pre>
+      <pre class="code-display"><code id="codeContent" class="language-json">Loading source code...</code></pre>
     </div>
   </div>
 </main>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
+
 <script>
   let sourceFiles = {};
   let currentFile = 'manifest.json';
+  let currentLang = 'json';
 
   async function loadSource() {
     try {
       const res = await fetch('/api/v1/extension/source');
       const data = await res.json();
       sourceFiles = data.files || {};
-      showFile(currentFile);
+      showFile(currentFile, currentLang);
     } catch (err) {
       document.getElementById('codeContent').textContent = '// Error loading extension source: ' + err.message;
     }
   }
 
-  function showFile(filename) {
+  function showFile(filename, lang) {
     currentFile = filename;
+    currentLang = lang || (filename.endsWith('.json') ? 'json' : (filename.endsWith('.html') ? 'markup' : 'javascript'));
+
     document.querySelectorAll('.file-tab').forEach(b => {
       b.classList.toggle('active', b.getAttribute('data-file') === filename);
     });
 
     const code = sourceFiles[filename] || '// File not found';
-    document.getElementById('codeContent').textContent = code;
+    const codeEl = document.getElementById('codeContent');
+    codeEl.className = 'language-' + currentLang;
+    codeEl.textContent = code;
+
+    if (window.Prism) {
+      Prism.highlightElement(codeEl);
+    }
 
     const lines = code.split('\n').length;
-    let lineStr = '';
-    for (let i = 1; i <= lines; i++) {
-      lineStr += i + '\n';
-    }
-    document.getElementById('lineNumbers').textContent = lineStr;
-
     const bytes = new Blob([code]).size;
     const kb = (bytes / 1024).toFixed(1);
     document.getElementById('fileSizeLabel').textContent = lines + ' lines · ' + kb + ' KB';
@@ -289,7 +310,7 @@
 
   document.querySelectorAll('.file-tab').forEach(btn => {
     btn.addEventListener('click', () => {
-      showFile(btn.getAttribute('data-file'));
+      showFile(btn.getAttribute('data-file'), btn.getAttribute('data-lang'));
     });
   });
 
@@ -299,7 +320,7 @@
       await navigator.clipboard.writeText(code);
       const copyText = document.getElementById('copyText');
       copyText.textContent = 'Copied!';
-      setTimeout(() => { copyText.textContent = 'Copy File'; }, 2000);
+      setTimeout(() => { copyText.textContent = 'Copy Code'; }, 2000);
     } catch (e) {}
   }
 
