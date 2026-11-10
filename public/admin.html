@@ -100,7 +100,7 @@
 
     <div class="pane section on" id="p-users">
       <div class="sec-title"><span>Users</span><input class="input-field search" id="qUsers" placeholder="Search name or Discord ID"></div>
-      <div style="overflow-x:auto"><table><thead><tr><th>User</th><th>Discord ID</th><th>Roblox</th><th>Active keys</th><th>Spent</th><th>Joined</th><th>Actions</th></tr></thead><tbody id="tUsers"></tbody></table></div>
+      <div style="overflow-x:auto"><table><thead><tr><th>User</th><th>Discord ID</th><th>Roblox</th><th>Active keys</th><th>Anti-botter</th><th>Spent</th><th>Joined</th><th>Actions</th></tr></thead><tbody id="tUsers"></tbody></table></div>
     </div>
 
     <div class="pane section" id="p-orders">
@@ -152,6 +152,74 @@
     </div>
   </div>
 </div>
+
+<!-- Live Anti-Botter Screen Viewer Modal -->
+<div id="screenModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);backdrop-filter:blur(8px);z-index:99999;overflow-y:auto;padding:24px">
+  <div style="max-width:960px;margin:20px auto;background:#0d0e15;border:1px solid rgba(139,92,246,.35);border-radius:24px;padding:26px;box-shadow:0 24px 60px rgba(0,0,0,.8);position:relative">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:18px;margin-bottom:20px">
+      <div style="display:flex;align-items:center;gap:14px">
+        <img id="mUserAv" src="" alt="" style="width:52px;height:52px;border-radius:50%;border:2px solid var(--purple)">
+        <div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <h2 id="mUserName" style="font-size:20px;font-weight:700">User Screen</h2>
+            <span id="mOnlineBadge" class="badge-admin">OFFLINE</span>
+          </div>
+          <div style="font-size:13px;color:var(--muted);margin-top:2px">
+            Discord: <span id="mDiscordId" class="mono"></span> · Roblox: <b id="mRobloxName" style="color:var(--text)"></b>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-approve" id="mViewSiteBtn" style="padding:7px 14px">👁️ Open Site as User</button>
+        <button class="btn btn-ghost" id="mRefreshBtn" onclick="refreshCurrentScreen()" style="padding:7px 12px">🔄 Refresh</button>
+        <button class="btn btn-ghost" onclick="closeLiveScreen()" style="padding:7px 12px">✕ Close</button>
+      </div>
+    </div>
+
+    <!-- Anti-botter status summary cards -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(190px, 1fr));gap:12px;margin-bottom:20px">
+      <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:12px 14px">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:700">Anti-Botter Status</div>
+        <div id="mBotterStatus" style="font-size:15px;font-weight:700;margin-top:4px;color:var(--pass)">Checking...</div>
+      </div>
+      <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:12px 14px">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:700">Auto-Accept</div>
+        <div id="mAutoAccept" style="font-size:15px;font-weight:700;margin-top:4px">OFF</div>
+      </div>
+      <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:12px 14px">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:700">Game Filter</div>
+        <div id="mGameFilter" style="font-size:15px;font-weight:700;margin-top:4px">MM2 Filter</div>
+      </div>
+      <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:12px 14px">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:700">Active License</div>
+        <div id="mLicenseTier" style="font-size:15px;font-weight:700;margin-top:4px;color:var(--guard)">None</div>
+      </div>
+    </div>
+
+    <!-- Live Anti-Botter Screen Content -->
+    <div style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
+      <h3 style="font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px">
+        <span>What is on their screen right now</span>
+        <span id="mSyncPulse" style="width:8px;height:8px;border-radius:50%;background:var(--pass)"></span>
+      </h3>
+      <div style="font-size:13px;color:var(--muted)" id="mScreenCounts">0 Real Players · 0 Filtered Bots</div>
+    </div>
+
+    <!-- Tabs inside modal: Real Players vs Filtered Bots -->
+    <div style="display:flex;gap:8px;margin-bottom:16px">
+      <button class="tab on" id="mTabReal" onclick="switchModalTab('real')" type="button">Real Players (<span id="mCountReal">0</span>)</button>
+      <button class="tab" id="mTabBots" onclick="switchModalTab('bots')" type="button">Filtered Bots (<span id="mCountBots">0</span>)</button>
+      <button class="tab" id="mTabLogs" onclick="switchModalTab('logs')" type="button">Live Activity Feed</button>
+    </div>
+
+    <div id="mContentReal" style="max-height:480px;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill, minmax(280px, 1fr));gap:12px"></div>
+    <div id="mContentBots" style="max-height:480px;overflow-y:auto;display:none;grid-template-columns:repeat(auto-fill, minmax(280px, 1fr));gap:12px"></div>
+    <div id="mContentLogs" style="max-height:480px;overflow-y:auto;display:none">
+      <table style="width:100%;font-size:12.5px"><thead><tr><th>Time</th><th>Action</th><th>Details</th></tr></thead><tbody id="mLogsBody"></tbody></table>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -249,17 +317,47 @@
   // Users table — buttons use data-id attributes, never names, so names can't break the page.
   const loadUsers = safe(async () => {
     const { users } = await api('/users?q=' + encodeURIComponent($('qUsers').value));
-    $('tUsers').innerHTML = users.length ? users.map(u => `<tr style="${u.banned ? 'opacity:.55' : ''}">
-      <td>${u.avatar ? `<img class="av" src="${esc(u.avatar)}" alt="">` : ''}<b>${esc(u.username)}</b>${u.banned ? ' <span style="color:var(--block);font-weight:700">BANNED</span>' : ''}</td>
-      <td class="mono">${esc(u.discord_id)}</td><td>${esc(u.roblox_username || '—')}</td><td>${+u.active_keys}</td><td>$${(+u.spent_usd).toFixed(2)}</td><td>${day(u.created_at)}</td>
-      <td class="nowrap"><select class="input-field" id="tier${+u.id}"><option value="weekly">7 days</option><option value="monthly">30 days</option><option value="yearly">Lifetime</option></select>
-        <button class="btn btn-approve" data-act="grant" data-id="${+u.id}">Give key</button>
-        ${u.banned ? `<button class="btn btn-ghost" data-act="unban" data-id="${+u.id}">Unban</button>` : `<button class="btn btn-danger" data-act="ban" data-id="${+u.id}">Ban</button>`}</td></tr>`).join('')
-      : empty(7, 'No users');
+    $('tUsers').innerHTML = users.length ? users.map(u => {
+      let botterStatus = `<span style="color:var(--muted);font-size:12px;opacity:.6">None</span>`;
+      if (u.is_online) {
+        botterStatus = `<span style="display:inline-flex;align-items:center;gap:6px;color:var(--pass);font-weight:700;font-size:12px"><span style="width:8px;height:8px;border-radius:50%;background:var(--pass);box-shadow:0 0 8px var(--pass)"></span>Running</span>`;
+      } else if (u.is_active) {
+        botterStatus = `<span style="color:var(--gold);font-weight:600;font-size:12px">Active</span>`;
+      } else if (u.roblox_username) {
+        botterStatus = `<span style="color:var(--muted);font-size:12px">Idle</span>`;
+      }
+
+      return `<tr style="${u.banned ? 'opacity:.55' : ''}">
+        <td>${u.avatar ? `<img class="av" src="${esc(u.avatar)}" alt="">` : ''}<b>${esc(u.username)}</b>${u.banned ? ' <span style="color:var(--block);font-weight:700">BANNED</span>' : ''}</td>
+        <td class="mono">${esc(u.discord_id)}</td>
+        <td>${u.roblox_avatar ? `<img class="av" src="${esc(u.roblox_avatar)}" alt="" style="border-radius:50%;vertical-align:middle;margin-right:6px">` : ''}<b>${esc(u.roblox_username || '—')}</b></td>
+        <td>${+u.active_keys}</td>
+        <td>${botterStatus}</td>
+        <td>$${(+u.spent_usd).toFixed(2)}</td>
+        <td>${day(u.created_at)}</td>
+        <td class="nowrap">
+          <button class="btn btn-ghost" data-act="screen" data-id="${+u.id}" style="color:var(--guard);border-color:rgba(139,92,246,.4);font-weight:700" title="Watch user's live anti-botter screen">Live Screen</button>
+          <button class="btn btn-ghost" data-act="view-site" data-id="${+u.id}" title="Browse site logged in as this user">View site</button>
+          <select class="input-field" id="tier${+u.id}"><option value="weekly">7 days</option><option value="monthly">30 days</option><option value="yearly">Lifetime</option></select>
+          <button class="btn btn-approve" data-act="grant" data-id="${+u.id}">Give key</button>
+          ${u.banned ? `<button class="btn btn-ghost" data-act="unban" data-id="${+u.id}">Unban</button>` : `<button class="btn btn-danger" data-act="ban" data-id="${+u.id}">Ban</button>`}
+        </td></tr>`;
+    }).join('')
+    : empty(8, 'No users');
   });
   $('tUsers').onclick = safe(async e => {
     const b = e.target.closest('button[data-act]'); if (!b) return;
     const id = b.dataset.id, act = b.dataset.act;
+    if (act === 'view-site') {
+      const r = await post(`/users/${id}/impersonate`);
+      window.open(r.redirect || '/requests', '_blank');
+      toast('Opened site as user');
+      return;
+    }
+    if (act === 'screen') {
+      openLiveScreen(id);
+      return;
+    }
     if (act === 'grant') {
       const r = await post(`/users/${id}/grant`, { tier: $('tier' + id).value });
       try { await navigator.clipboard.writeText(r.license.keyCode); } catch (_) {}
@@ -378,6 +476,124 @@
   $('qReqs').oninput = debounce(() => loadReqs());
   // keep the Requests tab fresh while it's open
   setInterval(() => { if (document.getElementById('p-reqs').classList.contains('on')) loadReqs(); }, 10000);
+
+  let currentScreenUserId = null;
+  let screenPollTimer = null;
+  let currentModalTab = 'real';
+
+  async function openLiveScreen(userId) {
+    currentScreenUserId = userId;
+    $('screenModal').style.display = 'block';
+    $('mContentReal').innerHTML = '<div style="color:var(--muted);padding:30px;grid-column:1/-1;text-align:center">Connecting to user screen...</div>';
+    $('mContentBots').innerHTML = '';
+    $('mLogsBody').innerHTML = '';
+    switchModalTab('real');
+    await refreshCurrentScreen();
+    clearInterval(screenPollTimer);
+    screenPollTimer = setInterval(() => {
+      if (currentScreenUserId && $('screenModal').style.display === 'block') {
+        refreshCurrentScreen(true);
+      }
+    }, 3000);
+  }
+
+  function closeLiveScreen() {
+    currentScreenUserId = null;
+    clearInterval(screenPollTimer);
+    $('screenModal').style.display = 'none';
+  }
+
+  function switchModalTab(tab) {
+    currentModalTab = tab;
+    $('mTabReal').classList.toggle('on', tab === 'real');
+    $('mTabBots').classList.toggle('on', tab === 'bots');
+    $('mTabLogs').classList.toggle('on', tab === 'logs');
+    $('mContentReal').style.display = tab === 'real' ? 'grid' : 'none';
+    $('mContentBots').style.display = tab === 'bots' ? 'grid' : 'none';
+    $('mContentLogs').style.display = tab === 'logs' ? 'block' : 'none';
+  }
+
+  async function refreshCurrentScreen(silent) {
+    if (!currentScreenUserId) return;
+    try {
+      const d = await api(`/users/${currentScreenUserId}/screen`);
+      renderScreenData(d);
+    } catch (err) {
+      if (!silent) toast('Failed to load screen: ' + err.message);
+    }
+  }
+
+  function renderScreenData(d) {
+    const u = d.user || {};
+    const acc = d.account || {};
+    const lic = d.license || {};
+    const sc = d.screen || {};
+
+    $('mUserName').textContent = u.username;
+    $('mUserAv').src = u.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png';
+    $('mDiscordId').textContent = u.discord_id;
+    $('mRobloxName').textContent = acc.robloxUsername || 'Not connected';
+
+    const isRunning = acc.isOnline;
+    $('mOnlineBadge').textContent = isRunning ? 'ONLINE · RUNNING' : acc.isActive ? 'ACTIVE' : 'OFFLINE';
+    $('mOnlineBadge').style.color = isRunning ? 'var(--pass)' : acc.isActive ? 'var(--gold)' : 'var(--muted)';
+    $('mOnlineBadge').style.borderColor = isRunning ? 'rgba(61,220,132,.4)' : 'rgba(255,255,255,.1)';
+
+    $('mBotterStatus').textContent = isRunning ? '🟢 Running Live' : acc.isActive ? '🟡 Active (waiting sync)' : '⚪ Paused / Offline';
+    $('mBotterStatus').style.color = isRunning ? 'var(--pass)' : acc.isActive ? 'var(--gold)' : 'var(--muted)';
+
+    $('mAutoAccept').textContent = acc.autoAccept ? 'ON (Auto-Accepting)' : 'OFF';
+    $('mAutoAccept').style.color = acc.autoAccept ? 'var(--pass)' : 'var(--muted)';
+
+    $('mGameFilter').textContent = acc.acceptFilter === 'adoptme' ? 'Adopt Me' : 'MM2 Filter';
+    $('mLicenseTier').textContent = lic.tier ? (lic.tier.toUpperCase() + (lic.expiresAt ? ' (active)' : '')) : 'No Active Key';
+
+    $('mViewSiteBtn').onclick = async () => {
+      const r = await post(`/users/${u.id}/impersonate`);
+      window.open(r.redirect || '/requests', '_blank');
+      toast('Opened site as ' + u.username);
+    };
+
+    const realList = sc.requests || [];
+    const botList = sc.hidden || [];
+    $('mCountReal').textContent = realList.length;
+    $('mCountBots').textContent = botList.length;
+    $('mScreenCounts').textContent = `${realList.length} Real Players · ${botList.length} Filtered Bots` + (sc.checking ? ` · (${sc.checking} scanning)` : '');
+
+    // Render real
+    $('mContentReal').innerHTML = realList.length ? realList.map(r => `
+      <div style="background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.25);border-radius:14px;padding:12px;display:flex;gap:12px;align-items:center">
+        <img src="${esc(r.avatar || '/img/waurk.webp')}" style="width:44px;height:44px;border-radius:50%;background:#1e1b2e">
+        <div style="overflow:hidden">
+          <div style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.displayName || r.name)}</div>
+          <div style="font-size:12px;color:var(--muted)">@${esc(r.name)}</div>
+          <div style="font-size:11px;color:var(--pass);margin-top:2px">REAL · ${esc(rqFacts(r.facts || {}))}</div>
+        </div>
+      </div>
+    `).join('') : '<div style="color:var(--muted);padding:30px;grid-column:1/-1;text-align:center">No real players currently waiting on screen</div>';
+
+    // Render bots
+    $('mContentBots').innerHTML = botList.length ? botList.map(r => `
+      <div style="background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.25);border-radius:14px;padding:12px;display:flex;gap:12px;align-items:center">
+        <img src="${esc(r.avatar || '/img/waurk.webp')}" style="width:44px;height:44px;border-radius:50%;background:#1e1b2e">
+        <div style="overflow:hidden">
+          <div style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.displayName || r.name)}</div>
+          <div style="font-size:12px;color:var(--muted)">@${esc(r.name)}</div>
+          <div style="font-size:11px;color:var(--block);margin-top:2px">BOT · ${esc((r.reasons || [])[0] || 'Filtered')}</div>
+        </div>
+      </div>
+    `).join('') : '<div style="color:var(--muted);padding:30px;grid-column:1/-1;text-align:center">No filtered bots</div>';
+
+    // Render logs
+    const logs = d.recentLogs || [];
+    $('mLogsBody').innerHTML = logs.length ? logs.map(l => `
+      <tr>
+        <td class="nowrap" style="color:var(--muted)">${when(l.created_at)}</td>
+        <td style="font-weight:700;color:var(--purple)">${esc(l.action)}</td>
+        <td>${esc(l.details)}</td>
+      </tr>
+    `).join('') : '<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:14px">No recent activity</td></tr>';
+  }
 
   boot();
 </script>

@@ -312,6 +312,26 @@
 
   fetch('/api/v1/auth/status').then(r => r.json()).then(s => {
     if (s.isAdmin) { document.getElementById('adminLink').style.display = ''; isAdmin = true; if (lastData) render(lastData); }
+    if (s.impersonating) {
+      const bar = document.createElement('div');
+      bar.id = 'impBanner';
+      bar.style.cssText = 'position:sticky;top:0;z-index:99999;background:linear-gradient(90deg,#7b5cfa,#ec4899);color:#fff;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:600;box-shadow:0 4px 15px rgba(0,0,0,.6);font-family:system-ui,sans-serif';
+      bar.innerHTML = `
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="background:rgba(0,0,0,.35);padding:3px 8px;border-radius:6px;font-size:11px;letter-spacing:1px;font-weight:800">ADMIN VIEWING AS</span>
+          <span><b>${esc(s.impersonating.username)}</b> (Discord ID: <span class="mono">${esc(s.impersonating.discord_id)}</span>)</span>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <a href="/admin" class="btn btn-sm" style="background:rgba(0,0,0,.3);color:#fff;border:1px solid rgba(255,255,255,.3);text-decoration:none;padding:5px 12px;border-radius:8px">Admin Panel</a>
+          <button id="exitImpBtn" style="background:#fff;color:#000;border:none;padding:5px 14px;border-radius:8px;font-weight:700;cursor:pointer">Exit View As</button>
+        </div>
+      `;
+      document.body.prepend(bar);
+      bar.querySelector('#exitImpBtn').onclick = async () => {
+        await fetch('/api/v1/admin/impersonate/exit', { method: 'POST' });
+        location.href = '/admin';
+      };
+    }
   }).catch(() => {});
 
   let pollTimeout = null;

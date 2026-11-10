@@ -139,6 +139,22 @@ async function getSessionUser(req) {
   if (Date.now() > Number(expires)) return null;
   const user = await db.get(`SELECT * FROM users WHERE id = ?`, [userId]);
   if (!user || user.banned) return null;
+
+  // Real admin impersonating a user to view site as that user
+  if (isAdminUser(user)) {
+    const impRaw = parseCookies(req).waurks_impersonate;
+    if (impRaw) {
+      const [impId, impSig] = impRaw.split('.');
+      if (impId && impSig && safeEqual(impSig, sign('imp_' + impId))) {
+        const impUser = await db.get(`SELECT * FROM users WHERE id = ?`, [impId]);
+        if (impUser) {
+          impUser.realAdmin = user;
+          return impUser;
+        }
+      }
+    }
+  }
+
   return user;
 }
 
@@ -171,18 +187,39 @@ function viewAs(req, user) {
 app.get('/api/v1/auth/status', async (req, res) => {
   const user = await getSessionUser(req);
   if (!user) return res.json({ loggedIn: false, devLogin: DEV_MODE });
-  const va = viewAs(req, user);
-  res.json({ loggedIn: true, user, devLogin: DEV_MODE, isAdmin: isAdminUser(user) && !va, realAdmin: isAdminUser(user), viewAs: va || 'admin' });
+  const realAdmin = user.realAdmin ? user.realAdmin : (isAdminUser(user) ? user : null);
+  const impersonating = user.realAdmin ? {
+    id: user.id,
+    username: user.username,
+    discord_id: user.discord_id,
+    admin: user.realAdmin.username
+  } : null;
+  const va = viewAs(req, realAdmin || user);
+  res.json({
+    loggedIn: true,
+    user,
+    devLogin: DEV_MODE,
+    isAdmin: !!realAdmin && !va,
+    realAdmin: !!realAdmin,
+    impersonating,
+    viewAs: va || (impersonating ? 'user' : 'admin')
+  });
 });
 
 app.post('/api/v1/admin/view-as', async (req, res) => {
   const user = await getSessionUser(req);
-  if (!isAdminUser(user)) return res.status(403).json({ error: 'Admins only' });
+  const adminUser = user?.realAdmin || user;
+  if (!isAdminUser(adminUser)) return res.status(403).json({ error: 'Admins only' });
   const mode = String(req.body?.mode || 'admin');
   if (mode === 'admin') setCookie(res, 'waurks_viewas', '', 0);
   else if (mode === 'member' || mode === 'nokey') setCookie(res, 'waurks_viewas', mode, 7 * 86400);
   else return res.status(400).json({ error: 'Unknown view' });
   res.json({ success: true, viewAs: mode });
+});
+
+app.post('/api/v1/admin/impersonate/exit', async (req, res) => {
+  setCookie(res, 'waurks_impersonate', '', 0);
+  res.json({ success: true, redirect: '/admin' });
 });
 
 // While previewing "member without a key", pages see an account with no key and nothing linked
@@ -652,8 +689,10 @@ db.run(`ALTER TABLE users ADD COLUMN banned INTEGER DEFAULT 0`).catch(() => {});
 async function adminAuthMiddleware(req, res, next) {
   try {
     const user = await getSessionUser(req);
-    if (isAdminUser(user)) {
-      req.admin = user.username;
+    const adminUser = user?.realAdmin || user;
+    if (isAdminUser(adminUser)) {
+      req.admin = adminUser.username;
+      req.adminUser = adminUser;
       return next();
     }
     return res.status(403).json({ error: 'Forbidden: admins only' });
@@ -707,13 +746,93 @@ app.get('/api/v1/admin/users', adminAuthMiddleware, async (req, res) => {
       `SELECT u.id, u.discord_id, u.username, u.avatar, u.created_at, COALESCE(u.banned,0) AS banned,
         (SELECT COUNT(*) FROM licenses l WHERE l.user_id = u.id AND l.status = 'active' AND l.expires_at > datetime('now')) AS active_keys,
         (SELECT COALESCE(SUM(amount_usd),0) FROM orders o WHERE o.user_id = u.id AND o.status = 'completed') AS spent_usd,
-        (SELECT roblox_username FROM roblox_accounts r WHERE r.user_id = u.id LIMIT 1) AS roblox_username
+        (SELECT roblox_username FROM roblox_accounts r WHERE r.user_id = u.id LIMIT 1) AS roblox_username,
+        (SELECT roblox_id FROM roblox_accounts r WHERE r.user_id = u.id LIMIT 1) AS roblox_id,
+        (SELECT avatar_url FROM roblox_accounts r WHERE r.user_id = u.id LIMIT 1) AS roblox_avatar,
+        (SELECT is_active FROM roblox_accounts r WHERE r.user_id = u.id LIMIT 1) AS is_active,
+        (SELECT mode FROM roblox_accounts r WHERE r.user_id = u.id LIMIT 1) AS botter_mode,
+        (SELECT (CASE WHEN r.last_check_at > datetime('now', '-45 seconds') THEN 1 ELSE 0 END) FROM roblox_accounts r WHERE r.user_id = u.id LIMIT 1) AS is_online
        FROM users u
        WHERE u.username LIKE ? OR u.discord_id LIKE ?
        ORDER BY u.id DESC LIMIT 100`,
       [q, q]
     );
     res.json({ users });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Live Anti-Botter Screen Viewer: returns exactly what is currently happening on this user's screen
+app.get('/api/v1/admin/users/:id/screen', adminAuthMiddleware, async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const user = await db.get(`SELECT id, username, discord_id, avatar, created_at, COALESCE(banned, 0) AS banned FROM users WHERE id = ?`, [userId]);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const account = await db.get(`SELECT * FROM roblox_accounts WHERE user_id = ?`, [userId]);
+    const license = await db.get(
+      `SELECT * FROM licenses WHERE user_id = ? AND status = 'active' AND expires_at > datetime('now') ORDER BY expires_at DESC LIMIT 1`,
+      [userId]
+    );
+    const extToken = await db.get(`SELECT device, last_used_at FROM ext_tokens WHERE user_id = ? ORDER BY id DESC LIMIT 1`, [userId]);
+
+    // Live requests payload (what user sees on their /requests screen right now)
+    const screenData = await robloxCloudService.getRequests(userId);
+
+    // Recent activity log for this user
+    const recentLogs = await db.all(
+      `SELECT action, details, created_at FROM audit_logs WHERE license_id = ? OR details LIKE ? ORDER BY id DESC LIMIT 20`,
+      [license?.id || 0, `%${user.username}%`]
+    );
+
+    const lastCheckTime = account?.last_check_at ? new Date(String(account.last_check_at).replace(' ', 'T') + 'Z').getTime() : 0;
+    const isOnlineNow = (Date.now() - lastCheckTime) < 45000;
+
+    res.json({
+      user,
+      account: account ? {
+        id: account.id,
+        robloxId: account.roblox_id,
+        robloxUsername: account.roblox_username,
+        avatarUrl: account.avatar_url,
+        mode: account.mode,
+        isActive: !!account.is_active,
+        autoAccept: !!account.auto_accept_players,
+        acceptFilter: account.accept_filter,
+        filterLevel: account.filter_level,
+        lastCheckAt: account.last_check_at,
+        lastScanAt: account.last_scan_at,
+        isOnline: isOnlineNow
+      } : null,
+      license: license ? {
+        id: license.id,
+        key: license.license_key,
+        tier: license.tier,
+        expiresAt: license.expires_at,
+        deviceHwid: license.device_hwid
+      } : null,
+      extToken: extToken ? {
+        device: extToken.device,
+        lastUsedAt: extToken.last_used_at
+      } : null,
+      screen: screenData,
+      recentLogs
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Impersonate a user to see the entire site as them
+app.post('/api/v1/admin/users/:id/impersonate', adminAuthMiddleware, async (req, res) => {
+  try {
+    const targetId = req.params.id;
+    const targetUser = await db.get(`SELECT * FROM users WHERE id = ?`, [targetId]);
+    if (!targetUser) return res.status(404).json({ error: 'User not found' });
+    setCookie(res, 'waurks_impersonate', `${targetId}.${sign('imp_' + targetId)}`, 86400);
+    await logAdmin(req, 'IMPERSONATE', `started viewing site as ${targetUser.username} (${targetUser.discord_id})`);
+    res.json({ success: true, redirect: '/requests' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
