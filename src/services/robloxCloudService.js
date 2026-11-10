@@ -802,8 +802,20 @@ class RobloxCloudService {
       // Act on Roblox when the customer's switches say so
       let status = 'pending';
       if (evaluation.verdict === 'DECLINE') {
-        // Bots are only filtered (hidden on the Friend requests page), never declined on Roblox
         botsCount++;
+        // Automatically decline filtered bots on Roblox so they are removed from friend requests
+        if (ext) {
+          instructions.push({ id: sid, do: 'decline' });
+          status = 'declined';
+        } else {
+          try {
+            const cookie = this.decrypt(account.encrypted_cookie, account.cookie_iv);
+            if (!isTestCookie(cookie)) {
+              await this.robloxRequest(`https://friends.roblox.com/v1/users/${sid}/decline-friend-request`, 'POST', cookie, null, account.roblox_id);
+            }
+          } catch (_) {}
+          status = 'declined';
+        }
       } else if (evaluation.verdict === 'ACCEPT') {
         playersCount++;
         if (account.auto_accept_players && (!mm2Filter || mm2 === true)) {
@@ -938,8 +950,43 @@ class RobloxCloudService {
    * Clear all filtered bots for a user so they no longer appear on screen.
    */
   async clearFilteredBots(userId) {
-    const account = await db.get('SELECT accept_filter FROM roblox_accounts WHERE user_id = ?', [userId]);
+    const account = await db.get('SELECT accept_filter, mode, encrypted_cookie, cookie_iv, roblox_id FROM roblox_accounts WHERE user_id = ?', [userId]);
     const gm = account && account.accept_filter === 'adoptme' ? 'adoptme' : 'mm2';
+    // Find all target_ids of matching bot requests so we can decline them on Roblox too!
+    const toDecline = await db.all(
+      `SELECT target_id FROM friend_requests 
+       WHERE user_id = ? 
+         AND status != 'accepted'
+         AND status != 'cleared'
+         AND (
+           status = 'declined' 
+           OR verdict = 'DECLINE' 
+           OR score >= 50
+           OR (verdict != 'ACCEPT' AND verdict IS NOT NULL)
+           OR (facts NOT LIKE ? AND facts IS NOT NULL)
+         )`,
+      [userId, gm === 'mm2' ? '%"mm2":true%' : '%"game":"adoptme"%']
+    );
+
+    // Queue declines for extension or run directly in cloud mode
+    if (account?.mode === 'extension') {
+      for (const row of toDecline) {
+        await db.run(
+          `INSERT INTO ext_actions (user_id, target_id, action, done, priority) VALUES (?, ?, 'decline', 0, 5)`,
+          [userId, row.target_id]
+        ).catch(() => {});
+      }
+    } else if (account?.encrypted_cookie && account?.cookie_iv) {
+      try {
+        const cookie = this.decrypt(account.encrypted_cookie, account.cookie_iv);
+        if (!isTestCookie(cookie)) {
+          for (const row of toDecline.slice(0, 50)) {
+            await this.robloxRequest(`https://friends.roblox.com/v1/users/${row.target_id}/decline-friend-request`, 'POST', cookie, null, account.roblox_id).catch(() => {});
+          }
+        }
+      } catch (_) {}
+    }
+
     const res = await db.run(
       `UPDATE friend_requests 
        SET status = 'cleared', updated_at = CURRENT_TIMESTAMP 
@@ -1025,7 +1072,7 @@ class RobloxCloudService {
         if (!r.ok && r.status !== 400) {
           // Rate limited on Roblox: don't remove! Retain pending status with 60s retry backoff and red notice
           await db.run(
-            `UPDATE friend_requests SET retry_error = 'Roblox rate limited (accepting too fast) · Retrying automatically in ~1m', retry_after = datetime('now', '+60 seconds'), priority = 10, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND target_id = ?`,
+            `UPDATE friend_requests SET retry_error = 'Roblox rate limited (accepting too fast) · Retrying in 30s...', retry_after = datetime('now', '+30 seconds'), priority = 10, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND target_id = ?`,
             [userId, row.target_id]
           );
           throw new Error(`Roblox rate limited or didn't allow that (error ${r.status}). Will retry.`);

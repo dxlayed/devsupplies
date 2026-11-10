@@ -137,16 +137,16 @@ function mount(app) {
           } else {
             // Failed on Roblox (rate limit 429, accepted too fast, etc.): DO NOT REMOVE!
             // Retain pending status, mark red notice, bump priority, and set 1-minute retry cooldown
-            const errMsg = d.error || (d.rateLimited ? 'Roblox rate limited (accepting too fast) · Retrying automatically in ~1m' : 'Could not accept on Roblox · Retrying soon');
+            const errMsg = d.error || (d.rateLimited ? 'Roblox rate limited (accepting too fast) · Retrying in 30s...' : 'Could not accept on Roblox · Retrying soon');
             await db.run(
               `UPDATE friend_requests 
-               SET status = 'pending', auto = 0, retry_error = ?, retry_after = datetime('now', '+60 seconds'), priority = COALESCE(priority, 0) + 10, updated_at = CURRENT_TIMESTAMP 
+               SET status = 'pending', auto = 0, retry_error = ?, retry_after = datetime('now', '+30 seconds'), priority = COALESCE(priority, 0) + 10, updated_at = CURRENT_TIMESTAMP 
                WHERE user_id = ? AND target_id = ?`,
               [errMsg, user.id, id]
             );
             await db.run(
               `UPDATE ext_actions 
-               SET done = 0, priority = COALESCE(priority, 0) + 10, retry_after = datetime('now', '+60 seconds'), last_error = ? 
+               SET done = 0, priority = COALESCE(priority, 0) + 10, retry_after = datetime('now', '+30 seconds'), last_error = ? 
                WHERE user_id = ? AND target_id = ? AND action = 'accept'`,
               [errMsg, user.id, id]
             );
