@@ -600,6 +600,14 @@ app.get('/api/v1/roblox/requests', authMiddleware, async (req, res) => {
   }
 });
 
+app.post('/api/v1/roblox/requests/clear-filtered', authMiddleware, async (req, res) => {
+  try {
+    res.json(await robloxCloudService.clearFilteredBots(req.user.id));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/v1/roblox/requests/:targetId/:action', authMiddleware, async (req, res) => {
   try {
     const { targetId, action } = req.params;
@@ -833,6 +841,17 @@ app.post('/api/v1/admin/users/:id/impersonate', adminAuthMiddleware, async (req,
     setCookie(res, 'waurks_impersonate', `${targetId}.${sign('imp_' + targetId)}`, 86400);
     await logAdmin(req, 'IMPERSONATE', `started viewing site as ${targetUser.username} (${targetUser.discord_id})`);
     res.json({ success: true, redirect: '/requests' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Admin action: clear filtered bots for a user
+app.post('/api/v1/admin/users/:id/clear-bots', adminAuthMiddleware, async (req, res) => {
+  try {
+    const result = await robloxCloudService.clearFilteredBots(req.params.id);
+    await logAdmin(req, 'CLEAR_BOTS', `cleared ${result.cleared} filtered bots for user #${req.params.id}`);
+    res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

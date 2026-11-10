@@ -803,7 +803,7 @@ class RobloxCloudService {
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', ?), CURRENT_TIMESTAMP)
          ON CONFLICT(user_id, target_id) DO UPDATE SET name = excluded.name, display_name = excluded.display_name,
            avatar_url = COALESCE(excluded.avatar_url, friend_requests.avatar_url), verdict = excluded.verdict, score = excluded.score,
-           reasons = excluded.reasons, facts = excluded.facts, status = excluded.status, auto = excluded.auto,
+           reasons = excluded.reasons, facts = excluded.facts, status = CASE WHEN friend_requests.status = 'cleared' THEN 'cleared' ELSE excluded.status END, auto = excluded.auto,
            checked_at = excluded.checked_at, updated_at = CURRENT_TIMESTAMP`,
         [userId, sid, name, displayName, headshots.get(sid) || null, evaluation.verdict, evaluation.threatScore,
          JSON.stringify(evaluation.reasons.slice(0, 4)), JSON.stringify(facts), status, status === 'pending' ? 0 : 1, fr.sentAt || null,
@@ -852,7 +852,7 @@ class RobloxCloudService {
     if (!account) return { connected: false };
     const level = account.filter_level || 'normal';
     const rows = await db.all(
-      `SELECT * FROM friend_requests WHERE user_id = ? AND (status = 'pending' OR (status = 'declined' AND auto = 1 AND updated_at > datetime('now', '-7 days')))
+      `SELECT * FROM friend_requests WHERE user_id = ? AND status != 'cleared' AND (status = 'pending' OR (status = 'declined' AND auto = 1 AND updated_at > datetime('now', '-7 days')))
        ORDER BY COALESCE(sent_at, checked_at, updated_at) DESC LIMIT 2000`,
       [userId]
     );
@@ -895,6 +895,31 @@ class RobloxCloudService {
    * Auto-accept switch on the Friend requests page. Turning it on also accepts
    * the waiting requests that clearly look real, right away.
    */
+
+  /**
+   * Clear all filtered bots for a user so they no longer appear on screen.
+   */
+  async clearFilteredBots(userId) {
+    const account = await db.get('SELECT accept_filter FROM roblox_accounts WHERE user_id = ?', [userId]);
+    const gm = account && account.accept_filter === 'adoptme' ? 'adoptme' : 'mm2';
+    const res = await db.run(
+      `UPDATE friend_requests 
+       SET status = 'cleared', updated_at = CURRENT_TIMESTAMP 
+       WHERE user_id = ? 
+         AND status != 'accepted'
+         AND status != 'cleared'
+         AND (
+           status = 'declined' 
+           OR verdict = 'DECLINE' 
+           OR score >= 50
+           OR (verdict != 'ACCEPT' AND verdict IS NOT NULL)
+           OR (facts NOT LIKE ? AND facts IS NOT NULL)
+         )`,
+      [userId, gm === 'mm2' ? '%"mm2":true%' : '%"game":"adoptme"%']
+    );
+    return { success: true, cleared: res?.changes || 0 };
+  }
+
   async setAutoAccept(userId, enabled) {
     await db.run(`UPDATE roblox_accounts SET auto_accept_players = ? WHERE user_id = ?`, [enabled ? 1 : 0, userId]);
     let accepted = 0;

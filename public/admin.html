@@ -206,10 +206,13 @@
     </div>
 
     <!-- Tabs inside modal: Real Players vs Filtered Bots -->
-    <div style="display:flex;gap:8px;margin-bottom:16px">
-      <button class="tab on" id="mTabReal" onclick="switchModalTab('real')" type="button">Real Players (<span id="mCountReal">0</span>)</button>
-      <button class="tab" id="mTabBots" onclick="switchModalTab('bots')" type="button">Filtered Bots (<span id="mCountBots">0</span>)</button>
-      <button class="tab" id="mTabLogs" onclick="switchModalTab('logs')" type="button">Live Activity Feed</button>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+      <div style="display:flex;gap:8px">
+        <button class="tab on" id="mTabReal" onclick="switchModalTab('real')" type="button">Real Players (<span id="mCountReal">0</span>)</button>
+        <button class="tab" id="mTabBots" onclick="switchModalTab('bots')" type="button">Filtered Bots (<span id="mCountBots">0</span>)</button>
+        <button class="tab" id="mTabLogs" onclick="switchModalTab('logs')" type="button">Live Activity Feed</button>
+      </div>
+      <button class="btn btn-danger" id="mClearBotsBtn" onclick="clearUserBots()" style="display:none;padding:6px 14px;font-size:12px">Clear Filtered Bots</button>
     </div>
 
     <div id="mContentReal" style="max-height:480px;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill, minmax(280px, 1fr));gap:12px"></div>
@@ -511,6 +514,19 @@
     $('mContentReal').style.display = tab === 'real' ? 'grid' : 'none';
     $('mContentBots').style.display = tab === 'bots' ? 'grid' : 'none';
     $('mContentLogs').style.display = tab === 'logs' ? 'block' : 'none';
+    $('mClearBotsBtn').style.display = tab === 'bots' ? 'inline-block' : 'none';
+  }
+
+  async function clearUserBots() {
+    if (!currentScreenUserId) return;
+    if (!confirm('Clear all filtered bot requests for this user?')) return;
+    try {
+      const res = await post('/users/' + currentScreenUserId + '/clear-bots');
+      toast('Cleared ' + (res.cleared || 0) + ' filtered bots');
+      await refreshCurrentScreen();
+    } catch (err) {
+      toast('Failed to clear bots: ' + err.message);
+    }
   }
 
   async function refreshCurrentScreen(silent) {
