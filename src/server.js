@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 const crypto = require('crypto');
 const db = require('./database');
 const { keyService, TIER_CONFIG } = require('./services/keyService');
@@ -527,6 +528,26 @@ app.get(['/api/v1/extension/download', '/download/extension', '/downloads/waurks
   } catch (err) {
     res.status(500).json({ error: 'Could not generate extension zip: ' + err.message });
   }
+});
+
+// Extension source inspection endpoint (users can audit code directly on-site without third-party links)
+app.get('/api/v1/extension/source', (req, res) => {
+  try {
+    const extDir = path.join(__dirname, '..', 'extension');
+    const files = {
+      'manifest.json': fs.readFileSync(path.join(extDir, 'manifest.json'), 'utf8'),
+      'background.js': fs.readFileSync(path.join(extDir, 'background.js'), 'utf8'),
+      'popup.js': fs.readFileSync(path.join(extDir, 'popup.js'), 'utf8'),
+      'popup.html': fs.readFileSync(path.join(extDir, 'popup.html'), 'utf8')
+    };
+    res.json({ files });
+  } catch (err) {
+    res.status(500).json({ error: 'Could not load extension source: ' + err.message });
+  }
+});
+
+app.get(['/extension-source', '/extension-code'], (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'extension-source.html'));
 });
 
 // ---- Friend requests page ----

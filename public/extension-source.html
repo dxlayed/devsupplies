@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Extension Source Code - Waurks</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/theme.css">
+<style>
+  .page { max-width: 980px; margin: 0 auto; padding: 0 20px 100px; }
+  .pagehero { position: relative; text-align: center; padding: 48px 0 32px; overflow: hidden; }
+  .pagehero::before {
+    content: ""; position: absolute; width: 1100px; height: 1100px; left: calc(50% - 550px); top: -640px; pointer-events: none;
+    background: repeating-conic-gradient(from 0deg, rgba(139,92,246,.12) 0deg 6deg, transparent 6deg 18deg);
+    -webkit-mask: radial-gradient(circle, #000 0, transparent 55%); mask: radial-gradient(circle, #000 0, transparent 55%);
+    animation: pgspin 40s linear infinite;
+  }
+  @keyframes pgspin { to { transform: rotate(360deg); } }
+  .pagehero > * { position: relative; }
+  .title { font-size: clamp(32px, 5vw, 48px); letter-spacing: -0.03em; line-height: 1.1; margin: 16px 0 10px; }
+
+  .audit-card {
+    background: linear-gradient(135deg, rgba(139,92,246,.12), rgba(16,185,129,.05));
+    border: 1px solid rgba(139,92,246,.3);
+    border-radius: 20px;
+    padding: 22px 24px;
+    margin-bottom: 24px;
+  }
+  .audit-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+    margin-top: 14px;
+  }
+  .audit-item {
+    background: rgba(0,0,0,.25);
+    border: 1px solid rgba(255,255,255,.06);
+    border-radius: 14px;
+    padding: 14px 16px;
+  }
+  .audit-item b {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+  .audit-item p {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.45;
+    margin: 0;
+  }
+
+  /* Code Viewer */
+  .viewer {
+    background: #0d0f17;
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 20px 40px rgba(0,0,0,.45);
+  }
+  .viewer-tabs {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #090a10;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+    padding: 8px 12px;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .tab-group {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+  }
+  .file-tab {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    padding: 7px 14px;
+    border-radius: 10px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all .15s ease;
+  }
+  .file-tab:hover {
+    color: var(--text);
+    background: rgba(255,255,255,.04);
+  }
+  .file-tab.active {
+    color: #fff;
+    background: rgba(139,92,246,.2);
+    border-color: rgba(139,92,246,.4);
+  }
+  .tab-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--muted);
+  }
+  .file-tab.active .tab-dot {
+    background: var(--purple);
+    box-shadow: 0 0 8px var(--purple);
+  }
+
+  .viewer-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .action-btn {
+    background: rgba(255,255,255,.05);
+    border: 1px solid rgba(255,255,255,.08);
+    color: var(--text);
+    font-size: 12px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: background .15s ease;
+  }
+  .action-btn:hover {
+    background: rgba(255,255,255,.1);
+  }
+
+  .editor-wrap {
+    display: flex;
+    position: relative;
+    max-height: 650px;
+    overflow: auto;
+    font-family: 'JetBrains Mono', Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    background: #0a0b12;
+  }
+  .line-numbers {
+    padding: 16px 12px;
+    color: rgba(255,255,255,.2);
+    text-align: right;
+    user-select: none;
+    border-right: 1px solid rgba(255,255,255,.06);
+    background: #08090e;
+    min-width: 48px;
+    font-family: inherit;
+  }
+  .code-display {
+    padding: 16px 20px;
+    color: #e2e8f0;
+    margin: 0;
+    white-space: pre;
+    tab-size: 2;
+    overflow-x: auto;
+    flex: 1;
+    font-family: inherit;
+  }
+  .badge-safe {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: rgba(16,185,129,.15);
+    color: var(--green);
+    border: 1px solid rgba(16,185,129,.3);
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="topbar">
+    <a href="/" class="logo"><span class="logo-mark">W</span>Waurks</a>
+    <nav class="nav">
+      <a href="/requests">Friend requests</a>
+      <a href="/dashboard">My account</a>
+      <a href="/api/v1/extension/download" class="btn btn-main btn-sm" download="waurks-extension.zip">Download .ZIP</a>
+    </nav>
+  </header>
+</div>
+
+<main class="page">
+  <div class="pagehero">
+    <span class="pill">Code Audit &amp; Verification</span>
+    <h1 class="title grad3d">Browser Extension Source</h1>
+    <p class="lead" style="max-width:600px;margin:0 auto">Zero cookie logging. Inspect every single line of client code powering the Waurks browser helper below.</p>
+  </div>
+
+  <div class="audit-card">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        <span style="font-weight:700;font-size:16px">Client Security &amp; Privacy Verification</span>
+      </div>
+      <span class="badge-safe"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg> Zero Cookie Permissions</span>
+    </div>
+
+    <div class="audit-grid">
+      <div class="audit-item">
+        <b><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Sandbox Protected</b>
+        <p>The extension manifest only requests <code>storage</code> and <code>alarms</code>. The browser physically blocks it from accessing or reading <code>.ROBLOSECURITY</code> cookies.</p>
+      </div>
+      <div class="audit-item">
+        <b><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> No Passwords or Tokens</b>
+        <p>Passwords and credentials are never requested, stored, or transmitted anywhere. All friend requests are read safely using your active browser session.</p>
+      </div>
+      <div class="audit-item">
+        <b><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg> Live Auditable Files</b>
+        <p>The code displayed below is pulled straight from the extension package served on this server. What you see is exactly what runs in your browser.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="viewer">
+    <div class="viewer-tabs">
+      <div class="tab-group" id="tabsList">
+        <button class="file-tab active" data-file="manifest.json"><span class="tab-dot"></span>manifest.json</button>
+        <button class="file-tab" data-file="background.js"><span class="tab-dot"></span>background.js</button>
+        <button class="file-tab" data-file="popup.js"><span class="tab-dot"></span>popup.js</button>
+        <button class="file-tab" data-file="popup.html"><span class="tab-dot"></span>popup.html</button>
+      </div>
+      <div class="viewer-actions">
+        <span id="fileSizeLabel" style="font-size:12px;color:var(--muted);font-family:'JetBrains Mono',monospace"></span>
+        <button class="action-btn" id="copyBtn" onclick="copyCurrentCode()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          <span id="copyText">Copy File</span>
+        </button>
+        <a href="/api/v1/extension/download" class="action-btn" download="waurks-extension.zip" style="text-decoration:none">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download (.ZIP)
+        </a>
+      </div>
+    </div>
+
+    <div class="editor-wrap">
+      <div class="line-numbers" id="lineNumbers">1</div>
+      <pre class="code-display" id="codeContent">Loading source code...</pre>
+    </div>
+  </div>
+</main>
+
+<script>
+  let sourceFiles = {};
+  let currentFile = 'manifest.json';
+
+  async function loadSource() {
+    try {
+      const res = await fetch('/api/v1/extension/source');
+      const data = await res.json();
+      sourceFiles = data.files || {};
+      showFile(currentFile);
+    } catch (err) {
+      document.getElementById('codeContent').textContent = '// Error loading extension source: ' + err.message;
+    }
+  }
+
+  function showFile(filename) {
+    currentFile = filename;
+    document.querySelectorAll('.file-tab').forEach(b => {
+      b.classList.toggle('active', b.getAttribute('data-file') === filename);
+    });
+
+    const code = sourceFiles[filename] || '// File not found';
+    document.getElementById('codeContent').textContent = code;
+
+    const lines = code.split('\n').length;
+    let lineStr = '';
+    for (let i = 1; i <= lines; i++) {
+      lineStr += i + '\n';
+    }
+    document.getElementById('lineNumbers').textContent = lineStr;
+
+    const bytes = new Blob([code]).size;
+    const kb = (bytes / 1024).toFixed(1);
+    document.getElementById('fileSizeLabel').textContent = lines + ' lines · ' + kb + ' KB';
+  }
+
+  document.querySelectorAll('.file-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      showFile(btn.getAttribute('data-file'));
+    });
+  });
+
+  async function copyCurrentCode() {
+    const code = sourceFiles[currentFile] || '';
+    try {
+      await navigator.clipboard.writeText(code);
+      const copyText = document.getElementById('copyText');
+      copyText.textContent = 'Copied!';
+      setTimeout(() => { copyText.textContent = 'Copy File'; }, 2000);
+    } catch (e) {}
+  }
+
+  loadSource();
+</script>
+</body>
+</html>
