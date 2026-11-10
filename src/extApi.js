@@ -128,17 +128,32 @@ function mount(app) {
         if (!id) continue;
         if (d.do === 'accept') {
           if (d.ok === true) {
-            // Confirmed accepted on Roblox by the browser extension
-            await db.run(`UPDATE friend_requests SET status = 'accepted', auto = 0, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND target_id = ?`, [user.id, id]);
+            // Confirmed accepted on Roblox by the browser extension: clear any retry error!
+            await db.run(
+              `UPDATE friend_requests SET status = 'accepted', auto = 0, retry_error = NULL, retry_after = NULL, priority = 0, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND target_id = ?`,
+              [user.id, id]
+            );
             await db.run(`UPDATE ext_actions SET done = 1 WHERE user_id = ? AND target_id = ? AND action = 'accept'`, [user.id, id]);
           } else {
-            // Failed on Roblox (rate limit 429, accepted too fast, etc.): leave status = 'pending' and unmark done so it retries automatically
-            await db.run(`UPDATE friend_requests SET status = 'pending', auto = 0, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND target_id = ?`, [user.id, id]);
-            await db.run(`UPDATE ext_actions SET done = 0 WHERE user_id = ? AND target_id = ? AND action = 'accept'`, [user.id, id]);
+            // Failed on Roblox (rate limit 429, accepted too fast, etc.): DO NOT REMOVE!
+            // Retain pending status, mark red notice, bump priority, and set 1-minute retry cooldown
+            const errMsg = d.error || (d.rateLimited ? 'Roblox rate limited (accepting too fast) · Retrying automatically in ~1m' : 'Could not accept on Roblox · Retrying soon');
+            await db.run(
+              `UPDATE friend_requests 
+               SET status = 'pending', auto = 0, retry_error = ?, retry_after = datetime('now', '+60 seconds'), priority = COALESCE(priority, 0) + 10, updated_at = CURRENT_TIMESTAMP 
+               WHERE user_id = ? AND target_id = ?`,
+              [errMsg, user.id, id]
+            );
+            await db.run(
+              `UPDATE ext_actions 
+               SET done = 0, priority = COALESCE(priority, 0) + 10, retry_after = datetime('now', '+60 seconds'), last_error = ? 
+               WHERE user_id = ? AND target_id = ? AND action = 'accept'`,
+              [errMsg, user.id, id]
+            );
           }
         } else if (d.do === 'decline') {
           if (d.ok === true) {
-            await db.run(`UPDATE friend_requests SET status = 'declined', auto = 0, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND target_id = ?`, [user.id, id]);
+            await db.run(`UPDATE friend_requests SET status = 'declined', auto = 0, retry_error = NULL, retry_after = NULL, priority = 0, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND target_id = ?`, [user.id, id]);
             await db.run(`UPDATE ext_actions SET done = 1 WHERE user_id = ? AND target_id = ? AND action = 'decline'`, [user.id, id]);
           } else {
             await db.run(`UPDATE ext_actions SET done = 0 WHERE user_id = ? AND target_id = ? AND action = 'decline'`, [user.id, id]);
@@ -146,8 +161,15 @@ function mount(app) {
         }
       }
 
-      // 6) Website Accept/Decline clicks waiting to be carried out (strictly accept or decline only)
-      const queued = await db.all(`SELECT id, target_id, action FROM ext_actions WHERE user_id = ? AND done = 0 AND action IN ('accept', 'decline') ORDER BY id LIMIT 30`, [user.id]);
+      // 6) Website Accept/Decline clicks: prioritize high-priority retry items first!
+      const queued = await db.all(
+        `SELECT id, target_id, action FROM ext_actions 
+         WHERE user_id = ? AND done = 0 AND action IN ('accept', 'decline')
+           AND (retry_after IS NULL OR retry_after <= CURRENT_TIMESTAMP)
+         ORDER BY priority DESC, id ASC 
+         LIMIT 30`,
+        [user.id]
+      );
       if (queued.length) await db.run(`UPDATE ext_actions SET done = 1 WHERE id IN (${queued.map(() => '?').join(',')})`, queued.map(q => q.id));
       const actions = queued.map(q => ({ id: String(q.target_id), do: q.action }));
 

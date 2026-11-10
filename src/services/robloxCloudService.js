@@ -33,6 +33,12 @@ db.run(`CREATE TABLE IF NOT EXISTS ext_actions (
   id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, target_id TEXT NOT NULL, action TEXT NOT NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP, done INTEGER DEFAULT 0
 )`).catch(() => {});
+db.run(`ALTER TABLE friend_requests ADD COLUMN retry_error TEXT`).catch(() => {});
+db.run(`ALTER TABLE friend_requests ADD COLUMN retry_after DATETIME`).catch(() => {});
+db.run(`ALTER TABLE friend_requests ADD COLUMN priority INTEGER DEFAULT 0`).catch(() => {});
+db.run(`ALTER TABLE ext_actions ADD COLUMN priority INTEGER DEFAULT 0`).catch(() => {});
+db.run(`ALTER TABLE ext_actions ADD COLUMN retry_after DATETIME`).catch(() => {});
+db.run(`ALTER TABLE ext_actions ADD COLUMN last_error TEXT`).catch(() => {});
 
 // Browser extension sign-in (no key needed): one-time connect codes and per-browser tokens
 db.run(`CREATE TABLE IF NOT EXISTS ext_connect (
@@ -882,7 +888,7 @@ class RobloxCloudService {
     const level = account.filter_level || 'normal';
     const rows = await db.all(
       `SELECT * FROM friend_requests WHERE user_id = ? AND status != 'cleared' AND (status = 'pending' OR (status = 'declined' AND auto = 1 AND updated_at > datetime('now', '-7 days')))
-       ORDER BY COALESCE(sent_at, checked_at, updated_at) DESC LIMIT 2000`,
+       ORDER BY priority DESC, COALESCE(sent_at, checked_at, updated_at) DESC LIMIT 2000`,
       [userId]
     );
     const visible = [], hidden = [];
@@ -890,7 +896,10 @@ class RobloxCloudService {
       const item = {
         id: r.target_id, name: r.name, displayName: r.display_name, avatar: r.avatar_url,
         verdict: r.verdict, score: r.score, reasons: safeJson(r.reasons, []), facts: safeJson(r.facts, {}),
-        status: r.status, sentAt: r.sent_at
+        status: r.status, sentAt: r.sent_at,
+        retryError: r.retry_error || null,
+        retryAfter: r.retry_after || null,
+        priority: r.priority || 0
       };
       {
         // MM2 filter: only people confirmed to have the Level 10 badge are shown. Everything else is filtered.
@@ -988,12 +997,24 @@ class RobloxCloudService {
     const account = await db.get(`SELECT * FROM roblox_accounts WHERE user_id = ?`, [userId]);
     if (!account) throw new Error('Link your Roblox account first');
     if (account.mode === 'extension') {
-      // Queue action for extension. If accept, leave status = 'pending' until the extension confirms Roblox accepted it
-      await db.run(`INSERT INTO ext_actions (user_id, target_id, action, done) VALUES (?, ?, ?, 0)`, [userId, row.target_id, accept ? 'accept' : 'decline']);
-      if (!accept) {
-        await db.run(`UPDATE friend_requests SET status = 'declined', auto = 0, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND target_id = ?`,
-          [userId, row.target_id]);
+      // Queue action for extension with high priority (20) so it's picked up immediately
+      await db.run(
+        `INSERT INTO ext_actions (user_id, target_id, action, done, priority, retry_after) VALUES (?, ?, ?, 0, 20, NULL)`,
+        [userId, row.target_id, accept ? 'accept' : 'decline']
+      );
+      if (accept) {
+        // Keep status = 'pending', prioritize, and mark initial notice until extension reports
+        await db.run(
+          `UPDATE friend_requests SET status = 'pending', priority = 20, retry_error = 'Accepting... (waiting for extension)', updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND target_id = ?`,
+          [userId, row.target_id]
+        );
+      } else {
+        await db.run(
+          `UPDATE friend_requests SET status = 'declined', auto = 0, retry_error = NULL, retry_after = NULL, priority = 0, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND target_id = ?`,
+          [userId, row.target_id]
+        );
       }
+      return { success: true, queued: true };
     } else {
       const cookie = this.decrypt(account.encrypted_cookie, account.cookie_iv);
       if (!isTestCookie(cookie)) {
@@ -1001,10 +1022,19 @@ class RobloxCloudService {
           `https://friends.roblox.com/v1/users/${row.target_id}/${accept ? 'accept' : 'decline'}-friend-request`,
           'POST', cookie, null, account.roblox_id
         );
-        if (!r.ok && r.status !== 400) throw new Error(`Roblox rate limited or didn't allow that (error ${r.status}). Will retry.`);
+        if (!r.ok && r.status !== 400) {
+          // Rate limited on Roblox: don't remove! Retain pending status with 60s retry backoff and red notice
+          await db.run(
+            `UPDATE friend_requests SET retry_error = 'Roblox rate limited (accepting too fast) · Retrying automatically in ~1m', retry_after = datetime('now', '+60 seconds'), priority = 10, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND target_id = ?`,
+            [userId, row.target_id]
+          );
+          throw new Error(`Roblox rate limited or didn't allow that (error ${r.status}). Will retry.`);
+        }
       }
-      await db.run(`UPDATE friend_requests SET status = ?, auto = 0, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND target_id = ?`,
-        [accept ? 'accepted' : 'declined', userId, row.target_id]);
+      await db.run(
+        `UPDATE friend_requests SET status = ?, auto = 0, retry_error = NULL, retry_after = NULL, priority = 0, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND target_id = ?`,
+        [accept ? 'accepted' : 'declined', userId, row.target_id]
+      );
     }
     // Accepting something the filter thought was a bot teaches it that this account is real
     if (accept && row.verdict !== 'ACCEPT') await detectionEngine.recordReport(row.target_id, userId, false);

@@ -138,8 +138,8 @@ async function doAction(a) {
 
     // Rate limited by Roblox (accepting too fast)
     if (r.status === 429) {
-      actionPauseUntil = Date.now() + 5000; // Pause actions for 5s
-      return { id, do: a.do, ok: false, rateLimited: true, status: 429 };
+      actionPauseUntil = Date.now() + 60000; // Pause actions for 60 seconds (1 minute)
+      return { id, do: a.do, ok: false, rateLimited: true, status: 429, error: 'Roblox rate limited (accepting too fast) · Retrying automatically in ~1m' };
     }
 
     // 400 Bad Request can happen if already friends or request was already handled
@@ -153,9 +153,9 @@ async function doAction(a) {
       } catch (_) {}
     }
 
-    return { id, do: a.do, ok: false, status: r.status };
+    return { id, do: a.do, ok: false, status: r.status, error: `Roblox error ${r.status} · Retrying` };
   } catch (e) {
-    return { id, do: a.do, ok: false };
+    return { id, do: a.do, ok: false, error: e.message || 'Network error' };
   }
 }
 
@@ -207,19 +207,27 @@ async function syncOnce() {
     return 5000;
   }
 
-  // Do exactly what the server said (only accept / decline) with safe pacing
+  // Do exactly what the server said (only accept / decline) with safe rolling queue
   lastDone = [];
   if (Date.now() >= actionPauseUntil) {
     for (const a of (reply.actions || []).slice(0, 30)) {
-      if (Date.now() < actionPauseUntil) break;
+      if (Date.now() < actionPauseUntil) {
+        lastDone.push({ id: a.id, do: a.do, ok: false, rateLimited: true, error: 'Roblox rate limited · Retrying in ~1m' });
+        continue;
+      }
       const res = await doAction(a);
       lastDone.push(res);
       if (res.rateLimited || res.status === 429) {
-        // Roblox rate limited: pause and let remaining actions retry automatically on next sync
-        break;
+        actionPauseUntil = Date.now() + 60000; // 1-minute cooldown before next accept batch
+      } else {
+        await new Promise(res => setTimeout(res, 350));
       }
-      // Pacing delay (250ms) for fast real-time accepts
-      await new Promise(res => setTimeout(res, 250));
+    }
+  } else {
+    // Active cooldown window: report waiting countdown to server so cards show red notice
+    const secsLeft = Math.max(1, Math.ceil((actionPauseUntil - Date.now()) / 1000));
+    for (const a of (reply.actions || []).slice(0, 20)) {
+      lastDone.push({ id: a.id, do: a.do, ok: false, rateLimited: true, error: `Roblox rate limited · Retrying automatically in ~${secsLeft}s` });
     }
   }
 
