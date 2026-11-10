@@ -16,7 +16,7 @@ async function render() {
   el.className = 'state ' + (st.state === 'ok' ? 'ok' : st.state === 'paused' || st.state === 'nokey' ? 'wait' : st.state ? 'bad' : '');
   $('rbx').textContent = st.roblox || '-';
   $('waiting').textContent = st.waiting ?? '-';
-  $('last').textContent = st.lastSync ? new Date(st.lastSync).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' }) : '-';
+  $('last').textContent = st.lastSync ? (Date.now() - st.lastSync < 15000 ? 'Live (Real-time)' : new Date(st.lastSync).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' })) : '-';
 }
 
 $('connect').onclick = async () => {

@@ -218,8 +218,8 @@ async function syncOnce() {
         // Roblox rate limited: pause and let remaining actions retry automatically on next sync
         break;
       }
-      // Pacing delay (650ms) so Roblox never rate limits or drops accepts
-      await new Promise(res => setTimeout(res, 650));
+      // Pacing delay (250ms) for fast real-time accepts
+      await new Promise(res => setTimeout(res, 250));
     }
   }
 
@@ -229,7 +229,7 @@ async function syncOnce() {
     roblox: me.name, waiting: list.length, lastSync: Date.now()
   });
   const hasBacklog = (reply.checking && reply.checking > 0) || (!complete && list.length >= 25);
-  return reply.nextMs || (hasBacklog ? 1200 : 7000);
+  return reply.nextMs || (hasBacklog ? 800 : 1000);
 }
 
 // ---------- keep it running ----------

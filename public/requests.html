@@ -192,9 +192,13 @@
     if (d.lastError) { st.textContent = 'Problem: ' + d.lastError; st.className = 'status bad'; }
     else if (!d.active) { st.textContent = 'Paused. Turn it back on from My account.'; st.className = 'status'; }
     else {
-      const t = d.lastScanAt ? new Date(String(d.lastScanAt).replace(' ', 'T') + 'Z').toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' }) : null;
-      const how = d.mode === 'extension' ? (d.extensionOnline ? 'Connected in your browser' : 'Browser extension not running') : 'Updates by itself';
-      st.textContent = (d.checking ? `Checking ${d.checking > 1 ? d.checking + ' more' : 'more'} requests...` : how) + (t ? ` · last checked ${t}` : '');
+      const isOnline = d.mode === 'extension' ? d.extensionOnline : true;
+      const how = d.mode === 'extension'
+        ? (d.extensionOnline ? '● Live · Real-time protection active' : 'Browser extension not running')
+        : '● Live · Real-time cloud protection active';
+      st.innerHTML = d.checking
+        ? `<span style="color:var(--gold);font-weight:600">● Checking ${d.checking > 1 ? d.checking + ' more' : 'more'} requests in real time...</span>`
+        : `<span style="color:${isOnline ? 'var(--pass)' : 'var(--muted)'};font-weight:600">${how}</span>`;
       st.className = 'status' + (d.mode === 'extension' && !d.extensionOnline ? ' warnline' : '');
     }
 
@@ -360,7 +364,7 @@
   let pollTimeout = null;
   function schedulePoll() {
     clearTimeout(pollTimeout);
-    const delay = (lastData && (lastData.checking > 0 || lastData.busy)) ? 1500 : 3000;
+    const delay = (lastData && (lastData.checking > 0 || lastData.busy)) ? 600 : 1000;
     pollTimeout = setTimeout(async () => {
       await load();
       schedulePoll();
