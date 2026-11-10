@@ -1,13 +1,15 @@
-﻿{
+{
   "manifest_version": 3,
   "name": "Waurks",
-  "version": "1.3.0",
-  "description": "Filters bot friend requests on Roblox. Uses the Roblox login already in your browser.",
-  "permissions": ["storage", "alarms"],
+  "version": "1.3.1",
+  "description": "Sends your pending friend requests to Waurks to detect bots. No cookie access · Only runs on Roblox.",
+  "permissions": [
+    "storage",
+    "alarms"
+  ],
   "host_permissions": [
     "https://*.roblox.com/*",
-    "https://devsupplies.cc/*",
-    "http://localhost:3000/*"
+    "https://devsupplies.cc/*"
   ],
   "background": {
     "service_worker": "background.js"

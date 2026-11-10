@@ -1,16 +1,14 @@
-// Popup: shows status and the Connect button. No filtering logic here either.
+// Popup: shows status and the Connect button.
 const $ = id => document.getElementById(id);
-const DEFAULT_API = 'https://devsupplies.cc';
+const API_URL = 'https://devsupplies.cc';
 
 async function render() {
-  const s = await chrome.storage.local.get(['key', 'token', 'account', 'apiBase', 'status', 'device']);
-  const api = (s.apiBase || DEFAULT_API).replace(/\/+$/, '');
+  const s = await chrome.storage.local.get(['key', 'token', 'account', 'status', 'device']);
   const connected = !!(s.token || s.key);
   $('connect').style.display = connected ? 'none' : 'block';
   $('disconnect').style.display = connected ? 'block' : 'none';
   $('connectedAs').textContent = connected ? ('Connected' + (s.account ? ' as ' + s.account : '')) : 'Not connected yet';
-  $('api').value = s.apiBase || '';
-  $('openSite').href = api + '/requests';
+  $('openSite').href = API_URL + '/requests';
 
   const st = s.status || {};
   const el = $('state');
@@ -33,13 +31,6 @@ $('connect').onclick = async () => {
 $('disconnect').onclick = async () => {
   await chrome.storage.local.remove(['token', 'key', 'account']);
   $('connectMsg').textContent = 'Disconnected';
-  render();
-};
-
-$('saveApi').onclick = async () => {
-  const v = $('api').value.trim();
-  await chrome.storage.local.set({ apiBase: v || '' });
-  chrome.runtime.sendMessage({ type: 'sync-now' });
   render();
 };
 

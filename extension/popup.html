@@ -9,9 +9,6 @@
   .top{display:flex;align-items:center;gap:8px;font-weight:700;font-size:17px;margin-bottom:14px}
   .mark{width:26px;height:26px;border-radius:8px;background:var(--purple);display:grid;place-items:center;color:#fff;font-size:14px}
   .box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px}
-  label{font-size:12px;color:var(--muted);display:block;margin-bottom:6px}
-  input{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px;color:var(--text);font:13px ui-monospace,Consolas,monospace;outline:none}
-  input:focus{border-color:var(--purple)}
   button,a.btn{display:block;width:100%;text-align:center;margin-top:8px;padding:9px;border-radius:8px;border:none;font:600 13px system-ui,sans-serif;cursor:pointer;text-decoration:none}
   .main{background:var(--purple);color:#fff}
   .line{background:transparent;color:var(--text);border:1px solid var(--line)}
@@ -19,8 +16,8 @@
   .ok{color:var(--green)} .bad{color:var(--red)} .wait{color:var(--yellow)}
   .row{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-top:4px}
   .row b{color:var(--text);font-weight:600}
-  .adv{font-size:11px;color:var(--muted);margin-top:10px}
-  .adv summary{cursor:pointer}
+  .disclosure{font-size:11px;color:var(--muted);text-align:center;line-height:1.45;margin:10px 4px 6px}
+  .verifiable{display:flex;align-items:center;justify-content:center;gap:6px;font-size:11px;color:var(--muted);margin-top:8px}
 </style>
 </head>
 <body>
@@ -42,16 +39,13 @@
 
   <a class="btn line" id="openSite" target="_blank" rel="noopener">Open my friend requests</a>
 
-  <details class="adv">
-    <summary>Advanced</summary>
-    <label for="api" style="margin-top:8px">Server</label>
-    <input id="api" placeholder="https://devsupplies.cc">
-    <button class="line" id="saveApi">Save server</button>
-  </details>
+  <div class="disclosure">
+    Sends your pending friend requests to Waurks to detect bots.
+  </div>
 
-  <div style="display:flex;align-items:center;justify-content:center;gap:6px;font-size:11px;color:var(--muted);margin-top:12px">
+  <div class="verifiable">
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-    <span>Zero Cookie Logging · Safe &amp; Audited</span>
+    <span>No cookie access · Only runs on Roblox</span>
   </div>
 
   <script src="popup.js"></script>

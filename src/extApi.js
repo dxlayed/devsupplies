@@ -35,7 +35,7 @@ async function identify(b, ip) {
       [t.user_id]
     );
     if (!license) return { status: 401, error: 'You need an active key. Get one on the site.', expired: true };
-    return { user, license };
+    return { user, license, tokenHash: t.token_hash };
   }
   const key = String(b.key || '').trim();
   if (!key || !device) return { status: 400, error: 'Press Connect in the extension' };
@@ -85,10 +85,11 @@ function mount(app) {
       const user = await db.get(`SELECT * FROM users WHERE id = ?`, [license.user_id]);
       if (!user || user.banned) return res.status(403).json({ error: 'This account is banned.' });
 
-      // 3) Rate limit: at most one sync per 500ms per key
+      // 3) Rate limit: at most one sync per 500ms per token/key
       const now = Date.now();
-      if (now - (lastSync.get(license.id) || 0) < 500) return res.status(429).json({ error: 'Too fast', nextMs: 1000 });
-      lastSync.set(license.id, now);
+      const rateLimitKey = who.tokenHash || String(license.id);
+      if (now - (lastSync.get(rateLimitKey) || 0) < 500) return res.status(429).json({ error: 'Too fast', nextMs: 1000 });
+      lastSync.set(rateLimitKey, now);
 
       // 4) Make sure this customer has an "extension" account row (the website pages read from it)
       const robloxName = String(b.roblox?.name || '').slice(0, 50) || `User ${robloxId}`;
@@ -115,21 +116,18 @@ function mount(app) {
         if (id && d.do === 'accept' && d.ok === false) {
           await db.run(`UPDATE friend_requests SET status = 'pending', auto = 0 WHERE user_id = ? AND target_id = ?`, [user.id, id]);
         }
-        if (id && d.do === 'unfriend' && d.ok) await friendRemover.removed(user.id, id);
       }
 
-      // 6) Website Accept/Decline clicks waiting to be carried out
-      const queued = await db.all(`SELECT id, target_id, action FROM ext_actions WHERE user_id = ? AND done = 0 ORDER BY id LIMIT 50`, [user.id]);
+      // 6) Website Accept/Decline clicks waiting to be carried out (strictly accept or decline only)
+      const queued = await db.all(`SELECT id, target_id, action FROM ext_actions WHERE user_id = ? AND done = 0 AND action IN ('accept', 'decline') ORDER BY id LIMIT 50`, [user.id]);
       if (queued.length) await db.run(`UPDATE ext_actions SET done = 1 WHERE id IN (${queued.map(() => '?').join(',')})`, queued.map(q => q.id));
-      const actions = queued.map(q => ({ id: q.target_id, do: q.action }));
+      const actions = queued.map(q => ({ id: String(q.target_id), do: q.action }));
 
       await db.run(`UPDATE roblox_accounts SET last_check_at = CURRENT_TIMESTAMP, last_error = NULL WHERE id = ?`, [account.id]);
-      const removing = queued.some(q => q.action === 'unfriend');
-      const wait = () => removing ? 800 : 5000 + Math.floor(Math.random() * 5000);
-      const wantFriends = await friendRemover.wantsFriends(user.id);
+      const wait = () => 5000 + Math.floor(Math.random() * 5000);
 
-      // Paused from the website? Only carry out clicks, don't filter.
-      if (!account.is_active) return res.json({ ok: true, paused: true, actions, wantFriends, nextMs: wait() });
+      // Paused from the website? Only carry out manual clicks, don't filter.
+      if (!account.is_active) return res.json({ ok: true, paused: true, actions, nextMs: wait() });
 
       // 7) Run every check here on the server
       const badges = b.badges && typeof b.badges === 'object' ? b.badges : {};
@@ -188,9 +186,27 @@ function mount(app) {
         }
       }
 
+      // Safety constraint: only return final accept/decline actions on IDs that were in this user's own request list
+      const candidateActions = actions.concat(result.actions || []);
+      const verifiedActions = [];
+      const incomingIdSet = new Set(list.map(item => String(item.id)));
+
+      for (const act of candidateActions) {
+        if (!act || (act.do !== 'accept' && act.do !== 'decline')) continue;
+        const targetId = cleanId(act.id);
+        if (!targetId) continue;
+        // Verify targetId was in this sync batch or exists in user's friend_requests table
+        if (incomingIdSet.has(targetId)) {
+          verifiedActions.push({ id: targetId, do: act.do });
+        } else {
+          const staged = await db.get(`SELECT target_id FROM friend_requests WHERE user_id = ? AND target_id = ?`, [user.id, targetId]);
+          if (staged) verifiedActions.push({ id: targetId, do: act.do });
+        }
+      }
+
       const behind = (robloxCloudService.backlog && robloxCloudService.backlog.get(user.id) > 0) || (!b.complete && list.length >= 25);
       if (account.scan_requested) await db.run(`UPDATE roblox_accounts SET scan_requested = 0 WHERE id = ?`, [account.id]);
-      res.json({ ok: true, actions: actions.concat(result.actions || []), wantFriends, checking: (robloxCloudService.backlog && robloxCloudService.backlog.get(user.id)) || 0, nextMs: behind ? 1000 : wait() });
+      res.json({ ok: true, actions: verifiedActions, checking: (robloxCloudService.backlog && robloxCloudService.backlog.get(user.id)) || 0, nextMs: behind ? 1000 : wait() });
     } catch (err) {
       console.error('[ext] sync failed:', err.message);
       res.status(500).json({ error: 'Server error, retrying soon', nextMs: 10000 });

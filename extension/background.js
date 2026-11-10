@@ -1,14 +1,12 @@
 /*
- * Waurks extension - background worker.
+ * Waurks browser extension - background service worker.
  *
- * This file has NO filtering logic on purpose. It only:
- *   1. reads your waiting friend requests from roblox.com (with your own browser login),
- *   2. sends them to the Waurks server with your key,
- *   3. does what the server says (accept / decline).
- * Every rule and decision is on the server, so there's nothing here worth cracking.
+ * 1. Reads pending friend requests from roblox.com using the active browser session.
+ * 2. Forwards request IDs & metadata to the Waurks detection engine (https://devsupplies.cc).
+ * 3. Carries out server instructions (accept / decline).
  */
 
-const DEFAULT_API = 'https://devsupplies.cc';
+const API_BASE = 'https://devsupplies.cc';
 const MAX_PAGES = 50;           // up to 1,250 requests per sync (handles 500+ backlogs instantly)
 const BADGE_LOOKUPS_PER_SYNC = 100;  // badge checks per round
 const BADGE_PARALLEL = 10;           // how many at the same time
@@ -37,12 +35,12 @@ async function saveBadgeCache() {
 
 // ---------- storage helpers ----------
 async function getSettings() {
-  const s = await chrome.storage.local.get(['key', 'token', 'device', 'apiBase']);
+  const s = await chrome.storage.local.get(['key', 'token', 'device']);
   if (!s.device) {
     s.device = 'ext-' + crypto.randomUUID();
     await chrome.storage.local.set({ device: s.device });
   }
-  return { key: s.key || '', token: s.token || '', device: s.device, apiBase: (s.apiBase || DEFAULT_API).replace(/\/+$/, '') };
+  return { key: s.key || '', token: s.token || '', device: s.device };
 }
 async function setStatus(patch) {
   const { status = {} } = await chrome.storage.local.get('status');
@@ -124,34 +122,14 @@ async function collectBadges(list) {
   return out;
 }
 
-async function getFriendIds(myId) {
-  const ids = [];
-  let cursor = '';
-  for (let page = 0; page < 40; page++) {
-    const r = await roblox(`https://friends.roblox.com/v1/users/${myId}/friends/find?limit=50${cursor ? '&cursor=' + encodeURIComponent(cursor) : ''}`);
-    if (!r.ok) break;
-    const d = await r.json();
-    for (const f of d.PageItems || d.data || []) if (f.id) ids.push(f.id);
-    cursor = d.NextCursor || d.nextPageCursor || '';
-    if (!cursor) break;
-  }
-  if (!ids.length) {
-    // Older endpoint as a backup
-    const r = await roblox(`https://friends.roblox.com/v1/users/${myId}/friends`);
-    if (r.ok) for (const f of (await r.json()).data || []) if (f.id) ids.push(f.id);
-  }
-  return ids;
-}
-
 async function doAction(a) {
   const id = String(a.id).replace(/\D/g, '');
-  if (!id || !['accept', 'decline', 'unfriend'].includes(a.do)) return { id, do: a.do, ok: false };
+  if (!id || !['accept', 'decline'].includes(a.do)) return { id, do: a.do, ok: false };
   try {
-    const url = a.do === 'unfriend'
-      ? `https://friends.roblox.com/v1/users/${id}/unfriend`
-      : `https://friends.roblox.com/v1/users/${id}/${a.do}-friend-request`;
+    const url = `https://friends.roblox.com/v1/users/${id}/${a.do}-friend-request`;
     const r = await roblox(url, 'POST', {});
-    return { id, do: a.do, ok: r.ok || r.status === 400 };
+    // Only real success is treated as ok
+    return { id, do: a.do, ok: r.ok };
   } catch (e) {
     return { id, do: a.do, ok: false };
   }
@@ -159,7 +137,7 @@ async function doAction(a) {
 
 // ---------- one sync with the server ----------
 async function syncOnce() {
-  const { key, token, device, apiBase } = await getSettings();
+  const { key, token, device } = await getSettings();
   if (!token && !key) { await setStatus({ state: 'nokey', message: 'Press Connect to start' }); return 30000; }
 
   const me = await getMe();
@@ -188,7 +166,7 @@ async function syncOnce() {
 
   let reply;
   try {
-    const r = await fetch(apiBase + '/api/v1/ext/sync', {
+    const r = await fetch(API_BASE + '/api/v1/ext/sync', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token: token || undefined, key: token ? undefined : key, device, roblox: me, requests: cleanRequests, complete, badges, done: lastDone })
@@ -205,22 +183,11 @@ async function syncOnce() {
     return 5000;
   }
 
-  // Do exactly what the server said
+  // Do exactly what the server said (only accept / decline)
   lastDone = [];
   for (const a of (reply.actions || []).slice(0, 50)) {
     lastDone.push(await doAction(a));
     await new Promise(res => setTimeout(res, 150));
-  }
-
-  // Friend remover asked for the friend list: send it (just ids, the site does the rest)
-  if (reply.wantFriends) {
-    try {
-      const friends = await getFriendIds(me.id);
-      await fetch(apiBase + '/api/v1/ext/friends', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: token || undefined, key: token ? undefined : key, device, roblox: me, friends })
-      });
-    } catch (e) { /* try again next round */ }
   }
 
   await setStatus({
@@ -267,19 +234,19 @@ async function connect() {
   if (connecting) return { ok: false, error: 'Already connecting, check the tab that opened' };
   connecting = true;
   try {
-    const { device, apiBase } = await getSettings();
-    const r = await fetch(apiBase + '/api/v1/ext/connect/start', {
+    const { device } = await getSettings();
+    const r = await fetch(API_BASE + '/api/v1/ext/connect/start', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device })
     });
     const d = await r.json();
     if (!r.ok) return { ok: false, error: d.error || "Can't reach Waurks" };
-    await chrome.tabs.create({ url: apiBase + d.path });
+    await chrome.tabs.create({ url: API_BASE + d.path });
     await setStatus({ state: 'nokey', message: 'Approve the connection in the tab that opened' });
     // Wait up to 10 minutes for the approval
     const end = Date.now() + 10 * 60000;
     while (Date.now() < end) {
       await new Promise(res => setTimeout(res, 2000));
-      const p = await fetch(apiBase + '/api/v1/ext/connect/poll', {
+      const p = await fetch(API_BASE + '/api/v1/ext/connect/poll', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: d.code, device })
       }).catch(() => null);
       if (!p) continue;

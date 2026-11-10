@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Privacy Policy - Waurks</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/theme.css">
+<style>
+  .page { max-width: 860px; margin: 0 auto; padding: 40px 20px 100px; }
+  .policy-header { text-align: center; padding: 40px 0 24px; }
+  .policy-header h1 { font-size: clamp(34px, 5vw, 48px); letter-spacing: -0.03em; margin: 12px 0 8px; }
+  .policy-card {
+    background: #0d0f17;
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 20px;
+    padding: 32px 36px;
+    margin-bottom: 24px;
+    line-height: 1.7;
+    font-size: 15px;
+    color: #cbd5e1;
+  }
+  .policy-card h2 {
+    font-size: 20px;
+    color: var(--text);
+    margin: 28px 0 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .policy-card h2:first-of-type { margin-top: 0; }
+  .policy-card p { margin-bottom: 14px; }
+  .policy-card ul { padding-left: 22px; margin-bottom: 16px; }
+  .policy-card li { margin-bottom: 8px; }
+  .policy-card code {
+    background: rgba(255,255,255,.07);
+    padding: 2px 6px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: ui-monospace, Consolas, monospace;
+    color: var(--purple);
+  }
+  .badge-guarantee {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-radius: 999px;
+    background: rgba(16,185,129,.15);
+    border: 1px solid rgba(16,185,129,.3);
+    color: var(--green);
+    font-size: 12px;
+    font-weight: 600;
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="topbar">
+    <a href="/" class="logo"><span class="logo-mark">W</span>Waurks</a>
+    <nav class="nav">
+      <a href="/requests">Friend requests</a>
+      <a href="/dashboard">My account</a>
+      <a href="/checkout" class="btn btn-main btn-sm">Get a key</a>
+    </nav>
+  </header>
+</div>
+
+<main class="page">
+  <div class="policy-header">
+    <span class="badge-guarantee"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg> Zero Cookie Permissions Guaranteed</span>
+    <h1 class="grad3d">Privacy Policy</h1>
+    <p class="muted" style="font-size:14px">Last updated: November 2026</p>
+  </div>
+
+  <div class="policy-card">
+    <h2>1. Overview &amp; Core Security Guarantee</h2>
+    <p>Waurks ("we", "our") is designed exclusively to detect and filter automated bot friend requests on Roblox. We believe privacy should be provable by architecture:</p>
+    <ul>
+      <li><b>Zero Cookie Access:</b> The Waurks browser extension manifest does <b>not</b> request the <code>cookies</code> permission in Chrome/Edge/Brave. The browser sandbox physically forbids it from reading, storing, or transmitting your <code>.ROBLOSECURITY</code> cookie.</li>
+      <li><b>Zero Password or Credential Collection:</b> We never prompt for, collect, or store your Roblox password or login credentials.</li>
+      <li><b>No Third-Party Advertising:</b> We never sell or share user data with advertising networks or data brokers.</li>
+    </ul>
+
+    <h2>2. Data Transmitted to Waurks</h2>
+    <p>When you sync your pending friend requests using the extension or cloud interface, only the minimum data required to score automated bots is transmitted over encrypted HTTPS to our servers:</p>
+    <ul>
+      <li><b>Roblox Account Info:</b> Your Roblox User ID and username (to associate friend requests with your account).</li>
+      <li><b>Pending Friend Request Metadata:</b> The sender's public User ID, username, display name, account creation date, bio description (truncated to 300 characters), verified badge status, and mutual friends list.</li>
+      <li><b>Badge Counts:</b> Public badge counts (numbers only, e.g. whether the sender has played Murder Mystery 2 or Adopt Me) to power game-specific filters.</li>
+      <li><b>Device Identifier:</b> A randomly generated client token (<code>ext-&lt;uuid&gt;</code>) stored in your browser's local storage to pair your browser extension with your Waurks license key.</li>
+    </ul>
+
+    <h2>3. Data We NEVER Collect</h2>
+    <ul>
+      <li>Your Roblox password, PIN, or two-factor authentication codes.</li>
+      <li>Your Roblox session cookies (<code>.ROBLOSECURITY</code>).</li>
+      <li>Your credit card or bank numbers (subscriptions are paid peer-to-peer using Litecoin).</li>
+      <li>Your web browsing history, bookmarks, or activity outside roblox.com.</li>
+    </ul>
+
+    <h2>4. How Data Is Used &amp; Retention</h2>
+    <p>All transmitted request metadata is analyzed strictly for bot indicators (e.g., account age, suspicious scam bios, botnet flood timing, and badge counts). The server returns only the final action (<code>accept</code> or <code>decline</code>):</p>
+    <ul>
+      <li><b>Pending Requests:</b> Retained in our secure SQLite database while actively pending or filtered so you can review them in your dashboard.</li>
+      <li><b>Action Nonces &amp; Sync Tokens:</b> Ext tokens and license bindings are retained during the duration of your active key.</li>
+      <li><b>Data Deletion:</b> Disconnecting your account from the dashboard or extension immediately revokes and deletes the associated browser session token.</li>
+    </ul>
+
+    <h2>5. Security Architecture</h2>
+    <p>All communication with Waurks occurs strictly over transport-layer security (HTTPS). Server endpoints authenticate all requests via signed tokens and rate-limit syncing to prevent abuse.</p>
+  </div>
+</main>
+
+<div class="wrap">
+  <footer class="footer">
+    <span class="madeby"><img src="/img/waurk.webp" alt=""><span>made by <b>waurk.</b></span></span>
+    <span>devsupplies.cc · <a href="/privacy" style="color:var(--muted);text-decoration:underline">Privacy Policy</a> · <a href="/extension-source" style="color:var(--muted);text-decoration:underline">Extension Source</a></span>
+  </footer>
+</div>
+
+</body>
+</html>

@@ -550,6 +550,10 @@ app.get(['/extension-source', '/extension-code'], (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'extension-source.html'));
 });
 
+app.get(['/privacy', '/privacy-policy'], (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'privacy.html'));
+});
+
 // ---- Friend requests page ----
 app.get('/api/v1/roblox/requests', authMiddleware, async (req, res) => {
   try {
