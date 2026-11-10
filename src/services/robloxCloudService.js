@@ -773,11 +773,18 @@ class RobloxCloudService {
         playersCount++;
         if (account.auto_accept_players && (!mm2Filter || mm2 === true)) {
           if (ext) {
+            // Queue for extension to accept, but keep status = 'pending' in database!
+            // Only when the extension reports back that Roblox returned 200 OK does it become 'accepted'.
+            // If Roblox rate limits (429) or fails, it remains 'pending' and retries automatically!
             instructions.push({ id: sid, do: 'accept' });
-            status = 'accepted';
+            status = 'pending';
           } else if (live) {
             const r = await this.robloxRequest(`https://friends.roblox.com/v1/users/${sid}/accept-friend-request`, 'POST', cookie, null, account.roblox_id);
-            if (r.ok) status = 'accepted'; else actionErrors.push(`accept ${name}: ${r.status}`);
+            if (r.ok) status = 'accepted';
+            else {
+              status = 'pending';
+              actionErrors.push(`accept ${name}: ${r.status}`);
+            }
           } else status = 'accepted';
         }
       } else {
@@ -927,7 +934,12 @@ class RobloxCloudService {
     const account = await db.get(`SELECT * FROM roblox_accounts WHERE user_id = ?`, [userId]);
     if (!account) throw new Error('Link your Roblox account first');
     if (account.mode === 'extension') {
-      await db.run(`INSERT INTO ext_actions (user_id, target_id, action) VALUES (?, ?, ?)`, [userId, row.target_id, accept ? 'accept' : 'decline']);
+      // Queue action for extension. If accept, leave status = 'pending' until the extension confirms Roblox accepted it
+      await db.run(`INSERT INTO ext_actions (user_id, target_id, action, done) VALUES (?, ?, ?, 0)`, [userId, row.target_id, accept ? 'accept' : 'decline']);
+      if (!accept) {
+        await db.run(`UPDATE friend_requests SET status = 'declined', auto = 0, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND target_id = ?`,
+          [userId, row.target_id]);
+      }
     } else {
       const cookie = this.decrypt(account.encrypted_cookie, account.cookie_iv);
       if (!isTestCookie(cookie)) {
@@ -935,11 +947,11 @@ class RobloxCloudService {
           `https://friends.roblox.com/v1/users/${row.target_id}/${accept ? 'accept' : 'decline'}-friend-request`,
           'POST', cookie, null, account.roblox_id
         );
-        if (!r.ok && r.status !== 400) throw new Error(`Roblox didn't allow that (error ${r.status}). Try again.`);
+        if (!r.ok && r.status !== 400) throw new Error(`Roblox rate limited or didn't allow that (error ${r.status}). Will retry.`);
       }
+      await db.run(`UPDATE friend_requests SET status = ?, auto = 0, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND target_id = ?`,
+        [accept ? 'accepted' : 'declined', userId, row.target_id]);
     }
-    await db.run(`UPDATE friend_requests SET status = ?, auto = 0, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND target_id = ?`,
-      [accept ? 'accepted' : 'declined', userId, row.target_id]);
     // Accepting something the filter thought was a bot teaches it that this account is real
     if (accept && row.verdict !== 'ACCEPT') await detectionEngine.recordReport(row.target_id, userId, false);
     await db.run(

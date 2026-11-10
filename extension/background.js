@@ -122,14 +122,38 @@ async function collectBadges(list) {
   return out;
 }
 
+let actionPauseUntil = 0;
+
 async function doAction(a) {
   const id = String(a.id).replace(/\D/g, '');
   if (!id || !['accept', 'decline'].includes(a.do)) return { id, do: a.do, ok: false };
   try {
     const url = `https://friends.roblox.com/v1/users/${id}/${a.do}-friend-request`;
     const r = await roblox(url, 'POST', {});
-    // Only real success is treated as ok
-    return { id, do: a.do, ok: r.ok };
+
+    // Direct success from Roblox
+    if (r.ok) {
+      return { id, do: a.do, ok: true };
+    }
+
+    // Rate limited by Roblox (accepting too fast)
+    if (r.status === 429) {
+      actionPauseUntil = Date.now() + 5000; // Pause actions for 5s
+      return { id, do: a.do, ok: false, rateLimited: true, status: 429 };
+    }
+
+    // 400 Bad Request can happen if already friends or request was already handled
+    if (r.status === 400) {
+      try {
+        const d = await r.json();
+        const msg = (d?.errors?.[0]?.message || '').toLowerCase();
+        if (msg.includes('already') || msg.includes('friend') || msg.includes('not exist') || msg.includes('invalid')) {
+          return { id, do: a.do, ok: true };
+        }
+      } catch (_) {}
+    }
+
+    return { id, do: a.do, ok: false, status: r.status };
   } catch (e) {
     return { id, do: a.do, ok: false };
   }
@@ -183,11 +207,20 @@ async function syncOnce() {
     return 5000;
   }
 
-  // Do exactly what the server said (only accept / decline)
+  // Do exactly what the server said (only accept / decline) with safe pacing
   lastDone = [];
-  for (const a of (reply.actions || []).slice(0, 50)) {
-    lastDone.push(await doAction(a));
-    await new Promise(res => setTimeout(res, 150));
+  if (Date.now() >= actionPauseUntil) {
+    for (const a of (reply.actions || []).slice(0, 30)) {
+      if (Date.now() < actionPauseUntil) break;
+      const res = await doAction(a);
+      lastDone.push(res);
+      if (res.rateLimited || res.status === 429) {
+        // Roblox rate limited: pause and let remaining actions retry automatically on next sync
+        break;
+      }
+      // Pacing delay (650ms) so Roblox never rate limits or drops accepts
+      await new Promise(res => setTimeout(res, 650));
+    }
   }
 
   await setStatus({

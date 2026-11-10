@@ -110,16 +110,32 @@ function mount(app) {
         if (pics.get(robloxId)) await db.run(`UPDATE roblox_accounts SET avatar_url = ? WHERE id = ?`, [pics.get(robloxId), account.id]);
       }
 
-      // 5) Results of last time's instructions: a failed accept goes back to waiting
+      // 5) Results of last time's instructions: verify real success before marking accepted
       for (const d of Array.isArray(b.done) ? b.done.slice(0, 100) : []) {
         const id = cleanId(d.id);
-        if (id && d.do === 'accept' && d.ok === false) {
-          await db.run(`UPDATE friend_requests SET status = 'pending', auto = 0 WHERE user_id = ? AND target_id = ?`, [user.id, id]);
+        if (!id) continue;
+        if (d.do === 'accept') {
+          if (d.ok === true) {
+            // Confirmed accepted on Roblox by the browser extension
+            await db.run(`UPDATE friend_requests SET status = 'accepted', auto = 0, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND target_id = ?`, [user.id, id]);
+            await db.run(`UPDATE ext_actions SET done = 1 WHERE user_id = ? AND target_id = ? AND action = 'accept'`, [user.id, id]);
+          } else {
+            // Failed on Roblox (rate limit 429, accepted too fast, etc.): leave status = 'pending' and unmark done so it retries automatically
+            await db.run(`UPDATE friend_requests SET status = 'pending', auto = 0, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND target_id = ?`, [user.id, id]);
+            await db.run(`UPDATE ext_actions SET done = 0 WHERE user_id = ? AND target_id = ? AND action = 'accept'`, [user.id, id]);
+          }
+        } else if (d.do === 'decline') {
+          if (d.ok === true) {
+            await db.run(`UPDATE friend_requests SET status = 'declined', auto = 0, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND target_id = ?`, [user.id, id]);
+            await db.run(`UPDATE ext_actions SET done = 1 WHERE user_id = ? AND target_id = ? AND action = 'decline'`, [user.id, id]);
+          } else {
+            await db.run(`UPDATE ext_actions SET done = 0 WHERE user_id = ? AND target_id = ? AND action = 'decline'`, [user.id, id]);
+          }
         }
       }
 
       // 6) Website Accept/Decline clicks waiting to be carried out (strictly accept or decline only)
-      const queued = await db.all(`SELECT id, target_id, action FROM ext_actions WHERE user_id = ? AND done = 0 AND action IN ('accept', 'decline') ORDER BY id LIMIT 50`, [user.id]);
+      const queued = await db.all(`SELECT id, target_id, action FROM ext_actions WHERE user_id = ? AND done = 0 AND action IN ('accept', 'decline') ORDER BY id LIMIT 30`, [user.id]);
       if (queued.length) await db.run(`UPDATE ext_actions SET done = 1 WHERE id IN (${queued.map(() => '?').join(',')})`, queued.map(q => q.id));
       const actions = queued.map(q => ({ id: String(q.target_id), do: q.action }));
 
