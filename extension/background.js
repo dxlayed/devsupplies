@@ -69,26 +69,20 @@ async function getMe() {
   return { id: d.id, name: d.name };
 }
 
-let preferredLimit = 50; // Roblox friends request supports 50 and 25 reliably
 async function getRequests() {
   const all = [];
   let cursor = '';
   let complete = false;
   for (let page = 0; page < MAX_PAGES; page++) {
-    const url = `https://friends.roblox.com/v1/my/friends/requests?limit=${preferredLimit}&sortOrder=Desc` + (cursor ? '&cursor=' + encodeURIComponent(cursor) : '');
-    let r = await roblox(url);
-    if (!r.ok && preferredLimit === 50) {
-      preferredLimit = 25;
-      const fallbackUrl = `https://friends.roblox.com/v1/my/friends/requests?limit=25&sortOrder=Desc` + (cursor ? '&cursor=' + encodeURIComponent(cursor) : '');
-      r = await roblox(fallbackUrl);
-    }
+    const url = 'https://friends.roblox.com/v1/my/friends/requests?limit=25&sortOrder=Desc' + (cursor ? '&cursor=' + encodeURIComponent(cursor) : '');
+    const r = await roblox(url);
     if (!r.ok) break;
     const d = await r.json();
     const batch = Array.isArray(d.data) ? d.data : [];
     all.push(...batch);
     cursor = d.nextPageCursor;
     if (!cursor || batch.length === 0) { complete = true; break; }
-    await new Promise(res => setTimeout(res, 20));
+    await new Promise(res => setTimeout(res, 15));
   }
   return { list: all, complete };
 }
@@ -233,6 +227,7 @@ async function syncOnce() {
       const filterState = {
         approvedIds: reply.approvedIds || [],
         botIds: reply.botIds || [],
+        totalWaiting: list.length,
         filter: reply.filter || 'mm2',
         updatedAt: Date.now()
       };
