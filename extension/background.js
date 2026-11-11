@@ -69,16 +69,18 @@ async function getMe() {
   return { id: d.id, name: d.name };
 }
 
+let preferredLimit = 50; // Roblox friends request supports 50 and 25 reliably
 async function getRequests() {
   const all = [];
   let cursor = '';
   let complete = false;
   for (let page = 0; page < MAX_PAGES; page++) {
-    // Fetch limit=100 for 4x speed, fallback to 25 if needed
-    const url = 'https://friends.roblox.com/v1/my/friends/requests?limit=100&sortOrder=Desc' + (cursor ? '&cursor=' + encodeURIComponent(cursor) : '');
+    const url = `https://friends.roblox.com/v1/my/friends/requests?limit=${preferredLimit}&sortOrder=Desc` + (cursor ? '&cursor=' + encodeURIComponent(cursor) : '');
     let r = await roblox(url);
-    if (!r.ok && r.status === 400) {
-      r = await roblox('https://friends.roblox.com/v1/my/friends/requests?limit=25&sortOrder=Desc' + (cursor ? '&cursor=' + encodeURIComponent(cursor) : ''));
+    if (!r.ok && preferredLimit === 50) {
+      preferredLimit = 25;
+      const fallbackUrl = `https://friends.roblox.com/v1/my/friends/requests?limit=25&sortOrder=Desc` + (cursor ? '&cursor=' + encodeURIComponent(cursor) : '');
+      r = await roblox(fallbackUrl);
     }
     if (!r.ok) break;
     const d = await r.json();
@@ -86,7 +88,7 @@ async function getRequests() {
     all.push(...batch);
     cursor = d.nextPageCursor;
     if (!cursor || batch.length === 0) { complete = true; break; }
-    await new Promise(res => setTimeout(res, 25));
+    await new Promise(res => setTimeout(res, 20));
   }
   return { list: all, complete };
 }
@@ -237,11 +239,14 @@ async function syncOnce() {
   const acceptActions = allActions.filter(a => a.do === 'accept');
   const declineActions = allActions.filter(a => a.do === 'decline');
 
-  // 1. Process declines (declining filtered bots): fast and safe
-  for (const a of declineActions.slice(0, 20)) {
-    const res = await doAction(a);
-    lastDone.push(res);
-    await new Promise(res => setTimeout(res, 180));
+  // 1. Process declines (declining filtered bots): fast parallel chunks
+  const DECLINE_BATCH = 5;
+  const toDecline = declineActions.slice(0, 30);
+  for (let i = 0; i < toDecline.length; i += DECLINE_BATCH) {
+    const chunk = toDecline.slice(i, i + DECLINE_BATCH);
+    const results = await Promise.all(chunk.map(a => doAction(a)));
+    lastDone.push(...results);
+    await new Promise(res => setTimeout(res, 100));
   }
 
   // 2. Process accepts (adding real players): ONE BY ONE with cooldown pacing!

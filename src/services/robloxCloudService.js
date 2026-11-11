@@ -581,13 +581,14 @@ class RobloxCloudService {
       [userId, '%' + tag + '%']
     );
     for (const r of settledBots) fresh.add(String(r.target_id));
-    // Newest first, up to 60-120 per pass so requests show up within seconds even during a massive 500+ flood.
-    // The rest get picked up on the rapid next passes.
-    const MAX_PER_PASS = mm2Filter ? 120 : 60;
+    // Flood wave detection: requests arriving together or backlog >= 25
+    const isWave = pendingList.length >= 25;
+    // Newest first. In flood waves and MM2/Adopt Me modes, pre-classify spam bots and process the entire list
+    // so nothing is left behind in a backlog ("Checking X more...")
     const unchecked = pendingList.filter(a => senderId(a) && !fresh.has(String(senderId(a))));
-    const toCheck = unchecked.slice(0, MAX_PER_PASS);
+    const toCheck = unchecked;
     this.backlog = this.backlog || new Map();
-    this.backlog.set(userId, Math.max(0, unchecked.length - toCheck.length) + (pendingList.complete ? 0 : 1));
+    this.backlog.set(userId, 0);
     if (toCheck.length === 0) {
       await db.run(`UPDATE roblox_accounts SET last_scan_at = CURRENT_TIMESTAMP WHERE id = ?`, [account.id]);
       return { scanned: 0, botsDeclined: 0, playersAccepted: 0, heldReview: 0, message: 'Nothing new to check.', actions: [] };
@@ -615,11 +616,13 @@ class RobloxCloudService {
           return r.ok ? r.json() : null;
         };
       const idsToCheck = bases.map(b => b.id);
+      // For large floods, only fetch headshots for the first 50 to avoid hammering Roblox thumbnails API
+      const idsForHeadshots = idsToCheck.length > 50 ? idsToCheck.slice(0, 50) : idsToCheck;
       const [names, gotHeadshots, presMap] = await Promise.all([
         robloxProfiles.getNames(idsToCheck, authPost).catch(() => new Map()),
-        robloxProfiles.getHeadshots(idsToCheck).catch(() => new Map()),
+        robloxProfiles.getHeadshots(idsForHeadshots).catch(() => new Map()),
         // Only check presence for Standard filter. MM2 mode only checks badge.
-        mm2Filter ? null : presence.getUserPresences(idsToCheck, ext ? publicPost : (url, body) => this.robloxRequest(url, 'POST', cookie, body, account.roblox_id)).catch(() => null)
+        mm2Filter ? null : presence.getUserPresences(idsToCheck.slice(0, 50), ext ? publicPost : (url, body) => this.robloxRequest(url, 'POST', cookie, body, account.roblox_id)).catch(() => null)
       ]);
       headshots = gotHeadshots || new Map();
       allPresences = presMap;
@@ -677,8 +680,13 @@ class RobloxCloudService {
         await Promise.all(slice.map(async id => {
           const sid = String(id);
           const baseItem = bases.find(b => String(b.id) === sid);
-          // If known 0 badges, cannot own MM2 Level 10 badge -> skip network call instantly!
-          if (baseItem && baseItem.badgeCount === 0) {
+          // If known 0 badges or badges hidden, cannot own MM2 Level 10 badge -> skip network call instantly!
+          if (baseItem && (baseItem.badgeCount === 0 || baseItem.badgesHidden)) {
+            mm2BadgeMap.set(sid, false);
+            return;
+          }
+          // If part of flood wave spam without verified badge or mutual friends -> skip network call instantly!
+          if (isWave && (!baseItem?.hasVerifiedBadge && !(baseItem?.mutualFriendsList?.length))) {
             mm2BadgeMap.set(sid, false);
             return;
           }
@@ -704,9 +712,9 @@ class RobloxCloudService {
     // (Anyone who already has an Adopt Me badge skips this.)
     const onlineMap = new Map();
     if (live && game === 'adoptme') {
-      const failed = bases.map(b => String(b.id)).filter(id => mm2BadgeMap.get(id) !== true);
+      const failed = bases.map(b => String(b.id)).filter(id => mm2BadgeMap.get(id) !== true && !isWave);
       if (failed.length) {
-        const pres = await presence.getUserPresences(failed, ext ? publicPost : (url, body) => this.robloxRequest(url, 'POST', cookie, body, account.roblox_id)).catch(() => null);
+        const pres = await presence.getUserPresences(failed.slice(0, 50), ext ? publicPost : (url, body) => this.robloxRequest(url, 'POST', cookie, body, account.roblox_id)).catch(() => null);
         if (pres) failed.forEach(id => { const rec = pres.get(id); onlineMap.set(id, rec ? presence.normalizePresenceStatus(rec) : false); });
       }
     }
@@ -714,7 +722,9 @@ class RobloxCloudService {
     let botsCount = 0, playersCount = 0, reviewCount = 0;
     const actionErrors = [];
 
-    for (let i = 0; i < toCheck.length; i++) {
+    await db.run('BEGIN TRANSACTION').catch(() => {});
+    try {
+      for (let i = 0; i < toCheck.length; i++) {
       if (i % CHUNK === 0) await loadChunk(i);
       const sid = String(senderId(toCheck[i]));
       const profile = profiles[i];
@@ -866,11 +876,16 @@ class RobloxCloudService {
       await db.run(
         `INSERT INTO scan_activity_logs (user_id, roblox_id, target_id, target_username, verdict, threat_score, reason)
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [userId, account.roblox_id, sid, name, evaluation.verdict, evaluation.threatScore, evaluation.reasons[0] || '']
+        [userId, account?.roblox_id || '0', sid, name, evaluation.verdict, evaluation.threatScore, evaluation.reasons[0] || '']
       );
 
       if (live && !ext && status !== 'pending') await new Promise(r => setTimeout(r, 150));
     }
+    await db.run('COMMIT').catch(() => {});
+  } catch (err) {
+    await db.run('ROLLBACK').catch(() => {});
+    throw err;
+  }
 
     await keyService.recordStats(activeLicense.id, { filtered: toCheck.length, blocked: botsCount, accepted: playersCount });
     await db.run(`UPDATE roblox_accounts SET last_scan_at = CURRENT_TIMESTAMP WHERE id = ?`, [account.id]);
@@ -925,7 +940,9 @@ class RobloxCloudService {
         const passed = gm === 'mm2' ? item.facts.mm2 === true : item.facts.game === 'adoptme';
         if (r.status === 'pending' && passed && r.verdict === 'ACCEPT') visible.push(item);
         else {
-          if (r.status === 'pending' && !item.reasons.some(x => x.includes(gTag) || /block list/.test(x))) item.reasons = [gm === 'mm2' ? 'Checking for MM2 badge...' : 'Checking for Adopt Me...'];
+          if (r.status === 'pending' && !r.verdict && !item.reasons.some(x => x.includes(gTag) || /block list/.test(x))) {
+            item.reasons = [gm === 'mm2' ? 'Checking for MM2 badge...' : 'Checking for Adopt Me...'];
+          }
           hidden.push(item);
         }
         continue;
@@ -943,7 +960,9 @@ class RobloxCloudService {
       acceptFilter: account.accept_filter === 'adoptme' ? 'adoptme' : 'mm2',
       lastScanAt: [account.last_check_at, account.last_scan_at].filter(Boolean).sort().pop() || null, lastError: account.last_error,
       checking: (this.backlog && this.backlog.get(userId)) || 0, busy: !!(this.activeScans && this.activeScans.has(userId)),
-      requests: visible, hidden
+      requests: visible,
+      hiddenTotal: hidden.length,
+      hidden: hidden.slice(0, 72)
     };
   }
 

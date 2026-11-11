@@ -208,8 +208,14 @@ function mount(app) {
                ON CONFLICT(user_id, target_id) DO UPDATE SET
                  name = CASE WHEN excluded.name != '' THEN excluded.name ELSE friend_requests.name END,
                  display_name = CASE WHEN excluded.display_name != '' THEN excluded.display_name ELSE friend_requests.display_name END,
+                 verdict = CASE WHEN friend_requests.verdict IS NULL OR friend_requests.verdict = '' THEN excluded.verdict ELSE friend_requests.verdict END,
+                 score = CASE WHEN friend_requests.score IS NULL THEN excluded.score ELSE friend_requests.score END,
+                 reasons = CASE WHEN friend_requests.reasons IS NULL OR friend_requests.reasons LIKE '%Checking%' THEN excluded.reasons ELSE friend_requests.reasons END,
                  sent_at = COALESCE(excluded.sent_at, friend_requests.sent_at)
                WHERE friend_requests.status = 'pending'`
+            );
+            const actStmt = db.db.prepare(
+              `INSERT OR IGNORE INTO ext_actions (user_id, target_id, action, done, priority) VALUES (?, ?, 'decline', 0, 5)`
             );
             for (const item of list) {
               const sid = String(item.id);
@@ -218,13 +224,17 @@ function mount(app) {
               const name = item.name || displayName;
               const isWave = list.length >= 25;
               const hasZeroBadges = item.badgeCount === 0;
-              const isPreBot = isWave || hasZeroBadges;
+              const isPreBot = isWave || hasZeroBadges || item.badgesHidden;
               const initialVerdict = isPreBot ? 'DECLINE' : null;
               const initialScore = isPreBot ? 100 : null;
-              const initialReasons = isPreBot ? JSON.stringify([isWave ? 'Flood wave spam bot' : 'No badges']) : null;
+              const initialReasons = isPreBot ? JSON.stringify([isWave ? 'Flood wave spam bot' : (hasZeroBadges ? 'No badges' : 'Badges hidden')]) : null;
               stmt.run([user.id, sid, name, displayName, initialVerdict, initialScore, initialReasons, fr.sentAt || null]);
+              if (isPreBot) {
+                actStmt.run([user.id, sid]);
+              }
             }
             stmt.finalize();
+            actStmt.finalize();
             db.db.run('COMMIT', () => resolve());
           });
         });
