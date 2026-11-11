@@ -884,7 +884,7 @@ class RobloxCloudService {
     await db.run('COMMIT').catch(() => {});
   } catch (err) {
     await db.run('ROLLBACK').catch(() => {});
-    throw err;
+    console.error('[processRequests] error:', err.message);
   }
 
     await keyService.recordStats(activeLicense.id, { filtered: toCheck.length, blocked: botsCount, accepted: playersCount });
@@ -1201,7 +1201,9 @@ class RobloxCloudService {
         if (this.scanning.has(acc.user_id)) continue;
         if ((this.nextCheck.get(acc.user_id) || 0) > now) continue;
         this.scanning.add(acc.user_id);
-        this.watchOne(acc).finally(() => {
+        this.watchOne(acc).catch(err => {
+          console.error(`[watcher] scan error on user ${acc.user_id}:`, err?.message || err);
+        }).finally(() => {
           this.scanning.delete(acc.user_id);
           // Still working through a flood? Go again in 1 second. Otherwise the normal random 5-10s.
           const behind = this.backlog && this.backlog.get(acc.user_id) > 0;
