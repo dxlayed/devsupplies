@@ -671,11 +671,17 @@ class RobloxCloudService {
     const adoptWhy = new Map(); // why someone passed Adopt Me step 1 (community / favorites)
     if (live && mm2Filter) {
       const idsToCheck = bases.map(b => b.id);
-      const BATCH = 10;
+      const BATCH = 15;
       for (let i = 0; i < idsToCheck.length; i += BATCH) {
         const slice = idsToCheck.slice(i, i + BATCH);
         await Promise.all(slice.map(async id => {
           const sid = String(id);
+          const baseItem = bases.find(b => String(b.id) === sid);
+          // If known 0 badges, cannot own MM2 Level 10 badge -> skip network call instantly!
+          if (baseItem && baseItem.badgeCount === 0) {
+            mm2BadgeMap.set(sid, false);
+            return;
+          }
           if (game === 'mm2') { mm2BadgeMap.set(sid, await robloxProfiles.ownsBadge(sid, MM2_LEVEL10_BADGE, authGet)); return; }
           // Adopt Me step 1: in the Uplift Games community, or Adopt Me in favorites, or any Adopt Me badge.
           // Any one of these is enough. Stop at the first hit.

@@ -198,12 +198,13 @@ function mount(app) {
 
       // FAST STAGE: Save all incoming requests into SQLite immediately in a transaction
       if (list.length > 0) {
+        const filterMode = account?.accept_filter === 'adoptme' ? 'adoptme' : 'mm2';
         await new Promise(resolve => {
           db.db.serialize(() => {
             db.db.run('BEGIN TRANSACTION');
             const stmt = db.db.prepare(
-              `INSERT INTO friend_requests (user_id, target_id, name, display_name, status, auto, sent_at, updated_at)
-               VALUES (?, ?, ?, ?, 'pending', 0, ?, CURRENT_TIMESTAMP)
+              `INSERT INTO friend_requests (user_id, target_id, name, display_name, status, verdict, score, reasons, auto, sent_at, updated_at)
+               VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, 0, ?, CURRENT_TIMESTAMP)
                ON CONFLICT(user_id, target_id) DO UPDATE SET
                  name = CASE WHEN excluded.name != '' THEN excluded.name ELSE friend_requests.name END,
                  display_name = CASE WHEN excluded.display_name != '' THEN excluded.display_name ELSE friend_requests.display_name END,
@@ -215,7 +216,13 @@ function mount(app) {
               const fr = item.friendRequest || {};
               const displayName = item.displayName || item.name || `User ${sid}`;
               const name = item.name || displayName;
-              stmt.run([user.id, sid, name, displayName, fr.sentAt || null]);
+              const isWave = list.length >= 25;
+              const hasZeroBadges = item.badgeCount === 0;
+              const isPreBot = isWave || hasZeroBadges;
+              const initialVerdict = isPreBot ? 'DECLINE' : null;
+              const initialScore = isPreBot ? 100 : null;
+              const initialReasons = isPreBot ? JSON.stringify([isWave ? 'Flood wave spam bot' : 'No badges']) : null;
+              stmt.run([user.id, sid, name, displayName, initialVerdict, initialScore, initialReasons, fr.sentAt || null]);
             }
             stmt.finalize();
             db.db.run('COMMIT', () => resolve());

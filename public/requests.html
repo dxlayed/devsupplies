@@ -199,6 +199,9 @@
     </div>`;
   }
 
+  let lastRenderKey = '';
+  let hiddenLimit = 36;
+
   function render(d) {
     lastData = d;
     const sw = document.getElementById('autoAccept');
@@ -222,18 +225,43 @@
     const reqs = d.requests || [];
     const hid = d.hidden || [];
     document.getElementById('count').textContent = reqs.length ? `(${reqs.length})` : '';
-    document.getElementById('list').innerHTML = reqs.length
-      ? `<div class="grid">${reqs.map(r => card(r, false)).join('')}</div>`
-      : (d.mode === 'extension' && !d.extensionOnline && hid.length === 0
-          ? `<div class="empty"><h2 style="font-size:18px;margin-bottom:8px">Waiting for browser extension...</h2><p class="muted" style="margin-bottom:18px">Make sure the Waurks extension is loaded in your browser and your key is saved.<br>Your Roblox friend requests will appear here automatically.</p><div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap"><a href="/api/v1/extension/download" class="btn btn-main btn-sm" download="waurks-extension.zip">Download Extension (.ZIP)</a><a href="/dashboard" class="btn btn-line btn-sm">Setup Guide</a></div></div>`
-          : `<div class="empty">No friend requests from real people right now.<br>New ones show up here by themselves.</div>`);
 
-    document.getElementById('hiddenBar').style.display = hid.length ? 'flex' : 'none';
-    document.getElementById('hiddenTitle').textContent = `Filtered out (${hid.length})`;
-    document.getElementById('toggleHidden').textContent = showHidden ? 'Hide' : 'Show';
-    const hl = document.getElementById('hiddenList');
-    hl.style.display = showHidden && hid.length ? 'block' : 'none';
-    if (showHidden) hl.innerHTML = `<div class="grid">${hid.map(r => card(r, true)).join('')}</div>`;
+    // Fast render key to avoid rebuilding DOM every second when data has not changed
+    const renderKey = `${reqs.length}:${reqs.map(r => r.id + ':' + (r.retryError || '')).join('|')}:${showHidden ? 1 : 0}:${showHidden ? Math.min(hid.length, hiddenLimit) : 0}:${d.checking}`;
+    const needsDomUpdate = renderKey !== lastRenderKey;
+
+    if (needsDomUpdate) {
+      lastRenderKey = renderKey;
+      document.getElementById('list').innerHTML = reqs.length
+        ? `<div class="grid">${reqs.map(r => card(r, false)).join('')}</div>`
+        : (d.mode === 'extension' && !d.extensionOnline && hid.length === 0
+            ? `<div class="empty"><h2 style="font-size:18px;margin-bottom:8px">Waiting for browser extension...</h2><p class="muted" style="margin-bottom:18px">Make sure the Waurks extension is loaded in your browser and your key is saved.<br>Your Roblox friend requests will appear here automatically.</p><div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap"><a href="/api/v1/extension/download" class="btn btn-main btn-sm" download="waurks-extension.zip">Download Extension (.ZIP)</a><a href="/dashboard" class="btn btn-line btn-sm">Setup Guide</a></div></div>`
+            : `<div class="empty">No friend requests from real people right now.<br>New ones show up here by themselves.</div>`);
+
+      document.getElementById('hiddenBar').style.display = hid.length ? 'flex' : 'none';
+      document.getElementById('hiddenTitle').textContent = `Filtered out (${hid.length})`;
+      document.getElementById('toggleHidden').textContent = showHidden ? 'Hide' : 'Show';
+      const hl = document.getElementById('hiddenList');
+      hl.style.display = showHidden && hid.length ? 'block' : 'none';
+      if (showHidden) {
+        const visibleSlice = hid.slice(0, hiddenLimit);
+        const hasMore = hid.length > hiddenLimit;
+        hl.innerHTML = `
+          <div class="grid">${visibleSlice.map(r => card(r, true)).join('')}</div>
+          ${hasMore ? `<div style="text-align:center;padding:16px 0"><button class="btn btn-line btn-sm" id="loadMoreHidden">Show 36 more (${hid.length - hiddenLimit} remaining)</button></div>` : ''}
+        `;
+        const moreBtn = document.getElementById('loadMoreHidden');
+        if (moreBtn) {
+          moreBtn.onclick = () => {
+            hiddenLimit += 36;
+            lastRenderKey = '';
+            render(lastData);
+          };
+        }
+      }
+    } else {
+      document.getElementById('hiddenTitle').textContent = `Filtered out (${hid.length})`;
+    }
   }
 
   async function load() {

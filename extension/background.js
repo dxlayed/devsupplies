@@ -74,51 +74,74 @@ async function getRequests() {
   let cursor = '';
   let complete = false;
   for (let page = 0; page < MAX_PAGES; page++) {
-    const url = 'https://friends.roblox.com/v1/my/friends/requests?limit=25&sortOrder=Desc' + (cursor ? '&cursor=' + encodeURIComponent(cursor) : '');
-    const r = await roblox(url);
+    // Fetch limit=100 for 4x speed, fallback to 25 if needed
+    const url = 'https://friends.roblox.com/v1/my/friends/requests?limit=100&sortOrder=Desc' + (cursor ? '&cursor=' + encodeURIComponent(cursor) : '');
+    let r = await roblox(url);
+    if (!r.ok && r.status === 400) {
+      r = await roblox('https://friends.roblox.com/v1/my/friends/requests?limit=25&sortOrder=Desc' + (cursor ? '&cursor=' + encodeURIComponent(cursor) : ''));
+    }
     if (!r.ok) break;
     const d = await r.json();
-    all.push(...(d.data || []));
+    const batch = Array.isArray(d.data) ? d.data : [];
+    all.push(...batch);
     cursor = d.nextPageCursor;
-    if (!cursor) { complete = true; break; }
+    if (!cursor || batch.length === 0) { complete = true; break; }
+    await new Promise(res => setTimeout(res, 25));
   }
   return { list: all, complete };
 }
 
 // Badge counts need a login, so the extension looks them up: up to 100 per round, 10 at a time.
 // Newest requests first (the list is already newest-first). -1 = Roblox hides this person's badges.
+let collectingBadges = false;
+function collectBadgesInBackground(list) {
+  if (collectingBadges || Date.now() < badgePauseUntil) return;
+  collectingBadges = true;
+  (async () => {
+    try {
+      const toFetch = [];
+      for (const r of list) {
+        const id = String(r.id ?? r.friendRequest?.senderId ?? '');
+        if (id && !badgeCache.has(id)) {
+          toFetch.push(id);
+          if (toFetch.length >= 25) break;
+        }
+      }
+      if (toFetch.length === 0) return;
+      let changed = false;
+      for (let i = 0; i < toFetch.length; i += BADGE_PARALLEL) {
+        if (Date.now() < badgePauseUntil) break;
+        const slice = toFetch.slice(i, i + BADGE_PARALLEL);
+        await Promise.all(slice.map(async id => {
+          try {
+            const res = await roblox(`https://badges.roblox.com/v1/users/${id}/badges?limit=25&sortOrder=Desc`);
+            if (res.ok) {
+              const d = await res.json();
+              const n = Array.isArray(d.data) ? d.data.length : null;
+              if (n !== null) { badgeCache.set(id, n); changed = true; }
+            } else if (res.status === 429) {
+              badgePauseUntil = Date.now() + 15000;
+            } else if (res.status === 403 || res.status === 400) {
+              badgeCache.set(id, -1); changed = true;
+            }
+          } catch (_) {}
+        }));
+      }
+      if (changed) saveBadgeCache().catch(() => {});
+    } finally {
+      collectingBadges = false;
+    }
+  })().catch(() => { collectingBadges = false; });
+}
+
 async function collectBadges(list) {
   await loadBadgeCache();
   const out = {};
-  const toFetch = [];
-  for (const r of list) {
+  for (const r of list.slice(0, 100)) {
     const id = String(r.id ?? r.friendRequest?.senderId ?? '');
-    if (!id) continue;
-    if (badgeCache.has(id)) { out[id] = badgeCache.get(id); continue; }
-    if (toFetch.length < BADGE_LOOKUPS_PER_SYNC) toFetch.push(id);
+    if (id && badgeCache.has(id)) out[id] = badgeCache.get(id);
   }
-  if (Date.now() < badgePauseUntil || toFetch.length === 0) return out;
-
-  let changed = false;
-  for (let i = 0; i < toFetch.length; i += BADGE_PARALLEL) {
-    if (Date.now() < badgePauseUntil) break;
-    const slice = toFetch.slice(i, i + BADGE_PARALLEL);
-    await Promise.all(slice.map(async id => {
-      try {
-        const res = await roblox(`https://badges.roblox.com/v1/users/${id}/badges?limit=25&sortOrder=Desc`);
-        if (res.ok) {
-          const d = await res.json();
-          const n = Array.isArray(d.data) ? d.data.length : null;
-          if (n !== null) { badgeCache.set(id, n); out[id] = n; changed = true; }
-        } else if (res.status === 429) {
-          badgePauseUntil = Date.now() + 5000; // Roblox said slow down: pause badge checks for 5s
-        } else if (res.status === 403 || res.status === 400) {
-          badgeCache.set(id, -1); out[id] = -1; changed = true; // badges hidden by the player
-        }
-      } catch (e) { /* try again next round */ }
-    }));
-  }
-  if (changed) saveBadgeCache().catch(() => {});
+  collectBadgesInBackground(list);
   return out;
 }
 
