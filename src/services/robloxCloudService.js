@@ -920,8 +920,14 @@ class RobloxCloudService {
     if (!account) return { connected: false };
     const level = account.filter_level || 'normal';
     const rows = await db.all(
-      `SELECT * FROM friend_requests WHERE user_id = ? AND status != 'cleared' AND (status = 'pending' OR (status = 'declined' AND auto = 1 AND updated_at > datetime('now', '-7 days')))
-       ORDER BY priority DESC, COALESCE(sent_at, checked_at, updated_at) DESC LIMIT 2000`,
+      `SELECT * FROM friend_requests WHERE user_id = ? AND status != 'cleared' AND (status = 'pending' OR status = 'declined')
+       ORDER BY priority DESC, COALESCE(sent_at, checked_at, updated_at) DESC LIMIT 5000`,
+      [userId]
+    );
+    const botCountRow = await db.get(
+      `SELECT COUNT(1) AS total FROM friend_requests 
+       WHERE user_id = ? AND status != 'cleared' 
+         AND (status = 'declined' OR verdict = 'DECLINE' OR score >= 50 OR reasons LIKE '%bot%' OR reasons LIKE '%Flood%')`,
       [userId]
     );
     const visible = [], hidden = [];
@@ -961,7 +967,7 @@ class RobloxCloudService {
       lastScanAt: [account.last_check_at, account.last_scan_at].filter(Boolean).sort().pop() || null, lastError: account.last_error,
       checking: (this.backlog && this.backlog.get(userId)) || 0, busy: !!(this.activeScans && this.activeScans.has(userId)),
       requests: visible,
-      hiddenTotal: hidden.length,
+      hiddenTotal: Math.max(botCountRow?.total || 0, hidden.length),
       hidden: hidden.slice(0, 72)
     };
   }

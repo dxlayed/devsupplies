@@ -282,7 +282,7 @@ function mount(app) {
       const botRows = await db.all(
         `SELECT target_id FROM friend_requests 
          WHERE user_id = ? AND (verdict = 'DECLINE' OR score >= 50 OR status = 'declined')
-         LIMIT 3000`,
+         LIMIT 10000`,
         [user.id]
       );
       const approvedIds = approvedRows.map(r => String(r.target_id));
@@ -297,6 +297,7 @@ function mount(app) {
         nextMs: behind ? 800 : 1000,
         approvedIds,
         botIds,
+        totalWaiting: list.length,
         filter: gm
       });
     } catch (err) {

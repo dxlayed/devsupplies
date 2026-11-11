@@ -69,12 +69,14 @@ async function getMe() {
   return { id: d.id, name: d.name };
 }
 
+let lastWaiting = 0;
+
 async function getRequests() {
   const all = [];
   let cursor = '';
   let complete = false;
   for (let page = 0; page < MAX_PAGES; page++) {
-    const url = 'https://friends.roblox.com/v1/my/friends/requests?limit=25&sortOrder=Desc' + (cursor ? '&cursor=' + encodeURIComponent(cursor) : '');
+    const url = 'https://friends.roblox.com/v1/my/friends/requests?limit=25' + (cursor ? '&cursor=' + encodeURIComponent(cursor) : '');
     const r = await roblox(url);
     if (!r.ok) break;
     const d = await r.json();
@@ -288,10 +290,14 @@ async function syncOnce() {
     }
   }
 
+  if (list.length > 0) lastWaiting = list.length;
+  else if (complete) lastWaiting = 0;
+  const displayWaiting = list.length > 0 ? list.length : (complete ? 0 : lastWaiting);
+
   await setStatus({
     state: reply.paused ? 'paused' : 'ok',
     message: reply.paused ? 'Paused on the website' : (reply.checking ? `Checking ${reply.checking} more...` : 'Running'),
-    roblox: me.name, waiting: list.length, lastSync: Date.now()
+    roblox: me.name, waiting: displayWaiting, lastSync: Date.now()
   });
   const hasBacklog = (reply.checking && reply.checking > 0) || (!complete && list.length >= 25);
   return reply.nextMs || (hasBacklog ? 800 : 1000);
