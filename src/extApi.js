@@ -59,7 +59,7 @@ async function identify(b, ip) {
 }
 
 const lastSync = new Map(); // licenseId -> time of last sync (rate limit)
-const MAX_REQUESTS_PER_SYNC = 1200; // supports 500+ backlogs in one go
+const MAX_REQUESTS_PER_SYNC = 5000; // supports floods of thousands in one go
 
 function cleanId(v) {
   const s = String(v ?? '').replace(/\D/g, '');
@@ -271,9 +271,34 @@ function mount(app) {
         }
       }
 
+      // Approved and bot lists sent to the browser extension so Roblox DOM only displays real approved players
+      const gm = account?.accept_filter === 'adoptme' ? 'adoptme' : 'mm2';
+      const approvedRows = await db.all(
+        `SELECT target_id FROM friend_requests 
+         WHERE user_id = ? AND status = 'pending' AND verdict = 'ACCEPT'
+           AND facts LIKE ? LIMIT 500`,
+        [user.id, gm === 'mm2' ? '%"mm2":true%' : '%"game":"adoptme"%']
+      );
+      const botRows = await db.all(
+        `SELECT target_id FROM friend_requests 
+         WHERE user_id = ? AND (verdict = 'DECLINE' OR score >= 50 OR status = 'declined')
+         LIMIT 3000`,
+        [user.id]
+      );
+      const approvedIds = approvedRows.map(r => String(r.target_id));
+      const botIds = botRows.map(r => String(r.target_id));
+
       const behind = (robloxCloudService.backlog && robloxCloudService.backlog.get(user.id) > 0) || (!b.complete && list.length >= 25);
       if (account.scan_requested) await db.run(`UPDATE roblox_accounts SET scan_requested = 0 WHERE id = ?`, [account.id]);
-      res.json({ ok: true, actions: verifiedActions, checking: (robloxCloudService.backlog && robloxCloudService.backlog.get(user.id)) || 0, nextMs: behind ? 800 : 1000 });
+      res.json({
+        ok: true,
+        actions: verifiedActions,
+        checking: (robloxCloudService.backlog && robloxCloudService.backlog.get(user.id)) || 0,
+        nextMs: behind ? 800 : 1000,
+        approvedIds,
+        botIds,
+        filter: gm
+      });
     } catch (err) {
       console.error('[ext] sync failed:', err.message);
       res.status(500).json({ error: 'Server error, retrying soon', nextMs: 10000 });

@@ -96,7 +96,7 @@ function createZip(files) {
  */
 function getExtensionZipBuffer() {
   const extDir = path.join(__dirname, '..', '..', 'extension');
-  const fileNames = ['manifest.json', 'background.js', 'popup.html', 'popup.js'];
+  const fileNames = ['manifest.json', 'background.js', 'content.js', 'popup.html', 'popup.js'];
   const files = [];
 
   for (const fn of fileNames) {

@@ -7,7 +7,7 @@
  */
 
 const API_BASE = 'https://devsupplies.cc';
-const MAX_PAGES = 50;           // up to 1,250 requests per sync (handles 500+ backlogs instantly)
+const MAX_PAGES = 100;          // up to 5,000 requests per sync (handles massive floods of thousands)
 const BADGE_LOOKUPS_PER_SYNC = 100;  // badge checks per round
 const BADGE_PARALLEL = 10;           // how many at the same time
 const BADGE_CACHE_MAX = 20000;       // remembered across browser restarts
@@ -227,6 +227,27 @@ async function syncOnce() {
       await setStatus({ state: 'error', message: reply.error || ('Server error ' + r.status), roblox: me.name });
       return reply.nextMs || 5000;
     }
+
+    // Broadcast approved players and filtered bot IDs to Roblox content script
+    if (Array.isArray(reply.approvedIds) || Array.isArray(reply.botIds)) {
+      const filterState = {
+        approvedIds: reply.approvedIds || [],
+        botIds: reply.botIds || [],
+        filter: reply.filter || 'mm2',
+        updatedAt: Date.now()
+      };
+      await chrome.storage.local.set({ filterState });
+      try {
+        chrome.tabs.query({ url: '*://*.roblox.com/*' }, tabs => {
+          if (!tabs || !Array.isArray(tabs)) return;
+          for (const t of tabs) {
+            if (t && t.id) {
+              chrome.tabs.sendMessage(t.id, { type: 'waurks-filter-update', ...filterState }).catch(() => {});
+            }
+          }
+        });
+      } catch (_) {}
+    }
   } catch (e) {
     await setStatus({ state: 'error', message: "Can't reach Waurks right now", roblox: me.name });
     return 5000;
@@ -308,6 +329,12 @@ chrome.runtime.onInstalled.addListener(() => runFor(28000));
 chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
   if (msg && msg.type === 'sync-now') { runFor(28000); reply({ ok: true }); }
   if (msg && msg.type === 'connect') { connect().then(reply); return true; }
+  if (msg && msg.type === 'waurks-get-filter-state') {
+    chrome.storage.local.get('filterState').then(({ filterState }) => {
+      reply({ ok: true, filterState: filterState || null });
+    }).catch(() => reply({ ok: false }));
+    return true;
+  }
 });
 
 // ---------- Connect (no key): open the site, wait for you to approve, then save the sign-in ----------
