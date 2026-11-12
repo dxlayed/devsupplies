@@ -7,9 +7,9 @@
  */
 
 const API_BASE = 'https://devsupplies.cc';
-const MAX_PAGES = 100;          // up to 5,000 requests per sync (handles massive floods of thousands)
-const BADGE_LOOKUPS_PER_SYNC = 100;  // badge checks per round
-const BADGE_PARALLEL = 10;           // how many at the same time
+const MAX_PAGES = 40;           // max pages during deep initial scan
+const BADGE_LOOKUPS_PER_SYNC = 25;   // gentle badge lookups
+const BADGE_PARALLEL = 3;            // 3 parallel (lightweight, zero in-game lag)
 const BADGE_CACHE_MAX = 20000;       // remembered across browser restarts
 
 let running = false;
@@ -18,6 +18,7 @@ let lastDone = [];
 const badgeCache = new Map(); // userId -> badge count, or -1 if Roblox hides them (data only, the server decides)
 let badgeCacheLoaded = false;
 let badgePauseUntil = 0;       // set when Roblox says "slow down"
+let syncCount = 0;
 
 async function loadBadgeCache() {
   if (badgeCacheLoaded) return;
@@ -71,11 +72,14 @@ async function getMe() {
 
 let lastWaiting = 0;
 
-async function getRequests() {
+async function getRequests(deep = false) {
   const all = [];
   let cursor = '';
   let complete = false;
-  for (let page = 0; page < MAX_PAGES; page++) {
+  // Routine sync: fetch newest 2 pages (50 items) instantly with zero game network load.
+  // Deep scan (first sync or manual scan): scan up to 40 pages with safe pacing.
+  const pagesToScan = deep ? MAX_PAGES : 2;
+  for (let page = 0; page < pagesToScan; page++) {
     const url = 'https://friends.roblox.com/v1/my/friends/requests?limit=25' + (cursor ? '&cursor=' + encodeURIComponent(cursor) : '');
     const r = await roblox(url);
     if (!r.ok) break;
@@ -84,7 +88,7 @@ async function getRequests() {
     all.push(...batch);
     cursor = d.nextPageCursor;
     if (!cursor || batch.length === 0) { complete = true; break; }
-    await new Promise(res => setTimeout(res, 15));
+    if (deep) await new Promise(res => setTimeout(res, 40));
   }
   return { list: all, complete };
 }
@@ -188,7 +192,9 @@ async function syncOnce() {
   const me = await getMe();
   if (!me) { await setStatus({ state: 'nologin', message: 'Log in to roblox.com in this browser' }); return 15000; }
 
-  const { list, complete } = await getRequests();
+  syncCount++;
+  const isDeep = syncCount === 1 || syncCount % 20 === 0;
+  const { list, complete } = await getRequests(isDeep);
   const badges = await collectBadges(list);
 
   // Clean and trim requests to prevent oversized payloads
@@ -257,14 +263,14 @@ async function syncOnce() {
   const acceptActions = allActions.filter(a => a.do === 'accept');
   const declineActions = allActions.filter(a => a.do === 'decline');
 
-  // 1. Process declines (declining filtered bots): fast parallel chunks
-  const DECLINE_BATCH = 5;
-  const toDecline = declineActions.slice(0, 30);
+  // 1. Process declines (declining filtered bots): calm paced chunks (never lags game)
+  const DECLINE_BATCH = 3;
+  const toDecline = declineActions.slice(0, 12);
   for (let i = 0; i < toDecline.length; i += DECLINE_BATCH) {
     const chunk = toDecline.slice(i, i + DECLINE_BATCH);
     const results = await Promise.all(chunk.map(a => doAction(a)));
     lastDone.push(...results);
-    await new Promise(res => setTimeout(res, 100));
+    await new Promise(res => setTimeout(res, 200));
   }
 
   // 2. Process accepts (adding real players): ONE BY ONE with cooldown pacing!
@@ -299,8 +305,7 @@ async function syncOnce() {
     message: reply.paused ? 'Paused on the website' : (reply.checking ? `Checking ${reply.checking} more...` : 'Running'),
     roblox: me.name, waiting: displayWaiting, lastSync: Date.now()
   });
-  const hasBacklog = (reply.checking && reply.checking > 0) || (!complete && list.length >= 25);
-  return reply.nextMs || (hasBacklog ? 800 : 1000);
+  return reply.nextMs || 3000;
 }
 
 // ---------- keep it running ----------

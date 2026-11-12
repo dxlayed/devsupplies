@@ -45,13 +45,10 @@
       let el = a.parentElement;
       let cardContainer = null;
       for (let i = 0; i < 8 && el && el !== document.body; i++) {
-        if (el.tagName === 'LI' || el.classList.contains('avatar-card') || el.classList.contains('list-item')) {
+        const text = el.innerText || '';
+        if ((text.includes('Accept') || text.includes('Ignore')) && el.querySelector('button, .btn-control, .btn-primary, [role="button"]')) {
           cardContainer = el;
           break;
-        }
-        const text = el.innerText || '';
-        if ((text.includes('Accept') || text.includes('Ignore')) && el.querySelector('button')) {
-          cardContainer = el;
         }
         el = el.parentElement;
       }
@@ -163,6 +160,6 @@
     subtree: true
   });
 
-  setInterval(applyFilter, 800);
+  setInterval(applyFilter, 2000);
   applyFilter();
 })();
