@@ -360,7 +360,55 @@ app.get('/api/v1/recorder/list', async (req, res) => {
 
 app.delete('/api/v1/recorder/:id', authMiddleware, async (req, res) => {
   try {
-    await liveRecorderService.deleteRecording(req.params.id, req.user.id);
+    await liveRecorderService.userDeleteRecording(req.params.id, req.user.id);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Saved Creators endpoints
+app.get('/api/v1/creators/saved', authMiddleware, async (req, res) => {
+  try {
+    const creators = await liveRecorderService.getSavedCreators(req.user.id);
+    // Enrich with live status and TikLeap links
+    const enriched = await Promise.all(creators.map(async c => {
+      try {
+        const st = await liveRecorderService.checkStatus(c.username);
+        return {
+          ...c,
+          isLive: st.is_live,
+          avatarUrl: st.avatar || c.avatarUrl,
+          nickname: st.nickname || c.nickname,
+          title: st.title || 'TikTok Creator',
+          estEarnings: st.est_earnings || '0.00',
+          diamonds: st.diamonds || 0,
+          viewerCount: st.viewer_count || 0
+        };
+      } catch (e) {
+        return { ...c, isLive: false, estEarnings: '0.00', diamonds: 0 };
+      }
+    }));
+    res.json({ creators: enriched });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/v1/creators/save', authMiddleware, async (req, res) => {
+  try {
+    const { username } = req.body;
+    if (!username) return res.status(400).json({ error: 'Username required' });
+    const result = await liveRecorderService.saveCreator(req.user.id, username);
+    res.json({ success: true, creator: result });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.delete('/api/v1/creators/saved/:id', authMiddleware, async (req, res) => {
+  try {
+    await liveRecorderService.removeSavedCreator(req.params.id, req.user.id);
     res.json({ success: true });
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -1053,7 +1101,7 @@ app.get('/api/v1/admin/stats', adminAuthMiddleware, async (req, res) => {
 
 app.get('/api/v1/admin/recordings', adminAuthMiddleware, async (req, res) => {
   try {
-    const recordings = await liveRecorderService.getRecordings();
+    const recordings = await liveRecorderService.getRecordings(null, true);
     res.json({ recordings });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1062,8 +1110,8 @@ app.get('/api/v1/admin/recordings', adminAuthMiddleware, async (req, res) => {
 
 app.delete('/api/v1/admin/recordings/:id', adminAuthMiddleware, async (req, res) => {
   try {
-    await liveRecorderService.deleteRecording(req.params.id);
-    await logAdmin(req, 'DELETE_RECORDING', `deleted recording #${req.params.id}`);
+    await liveRecorderService.adminDeleteRecording(req.params.id);
+    await logAdmin(req, 'DELETE_RECORDING', `permanently deleted recording #${req.params.id}`);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

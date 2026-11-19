@@ -70,8 +70,25 @@ db.serialize(() => {
       file_size_bytes INTEGER DEFAULT 0,
       duration_seconds INTEGER DEFAULT 0,
       thumbnail_url TEXT,
+      user_deleted INTEGER DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY(user_id) REFERENCES users(id)
+    )
+  `);
+
+  // Migrate user_deleted column if missing
+  db.run(`ALTER TABLE recordings ADD COLUMN user_deleted INTEGER DEFAULT 0`, () => {});
+  db.run(`ALTER TABLE recordings ADD COLUMN thumbnail_url TEXT`, () => {});
+
+  // Saved Creators table
+  db.run(`
+    CREATE TABLE IF NOT EXISTS saved_creators (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER,
+      username TEXT NOT NULL,
+      nickname TEXT,
+      avatar_url TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
 

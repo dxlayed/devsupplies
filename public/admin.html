@@ -129,7 +129,7 @@
         <span>Recorded Live Streams</span>
         <button class="btn btn-ghost" onclick="loadRecordings()">Refresh List</button>
       </div>
-      <div style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Creator</th><th>Duration</th><th>File Size</th><th>Captured Date</th><th>Actions</th></tr></thead><tbody id="tRecordings"></tbody></table></div>
+      <div style="overflow-x:auto"><table><thead><tr><th>Cover</th><th>ID</th><th>Owner</th><th>Creator</th><th>Duration</th><th>File Size</th><th>User Status</th><th>Captured</th><th>Actions</th></tr></thead><tbody id="tRecordings"></tbody></table></div>
     </div>
 
     <!-- Site Settings Pane -->
@@ -371,10 +371,19 @@
     const { recordings } = await api('/recordings');
     $('tRecordings').innerHTML = recordings.length ? recordings.map(r => `
       <tr>
+        <td>
+          ${r.thumbnailUrl ? `<img src="${r.thumbnailUrl}" style="width:40px;height:54px;object-fit:cover;border-radius:6px;border:1px solid #2a1f40;background:#000" onerror="this.style.display='none'">` : `<div style="width:40px;height:54px;border-radius:6px;background:#1b1028;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--muted)">MP4</div>`}
+        </td>
         <td class="mono">#${r.id}</td>
+        <td><span style="color:var(--purple);font-weight:600">${esc(r.ownerUsername || 'Guest')}</span></td>
         <td><b>@${esc(r.username)}</b></td>
         <td>${r.durationFormatted || '—'}</td>
         <td>${r.fileSizeFormatted || '0 B'}</td>
+        <td>
+          ${r.userDeleted 
+            ? '<span class="badge" style="background:rgba(255,84,112,.18);color:#ff5470;border:1px solid rgba(255,84,112,.35);padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600">Deleted by User</span>' 
+            : '<span class="badge" style="background:rgba(46,213,115,.15);color:#2ed573;border:1px solid rgba(46,213,115,.3);padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600">Active</span>'}
+        </td>
         <td>${r.dateFormatted || when(r.createdAt)}</td>
         <td class="nowrap">
           <button class="btn btn-ghost" onclick="playVideo('${r.downloadUrl}', '@${esc(r.username)}')">Play</button>
@@ -382,7 +391,7 @@
           <button class="btn btn-danger" data-act="del-rec" data-id="${+r.id}">Delete</button>
         </td>
       </tr>
-    `).join('') : empty(6, 'No stream recordings saved yet');
+    `).join('') : empty(9, 'No stream recordings saved yet');
   });
 
   $('tRecordings').onclick = safe(async e => {

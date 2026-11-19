@@ -219,6 +219,30 @@ function remuxToMp4(rawFlvPath, targetMp4Path, orientation = 'portrait') {
   });
 }
 
+function generateThumbnail(videoPath, thumbPath) {
+  return new Promise((resolve) => {
+    const ffmpegBin = getFfmpegBinary();
+    if (!ffmpegBin || !fs.existsSync(videoPath)) return resolve(null);
+    const args = ['-y', '-ss', '00:00:00.200', '-i', videoPath, '-frames:v', '1', '-q:v', '2', thumbPath];
+    const proc = spawn(ffmpegBin, args, { stdio: ['ignore', 'ignore', 'ignore'] });
+    const timer = setTimeout(() => {
+      try { proc.kill('SIGKILL'); } catch (e) {}
+    }, 6000);
+    proc.on('close', (code) => {
+      clearTimeout(timer);
+      if (code === 0 && fs.existsSync(thumbPath) && fs.statSync(thumbPath).size > 0) {
+        resolve(thumbPath);
+      } else {
+        resolve(null);
+      }
+    });
+    proc.on('error', () => {
+      clearTimeout(timer);
+      resolve(null);
+    });
+  });
+}
+
 class LiveRecorderService {
   constructor() {
     this.activeJobs = new Map(); // jobId -> job details
@@ -241,6 +265,14 @@ class LiveRecorderService {
               const tempRaw = path.join(RECORDINGS_DIR, file.replace('.mp4', '_temp.flv'));
               fs.renameSync(fullPath, tempRaw);
               await remuxToMp4(tempRaw, fullPath, 'portrait');
+            }
+
+            // Generate thumbnail if missing
+            const thumbFilename = file.replace('.mp4', '_thumb.jpg');
+            const thumbPath = path.join(RECORDINGS_DIR, thumbFilename);
+            if (!fs.existsSync(thumbPath)) {
+              await generateThumbnail(fullPath, thumbPath);
+              await db.run(`UPDATE recordings SET thumbnail_url = ? WHERE filename = ?`, [`/recordings/${thumbFilename}`, file]).catch(() => {});
             }
           } catch (err) {}
         }
@@ -338,17 +370,25 @@ class LiveRecorderService {
           if (!portraitUrl) portraitUrl = landscapeUrl;
           if (!landscapeUrl) landscapeUrl = portraitUrl;
 
+          const diamonds = room?.stats?.fan_ticket || 0;
+          const estLiveEarnings = (diamonds * 0.005).toFixed(2);
+          const tikleapUrl = `https://www.tikleap.com/profile/${encodeURIComponent(u?.uniqueId || user)}`;
+
           return {
             username: u?.uniqueId || user,
             nickname: u?.nickname || user,
-            avatar: u?.avatarLarger || u?.avatarThumb || null,
+            avatar: u?.avatarLarger || u?.avatarThumb || u?.avatarMedium || null,
             title: room?.title || 'Live Stream',
             is_live: isLive,
             status_code: status,
+            diamonds: diamonds,
+            est_earnings: estLiveEarnings,
+            tikleap_url: tikleapUrl,
             portrait_stream_url: portraitUrl,
             landscape_stream_url: landscapeUrl,
             stream_url: portraitUrl,
             has_dual_scene: !!(portraitUrl && landscapeUrl && portraitUrl !== landscapeUrl),
+            viewer_count: room?.user_count || 0,
             message: isLive ? `@${user} is LIVE right now!` : `@${user} is currently offline.`
           };
         }
@@ -551,15 +591,28 @@ class LiveRecorderService {
       }
     } catch (e) {}
 
+    // Generate high-resolution first-frame video cover
+    const thumbFilename = job.filename.replace('.mp4', '_thumb.jpg');
+    const thumbPath = path.join(RECORDINGS_DIR, thumbFilename);
+    let thumbnailUrl = null;
+    try {
+      if (fs.existsSync(job.filePath)) {
+        const thumbRes = await generateThumbnail(job.filePath, thumbPath);
+        if (thumbRes) thumbnailUrl = `/recordings/${thumbFilename}`;
+      }
+    } catch (e) {
+      console.warn('Cover generation warning:', e);
+    }
+
     const durationSeconds = Math.max(1, Math.round((Date.now() - job.startTime) / 1000));
 
     // Save to database
     let savedRow = null;
     try {
       const res = await db.run(
-        `INSERT INTO recordings (user_id, username, title, filename, file_path, file_size_bytes, duration_seconds)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [job.userId, job.username, job.title || `Live Stream (@${job.username})`, job.filename, job.filePath, fileSize, durationSeconds]
+        `INSERT INTO recordings (user_id, username, title, filename, file_path, file_size_bytes, duration_seconds, thumbnail_url, user_deleted)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+        [job.userId, job.username, job.title || `Live Stream (@${job.username})`, job.filename, job.filePath, fileSize, durationSeconds, thumbnailUrl]
       );
       savedRow = await db.get(`SELECT * FROM recordings WHERE id = ?`, [res.lastID]);
     } catch (err) {
@@ -573,6 +626,7 @@ class LiveRecorderService {
       title: job.title,
       filename: job.filename,
       downloadUrl: `/recordings/${job.filename}`,
+      thumbnailUrl: thumbnailUrl,
       fileSize,
       fileSizeFormatted: formatSize(fileSize),
       durationSeconds,
@@ -617,55 +671,130 @@ class LiveRecorderService {
     };
   }
 
-  async getRecordings(userId = null) {
-    let sql = `SELECT * FROM recordings`;
+  async getRecordings(userId = null, isAdmin = false) {
+    let sql = `SELECT r.*, u.username as owner_username FROM recordings r LEFT JOIN users u ON r.user_id = u.id`;
     const params = [];
-    if (userId) {
-      sql += ` WHERE user_id = ? OR user_id IS NULL`;
-      params.push(userId);
+
+    if (!isAdmin) {
+      // Normal user only sees non-deleted recordings (or their own)
+      sql += ` WHERE (r.user_deleted = 0 OR r.user_deleted IS NULL)`;
+      if (userId) {
+        sql += ` AND (r.user_id = ? OR r.user_id IS NULL)`;
+        params.push(userId);
+      }
     }
-    sql += ` ORDER BY id DESC LIMIT 50`;
+    sql += ` ORDER BY r.id DESC LIMIT 200`;
 
     const rows = await db.all(sql, params);
-    return rows.map(r => ({
-      id: r.id,
-      username: r.username,
-      title: r.title || `Live Stream`,
-      filename: r.filename,
-      downloadUrl: `/recordings/${r.filename}`,
-      fileSizeBytes: r.file_size_bytes,
-      fileSizeFormatted: formatSize(r.file_size_bytes),
-      durationSeconds: r.duration_seconds,
-      durationFormatted: formatDuration(r.duration_seconds),
-      createdAt: r.created_at,
-      dateFormatted: new Date(r.created_at).toLocaleDateString('en-US', {
-        day: 'numeric',
-        month: 'short',
-        hour: 'numeric',
-        minute: '2-digit'
-      })
-    }));
+    return rows.map(r => {
+      const thumbFile = r.filename ? r.filename.replace('.mp4', '_thumb.jpg') : null;
+      const thumbExists = thumbFile && fs.existsSync(path.join(RECORDINGS_DIR, thumbFile));
+      return {
+        id: r.id,
+        userId: r.user_id,
+        ownerUsername: r.owner_username || 'Guest / Direct',
+        username: r.username,
+        title: r.title || `Live Stream`,
+        filename: r.filename,
+        downloadUrl: `/recordings/${r.filename}`,
+        thumbnailUrl: r.thumbnail_url || (thumbExists ? `/recordings/${thumbFile}` : null),
+        fileSizeBytes: r.file_size_bytes,
+        fileSizeFormatted: formatSize(r.file_size_bytes),
+        durationSeconds: r.duration_seconds,
+        durationFormatted: formatDuration(r.duration_seconds),
+        userDeleted: !!r.user_deleted,
+        createdAt: r.created_at,
+        dateFormatted: new Date(r.created_at).toLocaleDateString('en-US', {
+          day: 'numeric',
+          month: 'short',
+          hour: 'numeric',
+          minute: '2-digit'
+        })
+      };
+    });
   }
 
-  async deleteRecording(id, userId = null) {
+  // Soft delete for regular user: disappears from their dashboard, but preserved for Admin!
+  async userDeleteRecording(id, userId = null) {
+    let sql = `UPDATE recordings SET user_deleted = 1 WHERE id = ?`;
+    const params = [id];
+    if (userId) {
+      sql += ` AND (user_id = ? OR user_id IS NULL)`;
+      params.push(userId);
+    }
+    const res = await db.run(sql, params);
+    if (!res.changes) throw new Error('Recording not found');
+    return { success: true };
+  }
+
+  // Hard delete for Admin: permanently removes file, thumbnail and database entry
+  async adminDeleteRecording(id) {
     const record = await db.get(`SELECT * FROM recordings WHERE id = ?`, [id]);
     if (!record) throw new Error('Recording not found');
 
     if (record.file_path && fs.existsSync(record.file_path)) {
-      try {
-        fs.unlinkSync(record.file_path);
-      } catch (e) {
-        console.error('Error deleting file:', e);
-      }
+      try { fs.unlinkSync(record.file_path); } catch (e) {}
     }
     const rawLeftover = record.file_path?.replace('.mp4', '_raw.flv');
     if (rawLeftover && fs.existsSync(rawLeftover)) {
-      try {
-        fs.unlinkSync(rawLeftover);
-      } catch (e) {}
+      try { fs.unlinkSync(rawLeftover); } catch (e) {}
+    }
+    const thumbLeftover = record.file_path?.replace('.mp4', '_thumb.jpg');
+    if (thumbLeftover && fs.existsSync(thumbLeftover)) {
+      try { fs.unlinkSync(thumbLeftover); } catch (e) {}
     }
 
     await db.run(`DELETE FROM recordings WHERE id = ?`, [id]);
+    return { success: true };
+  }
+
+  // Saved Creators features
+  async getSavedCreators(userId) {
+    if (!userId) return [];
+    const rows = await db.all(`SELECT * FROM saved_creators WHERE user_id = ? ORDER BY id DESC`, [userId]);
+    return rows.map(r => ({
+      id: r.id,
+      username: r.username,
+      nickname: r.nickname || r.username,
+      avatarUrl: r.avatar_url || null,
+      tikleapUrl: `https://www.tikleap.com/profile/${encodeURIComponent(r.username)}`,
+      createdAt: r.created_at
+    }));
+  }
+
+  async saveCreator(userId, username) {
+    if (!userId) throw new Error('Login required');
+    const clean = cleanUsername(username);
+    if (!clean) throw new Error('Valid username required');
+
+    let nickname = clean;
+    let avatarUrl = null;
+    try {
+      const st = await this.checkStatus(clean);
+      if (st) {
+        nickname = st.nickname || clean;
+        avatarUrl = st.avatar || null;
+      }
+    } catch (e) {}
+
+    const existing = await db.get(`SELECT id FROM saved_creators WHERE user_id = ? AND LOWER(username) = LOWER(?)`, [userId, clean]);
+    if (existing) {
+      if (avatarUrl) {
+        await db.run(`UPDATE saved_creators SET avatar_url = ?, nickname = ? WHERE id = ?`, [avatarUrl, nickname, existing.id]);
+      }
+      return { id: existing.id, username: clean, nickname, avatarUrl, alreadySaved: true };
+    }
+
+    const res = await db.run(
+      `INSERT INTO saved_creators (user_id, username, nickname, avatar_url) VALUES (?, ?, ?, ?)`,
+      [userId, clean, nickname, avatarUrl]
+    );
+    return { id: res.lastID, username: clean, nickname, avatarUrl, created: true };
+  }
+
+  async removeSavedCreator(id, userId) {
+    if (!userId) throw new Error('Login required');
+    await db.run(`DELETE FROM saved_creators WHERE id = ? AND user_id = ?`, [id, userId]);
     return { success: true };
   }
 }
