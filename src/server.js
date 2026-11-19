@@ -37,61 +37,18 @@ app.use((req, res, next) => {
 });
 
 // -------------------------------------------------------------
-// MAINTENANCE MODE (switched on/off from the admin panel)
+// ADMIN ACCOUNTS & SESSIONS
 // -------------------------------------------------------------
-const siteSettings = { maintenance: false, maintenanceMessage: '' };
-db.run(`CREATE TABLE IF NOT EXISTS site_settings (key TEXT PRIMARY KEY, value TEXT)`)
-  .then(() => db.all(`SELECT key, value FROM site_settings`))
-  .then(rows => {
-    for (const r of rows) {
-      if (r.key === 'maintenance') siteSettings.maintenance = r.value === '1';
-      if (r.key === 'maintenanceMessage') siteSettings.maintenanceMessage = r.value || '';
-    }
-  })
-  .catch(err => console.error('[settings]', err.message));
-
-async function saveSetting(key, value) {
-  await db.run(
-    `INSERT INTO site_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
-    [key, value]
-  );
+// Discord accounts that get the admin panel just by signing in.
+// Add more in Railway with ADMIN_DISCORD_IDS=id1,id2
+const ADMIN_DISCORD_IDS = new Set(
+  ['1094670363071361147', ...(process.env.ADMIN_DISCORD_IDS || '').split(',')]
+    .map(s => s.trim()).filter(Boolean)
+);
+function isAdminUser(user) {
+  return !!user && ADMIN_DISCORD_IDS.has(String(user.discord_id));
 }
 
-function maintenancePage(message) {
-  const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Waurks — Maintenance</title>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
-<style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#09080c;color:#f3f1f7;font-family:Inter,sans-serif;padding:20px;text-align:center}
-.card{max-width:460px;background:#121017;border:1px solid #272233;border-radius:18px;padding:36px 28px}
-.ic{width:44px;height:44px;border-radius:12px;background:#9b5cff;color:#fff;display:flex;align-items:center;justify-content:center;margin:0 auto 18px;font:700 22px 'Space Grotesk',sans-serif}
-h1{font-family:'Space Grotesk',sans-serif;font-size:28px;margin:0 0 10px}p{color:#9b94a8;font-size:15px;line-height:1.6;margin:0}
-a{display:inline-block;margin-top:24px;color:#9b5cff;font-size:12px;text-decoration:none}</style></head>
-<body><div class="card"><div class="ic">W</div><h1>Be right back</h1>
-<p>${esc(message || "We're fixing a few things. Check back soon.")}</p>
-<a href="/api/v1/auth/discord/login">Staff sign in</a></div></body></html>`;
-}
-
-app.use(async (req, res, next) => {
-  if (!siteSettings.maintenance) return next();
-  // Always reachable: login, the admin panel and its API, health checks
-  const p = req.path;
-  if (p.startsWith('/api/v1/auth/') || p === '/admin' || p.startsWith('/api/v1/admin/') || p === '/health') return next();
-  try {
-    if (isAdminUser(await getSessionUser(req))) return next();
-  } catch (e) { /* fall through to the maintenance page */ }
-  if (p.startsWith('/api/')) {
-    return res.status(503).json({ error: 'maintenance', message: siteSettings.maintenanceMessage || 'Down for maintenance' });
-  }
-  res.status(503).set('Retry-After', '600').type('html').send(maintenancePage(siteSettings.maintenanceMessage));
-});
-
-app.use('/recordings', express.static(path.join(__dirname, '..', 'public', 'recordings')));
-app.use(express.static(path.join(__dirname, '..', 'public'), { extensions: ['html'] }));
-
-// -------------------------------------------------------------
-// SESSIONS (signed, HttpOnly cookie — the browser can't forge or read it)
-// -------------------------------------------------------------
 const DEV_MODE = process.env.ALLOW_DEV_LOGIN === 'true';
 const SESSION_COOKIE = 'waurks_session';
 const SESSION_DAYS = 7;
@@ -162,6 +119,57 @@ async function getSessionUser(req) {
 
   return user;
 }
+
+// -------------------------------------------------------------
+// MAINTENANCE MODE (switched on/off from the admin panel)
+// -------------------------------------------------------------
+const siteSettings = { maintenance: false, maintenanceMessage: '' };
+db.run(`CREATE TABLE IF NOT EXISTS site_settings (key TEXT PRIMARY KEY, value TEXT)`)
+  .then(() => db.run(`UPDATE site_settings SET value = '0' WHERE key = 'maintenance'`))
+  .catch(() => {});
+
+async function saveSetting(key, value) {
+  await db.run(
+    `INSERT INTO site_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+    [key, value]
+  );
+}
+
+function maintenancePage(message) {
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DevSupplies — Maintenance</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#09080c;color:#f3f1f7;font-family:Inter,sans-serif;padding:20px;text-align:center}
+.card{max-width:460px;background:#121017;border:1px solid #272233;border-radius:18px;padding:36px 28px}
+.ic{width:44px;height:44px;border-radius:12px;background:#9b5cff;color:#fff;display:flex;align-items:center;justify-content:center;margin:0 auto 18px;font:700 22px 'Space Grotesk',sans-serif}
+h1{font-family:'Space Grotesk',sans-serif;font-size:28px;margin:0 0 10px}p{color:#9b94a8;font-size:15px;line-height:1.6;margin:0}
+a{display:inline-block;margin-top:24px;color:#9b5cff;font-size:12px;text-decoration:none}</style></head>
+<body><div class="card"><div class="ic">D</div><h1>Be right back</h1>
+<p>${esc(message || "We're fixing a few things. Check back soon.")}</p>
+<a href="/api/v1/auth/discord/login?next=/admin">Staff sign in</a></div></body></html>`;
+}
+
+app.use(async (req, res, next) => {
+  if (!siteSettings.maintenance) return next();
+  // Always reachable: login, the admin panel and its API, health checks
+  const p = req.path;
+  if (p.startsWith('/api/v1/auth/') || p === '/admin' || p === '/admin.html' || p.startsWith('/api/v1/admin/') || p === '/health') return next();
+  try {
+    const user = await getSessionUser(req);
+    const adminUser = user?.realAdmin || user;
+    if (isAdminUser(adminUser)) return next();
+  } catch (e) {
+    console.error('[maintenance check error]:', e);
+  }
+  if (p.startsWith('/api/')) {
+    return res.status(503).json({ error: 'maintenance', message: siteSettings.maintenanceMessage || 'Down for maintenance' });
+  }
+  res.status(503).set('Retry-After', '600').type('html').send(maintenancePage(siteSettings.maintenanceMessage));
+});
+
+app.use('/recordings', express.static(path.join(__dirname, '..', 'public', 'recordings')));
+app.use(express.static(path.join(__dirname, '..', 'public'), { extensions: ['html'] }));
 
 async function authMiddleware(req, res, next) {
   try {
@@ -284,7 +292,8 @@ app.get('/api/v1/auth/discord/callback', async (req, res) => {
     const next = parseCookies(req).waurks_next;
     setCookie(res, 'waurks_next', '', 0);
     if (next && /^\/[a-zA-Z0-9_\-\/?=&.]*$/.test(next) && !next.startsWith('//')) return res.redirect(next);
-    res.redirect('/checkout?login=ok');
+    if (isAdminUser(user)) return res.redirect('/admin');
+    res.redirect('/dashboard');
   } catch (err) {
     console.error('[auth] Discord login failed:', err.message);
     res.redirect('/checkout?error=discord_login_failed');
@@ -742,16 +751,6 @@ app.post('/api/v1/roblox/disconnect', authMiddleware, async (req, res) => {
 // ADMIN BACKOFFICE API
 // Protected management endpoints for seller/staff
 // -------------------------------------------------------------
-
-// Discord accounts that get the admin panel just by signing in.
-// Add more in Railway with ADMIN_DISCORD_IDS=id1,id2
-const ADMIN_DISCORD_IDS = new Set(
-  ['1094670363071361147', ...(process.env.ADMIN_DISCORD_IDS || '').split(',')]
-    .map(s => s.trim()).filter(Boolean)
-);
-function isAdminUser(user) {
-  return !!user && ADMIN_DISCORD_IDS.has(String(user.discord_id));
-}
 
 // Add the "banned" column to older databases (ignored if it already exists)
 db.run(`ALTER TABLE users ADD COLUMN banned INTEGER DEFAULT 0`).catch(() => {});
