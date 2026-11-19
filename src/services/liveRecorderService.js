@@ -53,32 +53,61 @@ function getFlvDimensions(filePath) {
   return null;
 }
 
-function remuxToMp4(rawFlvPath, targetMp4Path) {
-  return new Promise((resolve) => {
-    exec('ffmpeg -version', (err) => {
-      if (err) {
-        // FFmpeg not found: keep raw file
-        try {
-          if (rawFlvPath !== targetMp4Path && fs.existsSync(rawFlvPath)) {
-            fs.copyFileSync(rawFlvPath, targetMp4Path);
-          }
-        } catch (e) {}
-        return resolve({ success: false, reason: 'ffmpeg_not_installed' });
-      }
+function getFfmpegBinary() {
+  try {
+    const ffmpegPkg = require('@ffmpeg-installer/ffmpeg');
+    if (ffmpegPkg && ffmpegPkg.path && fs.existsSync(ffmpegPkg.path)) {
+      return ffmpegPkg.path;
+    }
+  } catch (e) {}
 
-      const dims = getFlvDimensions(rawFlvPath);
-      let args = [];
-      // If height > width, it's ALREADY a vertical portrait mobile stream (e.g. 720x1280)
-      // Fast remux: preserve pristine quality with instant stream copy!
+  const candidates = [
+    'ffmpeg',
+    '/root/.nix-profile/bin/ffmpeg',
+    '/nix/var/nix/profiles/default/bin/ffmpeg',
+    '/usr/bin/ffmpeg',
+    '/usr/local/bin/ffmpeg'
+  ];
+  for (const bin of candidates) {
+    try {
+      require('child_process').execSync(`${bin} -version`, { timeout: 1500, stdio: 'ignore' });
+      return bin;
+    } catch (e) {}
+  }
+  return null;
+}
+
+function remuxToMp4(rawFlvPath, targetMp4Path, orientation = 'portrait') {
+  return new Promise((resolve) => {
+    const ffmpegBin = getFfmpegBinary();
+    if (!ffmpegBin) {
+      console.warn('[remuxToMp4] No ffmpeg binary found, copying raw file');
+      try {
+        if (rawFlvPath !== targetMp4Path && fs.existsSync(rawFlvPath)) {
+          fs.copyFileSync(rawFlvPath, targetMp4Path);
+        }
+      } catch (e) {}
+      return resolve({ success: false, reason: 'ffmpeg_not_installed' });
+    }
+
+    const dims = getFlvDimensions(rawFlvPath);
+    let args = [];
+
+    if (orientation === 'landscape') {
+      // Landscape/original: fast stream copy to MP4
+      args = ['-y', '-i', rawFlvPath, '-c', 'copy', '-movflags', '+faststart', targetMp4Path];
+    } else {
+      // Portrait (9:16)
       if (dims && dims.height > dims.width) {
+        // Stream is already native 9:16 portrait (e.g. 720x1280 vertical phone stream)
         args = ['-y', '-i', rawFlvPath, '-c', 'copy', '-movflags', '+faststart', targetMp4Path];
       } else {
-        // Landscape or square stream (e.g. 720x720, 1280x720):
-        // Pad to standard 720:1280 portrait (9:16) with black letterbox top & bottom
+        // Stream is landscape or square (e.g. 720x720, 1280x720)
+        // Pad to standard 720:1280 vertical portrait (9:16) with black letterbox top & bottom
         args = [
           '-y',
           '-i', rawFlvPath,
-          '-vf', 'scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2:black',
+          '-vf', 'scale=w=720:h=1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2:black',
           '-c:v', 'libx264',
           '-preset', 'ultrafast',
           '-crf', '22',
@@ -87,29 +116,31 @@ function remuxToMp4(rawFlvPath, targetMp4Path) {
           targetMp4Path
         ];
       }
+    }
 
-      const proc = spawn('ffmpeg', args);
-      proc.on('close', (code) => {
-        if (code === 0 && fs.existsSync(targetMp4Path) && fs.statSync(targetMp4Path).size > 0) {
-          try { fs.unlinkSync(rawFlvPath); } catch (e) {}
-          resolve({ success: true, portrait: true });
-        } else {
-          try {
-            if (!fs.existsSync(targetMp4Path) && fs.existsSync(rawFlvPath)) {
-              fs.copyFileSync(rawFlvPath, targetMp4Path);
-            }
-          } catch (e) {}
-          resolve({ success: false, reason: 'ffmpeg_exit_' + code });
-        }
-      });
-      proc.on('error', (procErr) => {
+    const proc = spawn(ffmpegBin, args);
+    proc.on('close', (code) => {
+      if (code === 0 && fs.existsSync(targetMp4Path) && fs.statSync(targetMp4Path).size > 0) {
+        try { fs.unlinkSync(rawFlvPath); } catch (e) {}
+        resolve({ success: true, orientation });
+      } else {
+        console.warn(`[remuxToMp4] FFmpeg exited with code ${code}, falling back to copy`);
         try {
           if (!fs.existsSync(targetMp4Path) && fs.existsSync(rawFlvPath)) {
             fs.copyFileSync(rawFlvPath, targetMp4Path);
           }
         } catch (e) {}
-        resolve({ success: false, reason: procErr.message });
-      });
+        resolve({ success: false, reason: 'ffmpeg_exit_' + code });
+      }
+    });
+    proc.on('error', (procErr) => {
+      console.error('[remuxToMp4] Process error:', procErr.message);
+      try {
+        if (!fs.existsSync(targetMp4Path) && fs.existsSync(rawFlvPath)) {
+          fs.copyFileSync(rawFlvPath, targetMp4Path);
+        }
+      } catch (e) {}
+      resolve({ success: false, reason: procErr.message });
     });
   });
 }
@@ -135,7 +166,7 @@ class LiveRecorderService {
               console.log(`[LiveRecorder] Remuxing legacy FLV recording to portrait MP4: ${file}`);
               const tempRaw = path.join(RECORDINGS_DIR, file.replace('.mp4', '_temp.flv'));
               fs.renameSync(fullPath, tempRaw);
-              await remuxToMp4(tempRaw, fullPath);
+              await remuxToMp4(tempRaw, fullPath, 'portrait');
             }
           } catch (err) {}
         }
@@ -239,7 +270,7 @@ class LiveRecorderService {
     };
   }
 
-  async startRecording(userId, username) {
+  async startRecording(userId, username, orientation = 'portrait') {
     const user = cleanUsername(username);
     if (!user) throw new Error('Valid username required');
 
@@ -267,6 +298,7 @@ class LiveRecorderService {
       jobId,
       userId: userId || null,
       username: user,
+      orientation: orientation || 'portrait',
       title: statusInfo.title || `Live Stream (@${user})`,
       filename,
       filePath,
@@ -376,10 +408,10 @@ class LiveRecorderService {
     job.status = 'finished';
     this.activeJobs.delete(jobId);
 
-    // Convert raw FLV stream to genuine portrait MP4
+    // Convert raw FLV stream to genuine MP4 in requested orientation
     if (job.rawPath && fs.existsSync(job.rawPath)) {
       try {
-        await remuxToMp4(job.rawPath, job.filePath);
+        await remuxToMp4(job.rawPath, job.filePath, job.orientation || 'portrait');
       } catch (err) {
         console.error('Error during remuxToMp4:', err);
       }

@@ -323,9 +323,9 @@ app.get('/api/v1/recorder/status', async (req, res) => {
 
 app.post('/api/v1/recorder/start', authMiddleware, async (req, res) => {
   try {
-    const { username } = req.body;
+    const { username, orientation } = req.body;
     if (!username) return res.status(400).json({ error: 'Username required' });
-    const job = await liveRecorderService.startRecording(req.user.id, username);
+    const job = await liveRecorderService.startRecording(req.user.id, username, orientation || 'portrait');
     res.json({ success: true, job });
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -520,7 +520,19 @@ app.get('/waurks.user.js', (req, res) => {
 
 // Health check
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', service: 'Waurks Anti-Botter Engine', time: new Date().toISOString() });
+  let ffmpegInfo = 'not_checked';
+  try {
+    ffmpegInfo = require('child_process').execSync('ffmpeg -version', { timeout: 3000 }).toString().split('\n')[0];
+  } catch (e) {
+    ffmpegInfo = 'ERR: ' + e.message;
+  }
+  res.json({
+    status: 'ok',
+    service: 'DevSupplies Live Stream Engine',
+    ffmpeg: ffmpegInfo,
+    node: process.version,
+    time: new Date().toISOString()
+  });
 });
 
 // -------------------------------------------------------------
