@@ -1,56 +1,71 @@
-# Waurks — Modern Roblox Anti-Botter & MM2 Trader
+# DevSupplies — Modern TikTok Live Recorder & Downloader
 
-Waurks is a high-speed, server-authoritative Roblox anti-bot platform powered by an **open-source browser extension** and server-side heuristic detection engine.
+DevSupplies is a high-speed, 24/7 automated TikTok Live stream recorder and downloader. Capture any TikTok Live stream in crisp 1080p 60FPS video, preview recordings in your browser, and download high-bitrate MP4 files directly to your device.
 
-- **100% Open Source Extension**: Zero cookie logging. Does not request or touch `.ROBLOSECURITY` cookies or account passwords.
-- **Server-Authoritative Heuristics**: Multi-layered threat scoring (entropy, scam links, account age, badges, flood waves, MM2 level badges).
-- **Public GitHub Repository**: [github.com/dxlayed/devsupplies](https://github.com/dxlayed/devsupplies)
-
----
-
-## 🔒 Security & Zero Cookie Logging Guarantee
-
-Waurks prioritizes account security and full transparency:
-1. **No Cookie Permissions in Extension**: The Chrome extension manifest (`manifest.json`) strictly declares only `"storage"` and `"alarms"` permissions. Chrome prevents the extension from reading or intercepting your `.ROBLOSECURITY` cookie.
-2. **Official In-Browser API**: The extension queries Roblox's friend request endpoint directly in your existing browser session (`credentials: 'include'`). Sensitive session tokens never leave your computer.
-3. **Uncrackable Server Detection**: 100% of the bot evaluation logic and license verification lives server-side. The extension is purely a transparent client.
+- **🔴 Real-Time Stream Capture**: Record active TikTok Live streams in pristine source quality with synchronized AAC audio.
+- **👁️ 24/7 Background Auto-Watcher**: Monitor your favorite creators continuously; recording starts automatically the second they go live.
+- **🔎 Instant Live Status Checker**: Quickly check whether a creator is currently streaming before recording.
+- **⚡ Built-in Web Player & Library**: Preview captured videos directly in your browser with direct 1-click MP4 downloads.
+- **🔑 Automated Key & Licensing System**: Instant license key issuance with automated Litecoin (LTC) payment confirmation.
 
 ---
 
-## 💰 Pricing Tiers & Billing
+## 💰 Pricing Tiers
 
-| Tier | Price | Duration | Cost / Week | Features |
-| :--- | :--- | :--- | :--- | :--- |
-| **Weekly** | **$15** | 7 Days | $15.00 | Full 24/7 cloud botnet decline & player auto-accept |
-| **Monthly** | **$45** | 30 Days | ~$10.50 | Save $15, priority threat database sync, 24/7 daemon |
-| **Yearly** | **$115** | 365 Days | ~$2.20 | Best value (~$2.20/week), uninterrupted cloud monitoring |
-
----
-
-## 💳 Checkout & Payment System
-
-- **Discord Sign-in**: Accounts are authenticated through Discord for licensing, renewals, and role sync.
-- **Crypto Payments**: Supports USDT (TRC20), USDC, SOL, BTC, ETH, LTC, and DOGE with simulated test confirmation and live webhook integration (`/api/v1/payments/crypto-webhook`).
-- **In-Game Item Trade Escrow**: Generates Middleman Escrow Tickets (`TRADE-XXXX`) for players paying with Roblox Limiteds or popular in-game items (MM2, Adopt Me, Blox Fruits).
-- **Discord Webhook Alerts**: Automatically dispatches embeds to your Discord staff channels for new sales and pending middleman trade tickets.
+| Tier | Price | Duration | Features |
+| :--- | :--- | :--- | :--- |
+| **Weekly** | **$5.00** | 7 Days | Full access, 1080p stream capture, Auto-Watcher |
+| **Monthly** | **$10.00** | 30 Days | Full access, background auto-record, unlimited downloads |
+| **Lifetime** | **$15.00** | Yours Forever | Permanent access, unlimited concurrent recordings, priority updates |
 
 ---
 
-## 🚀 How to Run & Test
+## 🚀 How to Run
 
-### 1. Run Automated Test Suite
+### 1. Web Service (Full Platform)
 ```bash
-npm test
-```
-Verifies all 7 subsystems: Discord auth, 3 pricing tiers, HWID binding, automatic expiration enforcement, bot detection accuracy, in-game item trades, and 24/7 cloud account sorting.
-
-### 2. Start the Waurks Cloud Server
-```bash
+npm install
 npm start
 ```
-Starts on `http://localhost:3000`.
+Default port: `http://localhost:3000` (or `PORT` in `.env`).
 
-### 3. Web Pages
-- **Landing Page**: [http://localhost:3000/](http://localhost:3000/)
-- **Checkout**: [http://localhost:3000/checkout](http://localhost:3000/checkout)
-- **Client Portal**: [http://localhost:3000/dashboard](http://localhost:3000/dashboard)
+### 2. Standalone Python Recorder Engine
+Located in `/recorder`:
+```bash
+cd recorder
+pip install -r requirements.txt
+python server.py
+```
+Or double-click `start.bat` on Windows.
+Open `http://localhost:8000` to access the local recording control panel.
+
+---
+
+## 📁 Repository Structure
+
+```
+├── public/                 # Web client (Landing page, checkout, dashboard, theme)
+│   ├── index.html          # Modern cyberpunk landing page
+│   ├── checkout.html       # Automated LTC checkout & key issuance
+│   ├── dashboard.html      # User license & recorder management
+│   ├── devsupplies-recorder.zip # Standalone recorder package
+│   └── theme.css           # Glowing violet dark aesthetic
+├── recorder/               # Standalone Python TikTok recording engine
+│   ├── recorder.py         # Streamlink capture & auto-watcher
+│   ├── server.py           # FastAPI local recording API & UI
+│   ├── start.bat           # 1-click Windows launcher
+│   └── static/             # Local recording web interface
+├── src/                    # Node.js Express backend & licensing
+│   ├── server.js           # API routes & static file server
+│   ├── services/
+│   │   ├── keyService.js   # License key generation & tier management
+│   │   ├── ltcPayments.js  # Automated BIP32 Litecoin verification
+│   │   └── paymentService.js # Order lifecycle management
+│   └── database.js         # SQLite database schema
+└── package.json
+```
+
+---
+
+## 🔒 License & Disclaimer
+Not affiliated with or endorsed by TikTok or ByteDance Ltd.

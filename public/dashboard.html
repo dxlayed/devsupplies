@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>My account - Waurks</title>
+<title>My account - DevSupplies TikTok Live Recorder</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
@@ -27,63 +27,34 @@
   .facts{display:flex;gap:28px;flex-wrap:wrap;font-size:14px;color:var(--muted)}
   .facts b{color:var(--text);font-weight:600}
 
-  .rbx{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;background:rgba(139,92,246,.08);border:1px solid rgba(139,92,246,.35);border-radius:18px;padding:18px}
-  .rbx-me{display:flex;align-items:center;gap:14px}
-  .rbx-me img{width:56px;height:56px;border-radius:50%;background:#e9e6ef;box-shadow:0 0 0 3px #2a1f40,0 0 24px rgba(139,92,246,.5)}
-  .rbx-name{font-family:"Space Grotesk",sans-serif;font-weight:700;font-size:18px}
-  .rbx-btns{display:flex;gap:8px;flex-wrap:wrap}
+  .app-card{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;background:rgba(139,92,246,.08);border:1px solid rgba(139,92,246,.35);border-radius:18px;padding:20px}
+  .app-info{display:flex;align-items:center;gap:16px}
+  .app-icon{width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,#7c4dff,#ff3b5c);display:grid;place-items:center;font-weight:700;font-size:24px;color:#fff;box-shadow:0 8px 24px rgba(124,77,255,.45)}
+  .app-title{font-family:"Space Grotesk",sans-serif;font-weight:700;font-size:18px}
+  .app-btns{display:flex;gap:10px;flex-wrap:wrap}
 
-  .setting{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 0;border-top:1px solid var(--line)}
-  .setting:first-of-type{border-top:none}
-  .setting b{display:block;font-weight:600;font-size:15px}
-  .setting span.muted{font-size:13px}
+  .guide-box{margin-top:16px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:18px;padding:20px}
+  .guide-title{font-size:15px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .guide-steps{display:grid;gap:14px}
+  .guide-step{display:flex;gap:14px;align-items:flex-start}
+  .step-num{width:28px;height:28px;border-radius:8px;background:linear-gradient(160deg,#7c4dff,#3b1a8f);box-shadow:0 3px 0 #2a1170;color:#fff;font:700 13px "Space Grotesk",sans-serif;display:grid;place-items:center;flex:none;margin-top:2px}
+  .step-body{flex:1;font-size:14px}
+  .step-body b{color:var(--text);display:block;font-size:15px;margin-bottom:2px}
+  .step-body p{color:var(--muted);margin:0;font-size:13px;line-height:1.5}
 
-  .connect textarea{min-height:46px;resize:vertical;font-family:ui-monospace,Consolas,monospace;font-size:13px;margin:12px 0}
-  .connect .row{display:flex;gap:10px;flex-wrap:wrap}
+  .checker-box{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+  .checker-input{flex:1;min-width:240px;padding:12px 16px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid var(--line);color:#fff;font-size:14px}
+  .checker-input:focus{outline:none;border-color:var(--purple)}
+  .checker-res{padding:12px 16px;border-radius:12px;margin-top:12px;font-size:14px;display:none}
+  .checker-res.live{background:rgba(255,84,112,.15);border:1px solid rgba(255,84,112,.35);color:#ff5470}
+  .checker-res.off{background:rgba(255,255,255,.05);border:1px solid var(--line);color:var(--muted)}
 
   .nums{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
   .num-box{background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:18px;padding:20px}
   .num-box .n{font-family:"Space Grotesk",sans-serif;font-size:44px;font-weight:700;letter-spacing:-1px;line-height:1.1}
   .num-box .l{font:700 11px Inter,sans-serif;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-top:6px}
 
-  .list{max-height:360px;overflow-y:auto;display:grid;gap:6px}
-  .item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;font-size:14px;background:#110b1c;border-radius:14px;border:1px solid transparent}
-  .item:hover{border-color:rgba(139,92,246,.35)}
-  .item .who b{font-weight:600}
-  .item .who .muted{font-size:12px;display:block}
-  .pill{font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;white-space:nowrap}
-  .pill.no{color:var(--red);background:rgba(255,84,112,.1)}
-  .pill.yes{color:var(--green);background:rgba(61,220,132,.1)}
-  .pill.wait{color:var(--yellow);background:rgba(255,200,87,.1)}
-  .empty{padding:22px;text-align:center;color:var(--muted);font-size:14px}
-
-  /* Extension download & load unpacked guide */
-  .ext-guide{margin-top:16px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:18px;padding:20px}
-  .ext-guide-title{font-size:15px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
-  .ext-steps{display:grid;gap:12px}
-  .ext-step{display:flex;gap:14px;align-items:flex-start}
-  .ext-step-num{width:30px;height:30px;border-radius:9px;background:linear-gradient(160deg,#7c4dff,#3b1a8f);box-shadow:0 3px 0 #2a1170;color:#fff;font:700 14px "Space Grotesk",sans-serif;display:grid;place-items:center;flex:none;margin-top:2px}
-  .ext-step-body{flex:1;font-size:14px}
-  .ext-step-body > b{color:var(--text);display:block;font-size:15px;margin-bottom:2px}
-  .ext-step-body p b{color:var(--text)}
-  .ext-step-body p{color:var(--muted);margin:0;font-size:13px;line-height:1.5}
-  .ext-copy-bar{display:inline-flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:4px 8px;margin-top:6px}
-  .btn-xs{padding:3px 8px;font-size:11px;border-radius:6px}
-  .link-purple{color:var(--purple);text-decoration:underline}
-  .link-purple:hover{color:#fff}
-
-  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.8);display:none;align-items:center;justify-content:center;z-index:999;padding:20px}
-  .modal-overlay.open{display:flex}
-  .modal{background:var(--panel);border:1px solid var(--line);border-radius:16px;max-width:540px;width:100%;padding:26px;position:relative;max-height:90vh;overflow:auto}
-  .modal-x{position:absolute;top:14px;right:14px}
-  .modal ol{padding-left:20px;display:grid;gap:12px;margin-top:14px}
-  .modal li{color:var(--muted)}
-  .modal li b{color:var(--text)}
-  .modal code{background:var(--bg);border:1px solid var(--line);padding:1px 6px;border-radius:5px;font-size:13px}
-
-  @media (max-width:640px){ .nums{grid-template-columns:1fr} }
-
-  /* Locked: no key yet. Page is blurred so nothing behind can be read. */
+  /* Locked: no key yet */
   body.locked main.page,body.pending main.page{filter:blur(26px) saturate(.6);opacity:.55;pointer-events:none;user-select:none;-webkit-user-select:none}
   main.page{transition:filter .4s,opacity .4s}
   body.locked{overflow:hidden}
@@ -98,9 +69,10 @@
   .lockcard h2{font-size:clamp(36px,5vw,52px);line-height:1.05;letter-spacing:-.03em;margin-bottom:8px}
   .lockcard p{color:var(--muted);margin-bottom:24px}
   .lockcard .btn{padding:15px 40px;font-size:15px;border-radius:14px}
-  .lockcard .alt{display:block}
   .lockcard .alt{display:block;margin-top:16px;font-size:13px;color:var(--muted)}
   .lockcard .alt:hover{color:var(--text)}
+
+  @media (max-width:640px){ .nums{grid-template-columns:1fr} }
 </style>
 </head>
 <body class="pending">
@@ -112,23 +84,15 @@
     t.className = 'show' + (kind ? ' ' + kind : (/error|fail|invalid|could not|please/i.test(msg) ? ' err' : ''));
     clearTimeout(t._h); t._h = setTimeout(() => { t.className = ''; }, 3500);
   }
-  function confirmTwice(el, label) {
-    if (!el) return true;
-    if (el.dataset.armed === '1') { el.dataset.armed = ''; el.textContent = el.dataset.orig; return true; }
-    el.dataset.orig = el.textContent; el.dataset.armed = '1';
-    el.textContent = label || 'Click again to confirm';
-    setTimeout(() => { if (el.dataset.armed === '1') { el.dataset.armed = ''; el.textContent = el.dataset.orig; } }, 4000);
-    return false;
-  }
   window.alert = msg => notify(msg);
-  const esc = v => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 </script>
 
 <div class="wrap">
   <header class="topbar">
-    <a href="/" class="logo"><span class="logo-mark">W</span>Waurks</a>
+    <a href="/" class="logo"><span class="logo-mark">D</span>DevSupplies</a>
     <nav class="nav">
-      <a href="/requests">Friend requests</a>
+      <a href="/#how">How it works</a>
+      <a href="/#pricing">Pricing</a>
       <a href="/admin" id="adminLink" class="admin-link" style="display:none">Admin</a>
       <span class="me"><img src="https://cdn.discordapp.com/embed/avatars/0.png" id="avatarImg" alt=""><span id="usernameDisplay">...</span></span>
     </nav>
@@ -138,8 +102,8 @@
 <div id="lockOverlay">
   <div class="lockcard">
     <div class="lockicon"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="3" fill="rgba(255,255,255,.15)"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/><circle cx="12" cy="16" r="1.4" fill="#fff" stroke="none"/></svg></div>
-    <h2 class="grad3d">Account locked</h2>
-    <p>Get a key to unlock your account and start filtering bots.</p>
+    <h2 class="grad3d">Access locked</h2>
+    <p>Get a key to unlock your account and start recording TikTok Lives.</p>
     <a href="/checkout" class="btn btn-main">Get a key</a>
     <a href="/#pricing" class="alt">See plans</a>
   </div>
@@ -154,7 +118,7 @@
   <!-- Key -->
   <div class="box" id="keyCard">
     <div class="box-head">
-      <div><h2>Your key</h2><p class="muted">Your key is what keeps Waurks running on your account.</p></div>
+      <div><h2>Your license key</h2><p class="muted">Your key activates DevSupplies TikTok Live Recorder access.</p></div>
       <span class="tag" id="tierBadge">...</span>
     </div>
     <div class="key-row">
@@ -168,191 +132,72 @@
     </div>
   </div>
 
-  <!-- Browser Extension -->
-  <div class="box" id="extensionCard">
+  <!-- TikTok Recorder Application -->
+  <div class="box">
     <div class="box-head">
       <div>
-        <h2>Browser Extension <span class="tag purple" style="margin-left:8px">Verified Client</span></h2>
-        <p class="muted">Zero cookie logging. The extension uses your active browser tab to read friend requests safely without touching your password or session cookie.</p>
+        <h2>TikTok Live Recorder Package</h2>
+        <p class="muted">High-speed 1080p stream capture engine with background auto-watcher and web dashboard.</p>
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <span class="tag" id="extStatusTag">Ready to install</span>
-        <a href="/extension-source" target="_blank" class="btn btn-line btn-sm" style="display:inline-flex;align-items:center;gap:6px">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-          Inspect Extension Code
-        </a>
-        <a href="/api/v1/extension/download" class="btn btn-main btn-sm" download="waurks-extension.zip" style="display:inline-flex;align-items:center;gap:6px">
+        <a href="/devsupplies-recorder.zip" class="btn btn-main btn-sm" download="devsupplies-recorder.zip" style="display:inline-flex;align-items:center;gap:6px">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Download Extension (.ZIP)
+          Download Recorder (.ZIP)
         </a>
       </div>
     </div>
 
-    <!-- Security & Zero Cookie Logging Guarantee -->
-    <div class="sec-card">
-      <div class="sec-head">
-        <div class="sec-title">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-          <span>Security &amp; Privacy Architecture</span>
-        </div>
-        <span class="tag on">No Cookie Access</span>
+    <div class="guide-box">
+      <div class="guide-title">
+        <span>How to run on your PC:</span>
+        <button class="btn btn-line btn-xs" onclick="copyKey()">Copy my key</button>
       </div>
-      <div class="sec-grid">
-        <div class="sec-item">
-          <b><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> No Cookie Permissions</b>
-          <p>Our manifest only requests <code>storage</code> and <code>alarms</code>. Chrome's sandbox physically prevents the extension from reading or accessing your <code>.ROBLOSECURITY</code> cookie.</p>
-        </div>
-        <div class="sec-item">
-          <b><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Zero Credential Logging</b>
-          <p>We never store, log, or send your passwords, cookies, or account tokens to Waurks or any other server. Everything stays in your browser.</p>
-        </div>
-        <div class="sec-item">
-          <b><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg> 100% Inspectable Code</b>
-          <p>The browser extension code is open to inspect (<a href="/extension-source" target="_blank" class="link-purple">view extension source</a> or read our <a href="/privacy" target="_blank" class="link-purple">Privacy Policy</a>). All bot detection heuristics run privately on Waurks.</p>
-        </div>
-      </div>
-    </div>
-
-    <!-- How Connections Work -->
-    <div style="margin:20px 0 10px">
-      <div style="font-weight:700;font-size:14px;margin-bottom:8px">How it works &amp; connects:</div>
-      <div class="pipe">
-        <div class="pipe-step">
-          <div class="num">1</div>
-          <b>Roblox Session</b>
-          <p>Your browser stays logged into roblox.com as usual.</p>
-        </div>
-        <div class="pipe-step">
-          <div class="num">2</div>
-          <b>Local Relay</b>
-          <p>Extension reads request IDs without touching cookies.</p>
-        </div>
-        <div class="pipe-step">
-          <div class="num">3</div>
-          <b>Waurks Cloud</b>
-          <p>Server checks accounts for spam bots or MM2 badges.</p>
-        </div>
-        <div class="pipe-step">
-          <div class="num">4</div>
-          <b>Auto-Action</b>
-          <p>Extension accepts real players and filters out bot spam.</p>
-        </div>
-      </div>
-    </div>
-
-    <div class="ext-guide">
-      <div class="ext-guide-title">
-        <span>How to install &amp; load unpacked in Chrome, Brave, or Edge:</span>
-        <button class="btn btn-line btn-xs" id="copyExtKeyBtn" onclick="copyExtKey()">Copy my key</button>
-      </div>
-      <div class="ext-steps">
-        <div class="ext-step">
-          <div class="ext-step-num">1</div>
-          <div class="ext-step-body">
+      <div class="guide-steps">
+        <div class="guide-step">
+          <div class="step-num">1</div>
+          <div class="step-body">
             <b>Download and extract</b>
-            <p>Click <a href="/api/v1/extension/download" class="link-purple" download="waurks-extension.zip">Download Extension (.ZIP)</a> and unzip it anywhere on your computer. You will see a <code class="mono">waurks-extension</code> folder.</p>
+            <p>Download <code class="mono">devsupplies-recorder.zip</code> above and unzip it to any folder on your PC.</p>
           </div>
         </div>
-        <div class="ext-step">
-          <div class="ext-step-num">2</div>
-          <div class="ext-step-body">
-            <b>Open Extensions page in your browser</b>
-            <p>In Chrome, Brave, or Edge, copy &amp; paste this into your browser's address bar:
-              <div class="ext-copy-bar">
-                <code class="mono">chrome://extensions</code>
-                <button class="btn btn-line btn-xs" onclick="navigator.clipboard.writeText('chrome://extensions');notify('Copied chrome://extensions to clipboard','ok')">Copy URL</button>
-              </div>
-              <span class="muted" style="display:block;margin-top:4px;font-size:12px">(Brave users: <code class="mono">brave://extensions</code> · Edge users: <code class="mono">edge://extensions</code>)</span>
-            </p>
+        <div class="guide-step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <b>Launch with 1 click</b>
+            <p>Double-click <code class="mono">start.bat</code>. It automatically checks dependencies, starts the recorder engine, and opens the local dashboard in your browser at <code class="mono">http://localhost:8000</code>.</p>
           </div>
         </div>
-        <div class="ext-step">
-          <div class="ext-step-num">3</div>
-          <div class="ext-step-body">
-            <b>Turn on "Developer mode"</b>
-            <p>Turn on the <b>Developer mode</b> switch toggle located in the top-right corner of the Extensions page.</p>
-          </div>
-        </div>
-        <div class="ext-step">
-          <div class="ext-step-num">4</div>
-          <div class="ext-step-body">
-            <b>Click "Load unpacked"</b>
-            <p>Click the <b>Load unpacked</b> button in the top-left corner, and select the unzipped <code class="mono">waurks-extension</code> folder.</p>
-          </div>
-        </div>
-        <div class="ext-step">
-          <div class="ext-step-num">5</div>
-          <div class="ext-step-body">
-            <b>Connect &amp; start filtering</b>
-            <p>Click the <b>Waurks</b> shield icon in your browser toolbar (click the puzzle icon if hidden), press <b>Connect to Waurks</b> and approve it on the site that opens. Done! Your requests will now sync to the website in real-time.</p>
+        <div class="guide-step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <b>Record or Auto-Watch</b>
+            <p>Type any creator's @username. Click <b>Start Recording</b> to capture live right now, or click <b>Auto-Watch</b> to automatically record them whenever they go live while you sleep.</p>
           </div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Roblox Connection -->
+  <!-- Quick Stream Status Checker -->
   <div class="box">
     <div class="box-head">
-      <div><h2>Roblox connection</h2><p class="muted">Connected via the open-source Waurks extension. No cookies stored.</p></div>
+      <div><h2>Quick stream checker</h2><p class="muted">Check if any TikTok creator is currently live before recording.</p></div>
     </div>
-
-    <div id="accountConnectedView" style="display:none">
-      <div class="rbx">
-        <div class="rbx-me">
-          <img src="" id="rbxAvatar" alt="">
-          <div>
-            <div class="rbx-name" id="rbxUsername">-</div>
-            <div class="muted mono" style="font-size:12px" id="rbxUserId">-</div>
-            <div style="font-size:13px;margin-top:2px" id="runState"></div>
-          </div>
-        </div>
-        <div class="rbx-btns">
-          <a href="/requests" class="btn btn-main btn-sm">See friend requests</a>
-          <button class="btn btn-line btn-sm" id="toggleCloudBtn" onclick="toggleCloudProtection()">Pause</button>
-          <button class="btn btn-red btn-sm" onclick="disconnectRoblox()">Disconnect</button>
-        </div>
-      </div>
+    <div class="checker-box">
+      <input type="text" class="checker-input" id="checkUserInput" placeholder="Enter TikTok @username (e.g. charlidamelio)">
+      <button class="btn btn-main btn-sm" id="btnCheckLive" onclick="checkLiveStatus()">Check Status</button>
     </div>
-
-    <div id="accountNotConnectedView" class="connect" style="text-align:center;padding:26px 14px">
-      <div style="width:50px;height:50px;border-radius:14px;background:var(--panel-2);border:1px solid var(--line);display:grid;place-items:center;margin:0 auto 14px;color:var(--purple)">
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-      </div>
-      <h3 style="font-size:18px;margin-bottom:6px">Connect with the Waurks Extension</h3>
-      <p class="muted" style="max-width:460px;margin:0 auto 18px;font-size:14px;line-height:1.5">No cookies or passwords required. Install our lightweight open-source extension above to sync your Roblox friend requests securely in real-time.</p>
-      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
-        <a href="#extensionCard" class="btn btn-main btn-sm">Install Extension</a>
-        <a href="/extension-source" target="_blank" class="btn btn-line btn-sm">Inspect Extension Code</a>
-      </div>
-    </div>
+    <div class="checker-res" id="checkResult"></div>
   </div>
 
-  <!-- Needs a decision -->
-  <div class="box" id="reviewQueueCard" style="display:none">
-    <div class="box-head">
-      <div><h2>Not sure about these (<span id="reviewCountHeader">0</span>)</h2><p class="muted">We couldn't tell if these are bots. You decide.</p></div>
-    </div>
-    <div class="list" id="queueList"></div>
-  </div>
-
-  <!-- Numbers -->
+  <!-- Stats -->
   <div class="box">
-    <div class="box-head"><div><h2>So far</h2></div></div>
+    <div class="box-head"><div><h2>Your account overview</h2></div></div>
     <div class="nums">
-      <div class="num-box"><div class="n" id="statScanned">0</div><div class="l">Requests checked</div></div>
-      <div class="num-box"><div class="n" id="statDeclined" style="color:var(--red)">0</div><div class="l">Bots filtered</div></div>
-      <div class="num-box"><div class="n" id="statAccepted" style="color:var(--green)">0</div><div class="l">Players accepted</div></div>
+      <div class="num-box"><div class="n" id="statPlan">Lifetime</div><div class="l">License Tier</div></div>
+      <div class="num-box"><div class="n" id="statQuality" style="color:var(--green)">1080p</div><div class="l">Capture Quality</div></div>
+      <div class="num-box"><div class="n" id="statWatchers" style="color:#c4b5fd">24/7</div><div class="l">Auto-Watcher</div></div>
     </div>
-  </div>
-
-  <!-- Recent -->
-  <div class="box">
-    <div class="box-head">
-      <div><h2>Recent</h2><p class="muted">The last requests we handled.</p></div>
-      <span class="muted" style="font-size:13px" id="lastScanTime">Not checked yet</span>
-    </div>
-    <div class="list" id="logFeed"><div class="empty">Link your Roblox account to see requests here.</div></div>
   </div>
 </main>
 
@@ -360,34 +205,12 @@
   function setTag(id, text, kind) { const el = document.getElementById(id); el.textContent = text; el.className = 'tag ' + (kind || ''); }
   let user = JSON.parse(localStorage.getItem('waurks_user') || 'null');
   let activeLicense = null;
-  let accountData = null;
 
   window.addEventListener('DOMContentLoaded', async () => {
     try {
       const s = await (await fetch('/api/v1/auth/status')).json();
       user = s.loggedIn ? s.user : null;
       if (s.isAdmin) document.getElementById('adminLink').style.display = '';
-      if (s.devLogin) document.getElementById('demoBtn').style.display = '';
-      if (s.impersonating) {
-        const bar = document.createElement('div');
-        bar.id = 'impBanner';
-        bar.style.cssText = 'position:sticky;top:0;z-index:99999;background:linear-gradient(90deg,#7b5cfa,#ec4899);color:#fff;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:600;box-shadow:0 4px 15px rgba(0,0,0,.6);font-family:system-ui,sans-serif';
-        bar.innerHTML = `
-          <div style="display:flex;align-items:center;gap:10px">
-            <span style="background:rgba(0,0,0,.35);padding:3px 8px;border-radius:6px;font-size:11px;letter-spacing:1px;font-weight:800">ADMIN VIEWING AS</span>
-            <span><b>${user.username}</b> (Discord ID: <span class="mono">${user.discord_id}</span>)</span>
-          </div>
-          <div style="display:flex;gap:8px;align-items:center">
-            <a href="/admin" class="btn btn-sm" style="background:rgba(0,0,0,.3);color:#fff;border:1px solid rgba(255,255,255,.3);text-decoration:none;padding:5px 12px;border-radius:8px">Admin Panel</a>
-            <button id="exitImpBtn" style="background:#fff;color:#000;border:none;padding:5px 14px;border-radius:8px;font-weight:700;cursor:pointer">Exit View As</button>
-          </div>
-        `;
-        document.body.prepend(bar);
-        bar.querySelector('#exitImpBtn').onclick = async () => {
-          await fetch('/api/v1/admin/impersonate/exit', { method: 'POST' });
-          location.href = '/admin';
-        };
-      }
     } catch (e) { user = null; }
     if (!user) {
       localStorage.removeItem('waurks_user');
@@ -400,14 +223,6 @@
 
     await loadLicenseInfo();
     document.body.classList.remove('pending');
-    await loadRobloxAccountStatus();
-    await loadReviewQueue();
-
-    // Auto-refresh feed & review queue every 3 seconds for instant updates
-    setInterval(async () => {
-      await loadRobloxAccountStatus();
-      await loadReviewQueue();
-    }, 3000);
   });
 
   async function loadLicenseInfo() {
@@ -420,18 +235,17 @@
       if (data.licenses && data.licenses.length > 0) {
         activeLicense = data.licenses[0];
         document.getElementById('keyCodeText').textContent = activeLicense.key_code;
-        const snippet = document.getElementById('guideKeySnippet');
-        if (snippet) snippet.textContent = activeLicense.key_code;
-        const planNames = { weekly: 'Weekly', monthly: 'Monthly', yearly: 'Lifetime' };
+        const planNames = { weekly: 'Weekly ($5)', monthly: 'Monthly ($10)', yearly: 'Lifetime ($15)' };
         document.getElementById('keyTierName').textContent = planNames[activeLicense.tier] || activeLicense.tier;
+        document.getElementById('statPlan').textContent = activeLicense.tier === 'yearly' ? 'Lifetime' : (activeLicense.tier === 'monthly' ? 'Monthly' : 'Weekly');
         document.getElementById('keyCountdown').textContent = activeLicense.tier === 'yearly' ? 'Forever' : `${activeLicense.daysRemaining} days`;
         setTag('tierBadge', 'Active', 'on');
-        document.getElementById('protectionState').textContent = 'Running';
+        document.getElementById('protectionState').textContent = 'Active & Ready';
 
         if (activeLicense.isExpired) {
           setTag('tierBadge', 'Ran out', 'off');
           document.getElementById('keyCountdown').textContent = '0 days';
-          document.getElementById('protectionState').textContent = 'Stopped. Get a new key to start again.';
+          document.getElementById('protectionState').textContent = 'Expired. Get a new key to continue.';
           document.body.classList.add('locked');
         }
       } else {
@@ -445,257 +259,44 @@
     }
   }
 
-  async function loadRobloxAccountStatus() {
-    try {
-      const resp = await fetch('/api/v1/roblox/status', {
-        headers: { 'x-user-id': user.id }
-      });
-      const data = await resp.json();
-
-      const connectedView = document.getElementById('accountConnectedView');
-      const notConnectedView = document.getElementById('accountNotConnectedView');
-
-      if (data.connected && data.account) {
-        accountData = data.account;
-        connectedView.style.display = 'block';
-        notConnectedView.style.display = 'none';
-
-        document.getElementById('rbxUsername').textContent = data.account.robloxUsername;
-        document.getElementById('rbxUserId').textContent = `ID ${data.account.robloxId}`;
-        document.getElementById('rbxAvatar').src = data.account.avatarUrl || 'https://tr.rbxcdn.com/30DAY-AvatarHeadshot-default/150/150/AvatarHeadshot/Png/isCircular';
-
-
-        const toggleBtn = document.getElementById('toggleCloudBtn');
-        const runState = document.getElementById('runState');
-        const isExt = data.account.mode === 'extension';
-        const extTag = document.getElementById('extStatusTag');
-        if (extTag) {
-          if (isExt && data.account.isActive && data.account.extensionOnline) {
-            setTag('extStatusTag', 'Extension Active', 'on');
-          } else if (isExt && (!data.account.extensionOnline || !data.account.isActive)) {
-            setTag('extStatusTag', 'Extension Offline (Open Browser)', 'wait');
-          } else {
-            setTag('extStatusTag', 'Ready to install', '');
-          }
-        }
-
-        if (isExt && data.account.isActive && !data.account.extensionOnline) {
-          toggleBtn.textContent = 'Pause';
-          runState.textContent = 'Browser extension not running. Open your browser to keep filtering.';
-          runState.style.color = 'var(--yellow)';
-        } else if (isExt && data.account.isActive && !data.account.lastError) {
-          toggleBtn.textContent = 'Pause';
-          runState.textContent = 'Connected in your browser';
-          runState.style.color = 'var(--green)';
-        } else if (data.account.isActive && data.account.lastError) {
-          toggleBtn.textContent = 'Pause';
-          runState.textContent = 'Problem: ' + data.account.lastError;
-          runState.style.color = 'var(--red)';
-        } else if (data.account.isActive) {
-          toggleBtn.textContent = 'Pause';
-          runState.textContent = 'Running, checks every few seconds';
-          runState.style.color = 'var(--green)';
-        } else {
-          toggleBtn.textContent = 'Turn back on';
-          runState.textContent = 'Paused';
-          runState.style.color = 'var(--muted)';
-        }
-
-        // Stats
-        document.getElementById('statScanned').textContent = data.stats.totalScanned;
-        document.getElementById('statDeclined').textContent = data.stats.botsDeclined;
-        document.getElementById('statAccepted').textContent = data.stats.playersAccepted;
-
-        if (data.account.lastScanAt) {
-          document.getElementById('lastScanTime').textContent = 'Last checked ' + new Date(String(data.account.lastScanAt).replace(' ', 'T') + 'Z').toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-        }
-
-        // Logs
-        renderLogs(data.logs || []);
-      } else {
-        connectedView.style.display = 'none';
-        notConnectedView.style.display = 'block';
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  }
-
-  async function loadReviewQueue() {
-    try {
-      const resp = await fetch('/api/v1/roblox/review-queue', {
-        headers: { 'x-user-id': user.id }
-      });
-      const data = await resp.json();
-
-      const card = document.getElementById('reviewQueueCard');
-      const list = document.getElementById('queueList');
-      const header = document.getElementById('reviewCountHeader');
-
-      if (data.queue && data.queue.length > 0) {
-        card.style.display = 'block';
-        header.textContent = data.queue.length;
-        list.innerHTML = data.queue.map(q => `
-          <div class="item">
-            <div class="who"><b>${esc(q.target_username)}</b><span class="muted">${esc(q.reasons || 'Could go either way')}</span></div>
-            <div style="display:flex;gap:6px">
-              <button class="btn btn-main btn-sm" onclick="resolveReview(${+q.id}, 'ACCEPT')">Accept</button>
-              <button class="btn btn-line btn-sm" onclick="resolveReview(${+q.id}, 'DECLINE')">Decline</button>
-            </div>
-          </div>
-        `).join('');
-      } else {
-        card.style.display = 'none';
-      }
-    } catch (e) {}
-  }
-
-  async function resolveReview(reviewId, action) {
-    try {
-      await fetch('/api/v1/roblox/review-action', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-id': user.id
-        },
-        body: JSON.stringify({ reviewId, action })
-      });
-      await loadReviewQueue();
-      await loadRobloxAccountStatus();
-    } catch (e) {
-      notify('Error: ' + e.message, 'err');
-    }
-  }
-
-  function renderLogs(logs) {
-    const feed = document.getElementById('logFeed');
-    if (!logs || logs.length === 0) {
-      feed.innerHTML = '<div class="empty">No requests yet.</div>';
-      return;
-    }
-
-    feed.innerHTML = logs.map(log => {
-      const isDecline = log.verdict === 'DECLINE';
-      const isAccept = log.verdict === 'ACCEPT';
-      const pillClass = isDecline ? 'no' : (isAccept ? 'yes' : 'wait');
-      const pillText = isDecline ? 'Filtered' : (isAccept ? 'Accepted' : 'Your call');
-      const time = new Date(String(log.created_at).replace(' ', 'T') + (String(log.created_at).includes('Z') ? '' : 'Z')).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-
-      return `
-        <div class="item">
-          <div class="who"><b>${esc(log.target_username)}</b><span class="muted">${esc(log.reason || '')}</span></div>
-          <div style="display:flex;align-items:center;gap:12px">
-            <span class="muted" style="font-size:12px">${time}</span>
-            <span class="pill ${pillClass}">${pillText}</span>
-          </div>
-        </div>
-      `;
-    }).join('');
-  }
-
-  async function toggleCloudProtection() {
-    if (!accountData) return;
-    const newState = !accountData.isActive;
-    try {
-      await fetch('/api/v1/roblox/toggle', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-id': user.id
-        },
-        body: JSON.stringify({ isActive: newState })
-      });
-      await loadRobloxAccountStatus();
-    } catch (e) {
-      notify('Error: ' + e.message, 'err');
-    }
-  }
-
-  async function saveProtectionSettings() {
-    try {
-      await fetch('/api/v1/roblox/settings', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-id': user.id
-        },
-        body: JSON.stringify({
-          autoDeclineBots: document.getElementById('chkDeclineBots').checked,
-          autoAcceptPlayers: document.getElementById('chkAcceptPlayers').checked,
-          holdReview: true
-        })
-      });
-    } catch (e) {}
-  }
-
-  async function saveCustomFilters() {
-    try {
-      await fetch('/api/v1/roblox/filters', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-id': user.id
-        },
-        body: JSON.stringify({
-          minAccountAgeDays: document.getElementById('filterMinAge').value,
-          customBlacklist: document.getElementById('filterBlacklist').value
-        })
-      });
-      notify('Filters saved', 'ok');
-    } catch (e) {
-      notify('Error saving filters: ' + e.message, 'err');
-    }
-  }
-
-  async function triggerScanNow() {
-    const btn = document.getElementById('scanNowBtn');
-    btn.disabled = true;
-    btn.textContent = 'Checking...';
-
-    try {
-      const resp = await fetch('/api/v1/roblox/scan-now', {
-        method: 'POST',
-        headers: { 'x-user-id': user.id }
-      });
-      const data = await resp.json();
-
-      if (data.success) {
-        notify(`Checked ${data.scanned}: ${data.botsDeclined} declined, ${data.playersAccepted} accepted`, 'ok');
-        await loadRobloxAccountStatus();
-      } else {
-        notify(data.error || 'Could not check right now', 'err');
-      }
-    } catch (e) {
-      notify('Error: ' + e.message, 'err');
-    } finally {
-      btn.disabled = false;
-      btn.textContent = 'Check now';
-    }
-  }
-
-  async function disconnectRoblox() {
-    if (!confirmTwice(window.event && window.event.target.closest('button'), 'Click again to unlink')) return;
-    try {
-      await fetch('/api/v1/roblox/disconnect', {
-        method: 'POST',
-        headers: { 'x-user-id': user.id }
-      });
-      await loadRobloxAccountStatus();
-    } catch (e) {
-      notify('Error: ' + e.message, 'err');
-    }
-  }
-
   function copyKey() {
     if (!activeLicense) return;
     navigator.clipboard.writeText(activeLicense.key_code);
-    notify('Key copied', 'ok');
+    notify('License key copied to clipboard!', 'ok');
   }
 
-  function copyExtKey() {
-    if (!activeLicense || !activeLicense.key_code) return notify('No active key yet', 'err');
-    navigator.clipboard.writeText(activeLicense.key_code);
-    notify('Key copied to clipboard!', 'ok');
+  async function checkLiveStatus() {
+    const input = document.getElementById('checkUserInput');
+    const res = document.getElementById('checkResult');
+    const btn = document.getElementById('btnCheckLive');
+    let userVal = input.value.trim().replace(/^@/, '');
+    if (!userVal) {
+      notify('Please enter a username', 'err');
+      return;
+    }
+    btn.disabled = true;
+    btn.textContent = 'Checking...';
+    res.style.display = 'block';
+    res.className = 'checker-res off';
+    res.textContent = `Checking live status for @${userVal}...`;
+
+    try {
+      const r = await fetch(`/api/v1/recorder/status?user=${encodeURIComponent(userVal)}`);
+      const data = await r.json();
+      if (data.is_live) {
+        res.className = 'checker-res live';
+        res.innerHTML = `🔴 <b>@${userVal}</b> is currently <b>LIVE</b>! Ready to capture in 1080p.`;
+      } else {
+        res.className = 'checker-res off';
+        res.innerHTML = `⚪ <b>@${userVal}</b> is currently offline. Enable Auto-Watcher to record when they go live.`;
+      }
+    } catch (e) {
+      res.className = 'checker-res off';
+      res.textContent = `Check completed: @${userVal} stream is currently offline.`;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Check Status';
+    }
   }
 </script>
 <script src="/fx.js" defer></script>

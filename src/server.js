@@ -303,6 +303,40 @@ app.get('/api/v1/tiers', (req, res) => {
 });
 
 // -------------------------------------------------------------
+// TIKTOK RECORDER API
+// -------------------------------------------------------------
+app.get('/api/v1/recorder/status', async (req, res) => {
+  const username = String(req.query.user || '').trim().replace(/^@/, '');
+  if (!username) return res.status(400).json({ error: 'Username required' });
+
+  try {
+    const url = `https://www.tiktok.com/@${encodeURIComponent(username)}/live`;
+    const resp = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+      },
+      signal: AbortSignal.timeout(6000)
+    });
+    const html = await resp.text();
+    const isLive = !html.includes('"status":4') && !html.includes('"liveRoom":{"status":4') && (html.includes('"liveRoom"') || html.includes('room_id') || html.includes('stream_url'));
+    res.json({
+      username,
+      is_live: isLive,
+      url,
+      message: isLive ? 'User is LIVE' : 'User is currently offline'
+    });
+  } catch (err) {
+    res.json({
+      username,
+      is_live: false,
+      url: `https://www.tiktok.com/@${encodeURIComponent(username)}/live`,
+      message: 'User is currently offline'
+    });
+  }
+});
+
+// -------------------------------------------------------------
 // ORDERS & PAYMENTS
 // -------------------------------------------------------------
 app.post('/api/v1/orders/create', authMiddleware, async (req, res) => {
@@ -1110,9 +1144,7 @@ app.post('/api/v1/admin/blacklist/:id/delete', adminAuthMiddleware, async (req, 
 // Start Server
 if (require.main === module) {
   app.listen(PORT, () => {
-    console.log(`[Waurks] Cloud Anti-Bot Server running on http://localhost:${PORT}`);
-    // Start background cloud daemon
-    robloxCloudService.startDaemon(10);
+    console.log(`[DevSupplies] TikTok Live Recorder Server running on http://localhost:${PORT}`);
     // Watch the LTC wallet and issue keys automatically when payments confirm
     ltcPayments.start(orderId => paymentService.completeOrder(orderId), 30);
     // One time: turn auto-accept off for existing accounts, so real players show on the Friend requests page

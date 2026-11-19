@@ -6,3 +6,11 @@ yarn-debug.log*
 yarn-error.log*
 
 *.db-journal
+
+# Python / Recorder ignores
+__pycache__/
+*.py[cod]
+recorder/recordings/*
+!recorder/recordings/.gitkeep
+recorder/__pycache__/
+

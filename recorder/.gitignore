@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Large recording files
+recordings/*
+!recordings/.gitkeep
+
+# Environment & logs
+.env
+*.log
+.DS_Store
+Thumbs.db

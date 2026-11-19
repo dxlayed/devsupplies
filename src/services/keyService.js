@@ -4,26 +4,26 @@ const db = require('../database');
 const TIER_CONFIG = {
   weekly: {
     name: 'Weekly',
-    price: 15.00,
+    price: 5.00,
     days: 7,
     durationMs: 7 * 24 * 60 * 60 * 1000,
-    prefix: 'WAURKS-W7D'
+    prefix: 'DEV-W7D'
   },
   monthly: {
     name: 'Monthly',
-    price: 45.00,
+    price: 10.00,
     days: 30,
     durationMs: 30 * 24 * 60 * 60 * 1000,
-    prefix: 'WAURKS-M30'
+    prefix: 'DEV-M30'
   },
   // Stored as 'yearly' in the database for compatibility, but sold as a Lifetime key (never expires)
   yearly: {
     name: 'Lifetime',
-    price: 115.00,
+    price: 15.00,
     days: 36500,
     lifetime: true,
     durationMs: 36500 * 24 * 60 * 60 * 1000,
-    prefix: 'WAURKS-LIFE'
+    prefix: 'DEV-LIFE'
   }
 };
 

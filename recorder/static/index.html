@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DevSupplies - TikTok Live Recorder & Downloader</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo-group">
+        <div class="brand-badge">DEVSUPPLIES</div>
+        <h1>TikTok Live Recorder</h1>
+      </div>
+      <div class="header-status">
+        <span class="status-indicator" id="serverStatusDot"></span>
+        <span id="serverStatusText">Connecting...</span>
+      </div>
+    </header>
+
+    <!-- Main Input Section -->
+    <section class="card input-card">
+      <h2>Record a Live Stream</h2>
+      <p class="subtitle">Enter any TikTok @username or live stream URL to check, record, or schedule auto-capture.</p>
+
+      <form id="recordForm" class="control-row" onsubmit="event.preventDefault();">
+        <div class="input-wrapper">
+          <span class="input-prefix">@</span>
+          <input 
+            type="text" 
+            id="usernameInput" 
+            placeholder="username or tiktok.com/@user/live" 
+            autocomplete="off"
+            spellcheck="false"
+            required
+          />
+        </div>
+        <div class="button-group">
+          <button type="button" id="btnCheckLive" class="btn btn-secondary">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+            Check Live
+          </button>
+          <button type="button" id="btnStartRecord" class="btn btn-primary">
+            <span class="rec-dot"></span>
+            Start Recording
+          </button>
+          <button type="button" id="btnWatch" class="btn btn-outline" title="Automatically record whenever this creator goes live">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+            Auto-Watch
+          </button>
+        </div>
+      </form>
+
+      <!-- Live Check Status Alert -->
+      <div id="checkResult" class="check-result hidden"></div>
+    </section>
+
+    <!-- Active Recordings Section -->
+    <section class="card" id="activeSection">
+      <div class="section-header">
+        <div class="title-with-badge">
+          <h2>Active Recordings</h2>
+          <span class="count-badge" id="activeCount">0</span>
+        </div>
+        <button class="btn btn-sm btn-ghost" id="btnRefreshActive">Refresh</button>
+      </div>
+
+      <div id="activeList" class="jobs-grid">
+        <div class="empty-state">No active recording jobs running right now.</div>
+      </div>
+    </section>
+
+    <!-- Background Auto-Watchers Section -->
+    <section class="card" id="watchersSection">
+      <div class="section-header">
+        <div class="title-with-badge">
+          <h2>Auto-Watchers</h2>
+          <span class="count-badge badge-neutral" id="watchersCount">0</span>
+        </div>
+        <span class="helper-text">Checks streamers every 45s and automatically begins recording when they go live.</span>
+      </div>
+
+      <div id="watchersList" class="watchers-chips">
+        <div class="empty-state">No creators being watched. Click "Auto-Watch" above to add one.</div>
+      </div>
+    </section>
+
+    <!-- Saved Recordings Section -->
+    <section class="card" id="savedSection">
+      <div class="section-header">
+        <div class="title-with-badge">
+          <h2>Recorded Videos</h2>
+          <span class="count-badge badge-neutral" id="savedCount">0</span>
+        </div>
+        <button class="btn btn-sm btn-ghost" id="btnRefreshSaved">Refresh List</button>
+      </div>
+
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>File Name</th>
+              <th>Recorded At</th>
+              <th>File Size</th>
+              <th style="text-align: right;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="savedTableBody">
+            <tr>
+              <td colspan="4" class="empty-state">No recordings found. Completed recordings will appear here.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <!-- Video Player Modal -->
+  <div id="videoModal" class="modal hidden">
+    <div class="modal-backdrop" id="modalBackdrop"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modalVideoTitle">Preview Video</h3>
+        <button class="btn-close" id="btnCloseModal">&times;</button>
+      </div>
+      <div class="video-container">
+        <video id="player" controls playsinline></video>
+      </div>
+      <div class="modal-footer">
+        <a id="modalDownloadLink" class="btn btn-primary" href="#" download>Download MP4</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
