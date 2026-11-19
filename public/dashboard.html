@@ -3,23 +3,25 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DevSupplies - TikTok Live Recorder</title>
+<title>waurk - TikTok Live Stream Recorder</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/theme.css">
 <script src="https://cdn.jsdelivr.net/npm/mpegts.js@1.7.3/dist/mpegts.js"></script>
 <style>
   :root {
-    --bg-dark: #0a0712;
-    --card-bg: #110c1c;
-    --border: #231938;
+    --bg-dark: #07040d;
+    --card-bg: #110b1a;
+    --card-border: #221535;
     --red: #ff3b5c;
     --red-hover: #e02848;
     --purple: #8b5cf6;
-    --text: #f4f3f8;
-    --muted: #8e88a0;
+    --purple-dim: #7c3aed;
+    --text: #f8fafc;
+    --muted: #8b839c;
   }
+  * { box-sizing: border-box; }
   body {
     background: var(--bg-dark);
     color: var(--text);
@@ -29,26 +31,28 @@
   }
   .wrap { max-width: 680px; margin: 0 auto; padding: 0 18px; }
 
-  /* Top Navigation */
+  /* Top Navigation Header */
   header.top-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 16px 0 20px;
+    padding: 18px 0 22px;
     border-bottom: 1px solid rgba(255,255,255,.06);
     margin-bottom: 24px;
   }
   .brand-group {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     font-family: 'Space Grotesk', sans-serif;
-    font-size: 20px;
-    font-weight: 700;
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    color: #fff;
   }
   .rec-indicator {
-    width: 10px;
-    height: 10px;
+    width: 9px;
+    height: 9px;
     border-radius: 50%;
     background: var(--red);
     display: inline-block;
@@ -71,7 +75,7 @@
     justify-content: space-between;
     gap: 12px;
     background: rgba(139,92,246,.08);
-    border: 1px solid rgba(139,92,246,.25);
+    border: 1px solid rgba(139,92,246,.22);
     border-radius: 14px;
     padding: 10px 14px;
     font-size: 13px;
@@ -89,39 +93,74 @@
     font-size: 11px;
     font-weight: 600;
     cursor: pointer;
+    transition: background .15s;
   }
   .btn-copy-sm:hover { background: rgba(255,255,255,.18); }
 
-  /* Upright-style Live Input Section */
+  /* Input Section */
   .input-section { margin-bottom: 30px; }
   .input-label {
-    font-size: 26px;
-    font-weight: 700;
+    font-size: 24px;
+    font-weight: 800;
     font-family: 'Space Grotesk', sans-serif;
     margin-bottom: 8px;
-    display: flex;
-    align-items: center;
-    gap: 4px;
+    letter-spacing: -0.3px;
+    color: #fff;
   }
   .input-field-wrapper {
     position: relative;
-    margin-bottom: 14px;
+    margin-bottom: 12px;
   }
   .live-input {
     width: 100%;
     box-sizing: border-box;
-    background: #0f0b18;
-    border: 1.5px solid #2d2048;
+    background: #0f0a17;
+    border: 1.5px solid #271a3d;
     border-radius: 12px;
     padding: 14px 16px;
-    font-size: 18px;
+    font-size: 17px;
     font-weight: 600;
     color: #fff;
     outline: none;
     transition: border-color .2s;
   }
   .live-input:focus { border-color: var(--purple); }
-  .live-input::placeholder { color: #584f6d; font-weight: 500; }
+  .live-input::placeholder { color: #584f6d; font-weight: 500; font-size: 15px; }
+
+  /* Mode Selector (Clean, No Emojis) */
+  .orientation-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 12px 0 14px;
+  }
+  .toggle-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    margin-right: 4px;
+  }
+  .btn-toggle {
+    background: rgba(255,255,255,.04);
+    border: 1px solid rgba(255,255,255,.1);
+    color: var(--muted);
+    padding: 7px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .15s ease;
+  }
+  .btn-toggle:hover {
+    background: rgba(255,255,255,.08);
+    color: #fff;
+  }
+  .btn-toggle.active {
+    background: rgba(255, 59, 92, .18);
+    border-color: rgba(255, 59, 92, .6);
+    color: #fff;
+    box-shadow: 0 0 16px rgba(255, 59, 92, .2);
+  }
 
   /* Buttons Row */
   .button-row {
@@ -136,7 +175,7 @@
     border: none;
     border-radius: 10px;
     padding: 14px;
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 700;
     cursor: pointer;
     transition: background .15s, transform .1s;
@@ -144,51 +183,17 @@
   .btn-record:hover { background: var(--red-hover); transform: translateY(-1px); }
   .btn-record:disabled { opacity: .5; cursor: not-allowed; transform: none; }
   .btn-check {
-    background: #151022;
+    background: #140d21;
     color: #fff;
-    border: 1px solid #332352;
+    border: 1px solid #2d1d49;
     border-radius: 10px;
     padding: 14px;
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 600;
     cursor: pointer;
     transition: background .15s, border-color .15s;
   }
-  .btn-check:hover { background: #1c152e; border-color: var(--purple); }
-  
-  /* Orientation Selector */
-  .orientation-toggle {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin: 14px 0 6px;
-  }
-  .toggle-label {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--muted);
-  }
-  .btn-toggle {
-    background: rgba(255,255,255,.05);
-    border: 1px solid rgba(255,255,255,.1);
-    color: var(--muted);
-    padding: 7px 14px;
-    border-radius: 999px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all .15s ease;
-  }
-  .btn-toggle:hover {
-    background: rgba(255,255,255,.1);
-    color: #fff;
-  }
-  .btn-toggle.active {
-    background: rgba(255, 59, 92, .18);
-    border-color: rgba(255, 59, 92, .6);
-    color: #fff;
-    box-shadow: 0 0 15px rgba(255, 59, 92, .2);
-  }
+  .btn-check:hover { background: #1b122e; border-color: var(--purple); }
 
   .helper-text {
     font-size: 13px;
@@ -197,444 +202,301 @@
     margin: 4px 0 0;
   }
 
-  /* Status message alert */
+  /* Status message alert (Clean, No fake earnings) */
   .status-alert {
-    padding: 12px 14px;
-    border-radius: 10px;
+    padding: 14px 16px;
+    border-radius: 14px;
     font-size: 13px;
-    margin-top: 10px;
+    margin-top: 14px;
     display: none;
+    background: #120b1f;
+    border: 1px solid #2b1a45;
   }
-  .status-alert.live { background: rgba(255,59,92,.15); border: 1px solid rgba(255,59,92,.35); color: #ff5470; }
-  .status-alert.off { background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); color: var(--muted); }
-
-  /* Section Title */
-  .sec-heading {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 22px;
-    font-weight: 700;
-    margin: 28px 0 16px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+  .status-alert.live {
+    border-color: rgba(255, 59, 92, .4);
+    box-shadow: 0 0 20px rgba(255, 59, 92, .12);
   }
-
-  /* Live Recorder Console (Custom DevSupplies Cyber Aesthetics) */
-  .rec-console {
-    position: relative;
-    border-radius: 20px;
-    background: linear-gradient(145deg, #130a21, #0b0616);
-    border: 1px solid #2a1f40;
-    box-shadow: 0 16px 40px rgba(0,0,0,.6), 0 0 30px rgba(234,30,99,.08);
-    min-height: 220px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 32px 24px;
-    margin-bottom: 34px;
-    overflow: hidden;
-  }
-
-  .console-mode-badge {
-    font-size: 11px;
-    font-weight: 700;
-    color: #c4b5fd;
-    background: rgba(139,92,246,.15);
-    border: 1px solid rgba(139,92,246,.3);
-    padding: 3px 10px;
-    border-radius: 12px;
-  }
-
-  .console-idle {
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-  .radar-orbit {
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    background: rgba(234,30,99,.07);
-    border: 1px dashed rgba(234,30,99,.3);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 14px;
-    position: relative;
-    animation: rotateSlow 12s linear infinite;
-  }
-  @keyframes rotateSlow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-  .radar-orbit svg { width: 26px; height: 26px; color: #ff3366; opacity: .85; }
-  .console-idle-title {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 17px;
-    font-weight: 700;
-    color: #fff;
-    margin-bottom: 6px;
-  }
-  .console-idle-desc {
-    color: var(--muted);
-    font-size: 13px;
-    line-height: 1.5;
-    max-width: 440px;
-  }
-
-  /* Active Console Recording State */
-  .console-active {
-    text-align: center;
-    display: none;
-    width: 100%;
-  }
-  .live-rec-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    background: rgba(234,30,99,.15);
-    border: 1px solid rgba(234,30,99,.35);
-    color: #ff3366;
-    padding: 4px 14px;
-    border-radius: 20px;
-    font-size: 11px;
-    font-weight: 800;
-    letter-spacing: .5px;
-    margin-bottom: 14px;
-  }
-  .live-blink-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: #ff3366;
-    box-shadow: 0 0 10px #ff3366;
-    animation: livePulse .8s infinite alternate;
-  }
-  .active-user-pill {
-    margin-bottom: 10px;
-  }
-  .active-user-title {
-    font-size: 26px;
-    font-weight: 800;
-    font-family: 'Space Grotesk', sans-serif;
-    color: #fff;
-  }
-  .active-timer-display {
-    font-size: 38px;
-    font-weight: 800;
-    font-family: ui-monospace, Consolas, monospace;
-    letter-spacing: 2px;
-    color: #f1f5f9;
-    text-shadow: 0 0 20px rgba(139,92,246,.5);
-    margin-bottom: 14px;
-  }
-  .console-chips {
-    display: flex;
-    justify-content: center;
-    gap: 8px;
-    flex-wrap: wrap;
-    margin-bottom: 22px;
-  }
-  .c-chip {
-    background: rgba(255,255,255,.05);
-    border: 1px solid rgba(255,255,255,.08);
-    color: #c4b5fd;
-    font-size: 12px;
-    padding: 4px 12px;
-    border-radius: 8px;
-    font-family: ui-monospace, Consolas, monospace;
-  }
-  .btn-stop-broadcast {
-    background: linear-gradient(135deg, rgba(234,30,99,.2), rgba(216,27,96,.1));
-    border: 1.5px solid #ff3366;
-    color: #ff3366;
-    border-radius: 12px;
-    padding: 12px 28px;
-    font-size: 14px;
-    font-weight: 700;
-    cursor: pointer;
-    box-shadow: 0 0 24px rgba(234,30,99,.25);
-    transition: all .2s;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .btn-stop-broadcast:hover {
-    background: #ff3366;
-    color: #fff;
-    box-shadow: 0 0 32px rgba(234,30,99,.5);
-  }
-  .stop-sq { font-size: 12px; }
-
-  /* Saved Creators Section */
-  .badge-count {
-    background: var(--purple);
-    color: #fff;
-    font-size: 11px;
-    font-weight: 800;
-    padding: 2px 7px;
-    border-radius: 10px;
-  }
-  .saved-creators-list {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
-    gap: 14px;
-    margin-bottom: 30px;
-  }
-  .saved-card {
-    background: var(--card-bg);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 14px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    transition: border-color .15s, transform .15s;
-  }
-  .saved-card:hover {
-    border-color: rgba(139,92,246,.4);
-    transform: translateY(-2px);
-  }
-  .saved-card-top {
+  .status-alert-top {
     display: flex;
     align-items: center;
     gap: 12px;
+    flex-wrap: wrap;
   }
-  .saved-avatar {
+  .status-alert-avatar {
     width: 44px;
     height: 44px;
     border-radius: 50%;
     object-fit: cover;
     border: 2px solid #2a1f40;
-    background: #1b1028;
     flex: none;
   }
-  .saved-avatar.live {
-    border-color: #ea1e63;
-    box-shadow: 0 0 12px rgba(234,30,99,.6);
+  .badge-live-tag {
+    background: rgba(255, 71, 102, .15);
+    color: #ff4766;
+    border: 1px solid rgba(255, 71, 102, .35);
+    font-size: 11px;
+    font-weight: 800;
+    padding: 2px 7px;
+    border-radius: 6px;
+    margin-left: 6px;
   }
-  .saved-info {
-    flex: 1;
-    min-width: 0;
-  }
-  .saved-name {
-    font-size: 15px;
-    font-weight: 700;
-    color: #fff;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .saved-sub {
-    font-size: 12px;
-    color: var(--muted);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .saved-badge {
+  .badge-off-tag {
+    background: rgba(255, 255, 255, .06);
+    color: #94a3b8;
     font-size: 11px;
     font-weight: 700;
-    padding: 3px 8px;
+    padding: 2px 7px;
+    border-radius: 6px;
+    margin-left: 6px;
+  }
+  .btn-tikleap {
+    background: rgba(139,92,246,.15);
+    border: 1px solid rgba(139,92,246,.3);
+    color: #c4b5fd;
+    padding: 6px 12px;
     border-radius: 8px;
-    flex: none;
+    font-size: 12px;
+    font-weight: 700;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: all .15s;
   }
-  .saved-badge.live {
-    background: rgba(234,30,99,.15);
-    color: #ff3366;
-    border: 1px solid rgba(234,30,99,.3);
+  .btn-tikleap:hover {
+    background: rgba(139,92,246,.3);
+    color: #fff;
   }
-  .saved-badge.off {
-    background: rgba(255,255,255,.05);
-    color: #888;
+  .btn-save-creator {
+    background: rgba(255,255,255,.08);
+    border: 1px solid rgba(255,255,255,.15);
+    color: #fff;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s;
   }
-  .saved-earnings-row {
+  .btn-save-creator:hover { background: rgba(255,255,255,.18); }
+
+  /* -------------------------------------------------------------
+     LIVE STREAM MONITOR (Exact design matching user image)
+     ------------------------------------------------------------- */
+  .monitor-card {
+    background: #110b1a;
+    border: 1px solid #221535;
+    border-radius: 22px;
+    padding: 22px 20px;
+    margin-bottom: 28px;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+  }
+  .monitor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 18px;
+    padding: 0 4px;
+  }
+  .monitor-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 20px;
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: -0.4px;
+  }
+  .monitor-badge {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.6px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    text-transform: uppercase;
+  }
+  .monitor-badge.active {
+    background: rgba(255, 71, 102, 0.14);
+    color: #ff4766;
+    border: 1px solid rgba(255, 71, 102, 0.35);
+  }
+  .monitor-badge.idle {
+    background: rgba(255, 255, 255, 0.05);
+    color: #8e88a0;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .dot-pulse {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #ff4766;
+    box-shadow: 0 0 8px #ff4766;
+    animation: livePulse 0.9s infinite alternate;
+  }
+
+  /* List of Rows */
+  .monitor-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .stream-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 8px 10px;
-    background: rgba(255,255,255,.025);
-    border: 1px solid rgba(255,255,255,.05);
-    border-radius: 10px;
-    font-size: 12px;
-  }
-  .tikleap-pill {
-    color: #a78bfa;
-    text-decoration: none;
-    font-weight: 700;
-    font-size: 11px;
-    background: rgba(139,92,246,.15);
-    border: 1px solid rgba(139,92,246,.25);
-    padding: 3px 8px;
-    border-radius: 6px;
-    transition: background .15s;
-  }
-  .tikleap-pill:hover {
-    background: rgba(139,92,246,.3);
-    text-decoration: underline;
-  }
-  .saved-actions {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-  }
-  .btn-saved-rec {
-    flex: 1;
-    background: linear-gradient(135deg, #ea1e63, #d81b60);
-    border: none;
-    color: #fff;
-    padding: 7px 12px;
-    border-radius: 8px;
-    font-size: 12px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: opacity .15s;
-  }
-  .btn-saved-rec:hover { opacity: .9; }
-  .btn-saved-del {
-    background: transparent;
-    border: 1px solid rgba(255,255,255,.12);
-    color: var(--muted);
-    padding: 7px 10px;
-    border-radius: 8px;
-    font-size: 12px;
-    cursor: pointer;
-    transition: all .15s;
-  }
-  .btn-saved-del:hover {
-    color: #ff5470;
-    border-color: rgba(255,84,112,.3);
-    background: rgba(255,84,112,.1);
-  }
-  .empty-saved {
-    text-align: center;
-    padding: 24px 16px;
-    color: var(--muted);
-    font-size: 13px;
-    background: #0d0917;
+    padding: 12px 14px;
     border-radius: 14px;
-    border: 1px dashed rgba(255,255,255,.07);
-    grid-column: 1 / -1;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    transition: all 0.15s ease;
+    gap: 12px;
+  }
+  .stream-row:hover {
+    border-color: rgba(139, 92, 246, 0.35);
+    background: rgba(255, 255, 255, 0.035);
+  }
+  .stream-row.is-recording {
+    background: linear-gradient(90deg, rgba(255, 71, 102, 0.08), rgba(20, 10, 25, 0.6));
+    border: 1px solid rgba(255, 71, 102, 0.4);
+    box-shadow: 0 0 20px rgba(255, 71, 102, 0.12);
+  }
+  .stream-row.is-saved {
+    background: linear-gradient(90deg, rgba(124, 58, 237, 0.07), rgba(20, 10, 25, 0.6));
+    border: 1px solid rgba(124, 58, 237, 0.3);
   }
 
-  /* Cover / Thumb styling */
-  .rec-thumb-img {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    z-index: 1;
+  .stream-avatar-wrap {
+    position: relative;
+    flex: none;
   }
-  .rec-thumb svg { z-index: 0; }
-  .rec-thumb .badge-fmt { z-index: 2; }
-
-  /* Recordings List */
-  .recordings-list {
-    display: grid;
-    gap: 16px;
-  }
-  .rec-card {
+  .stream-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
     display: flex;
-    gap: 16px;
-    padding: 16px;
-    background: var(--card-bg);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    align-items: flex-start;
-    transition: border-color .15s;
-  }
-  .rec-card:hover { border-color: rgba(139,92,246,.35); }
-  .rec-thumb {
-    width: 76px;
-    height: 104px;
-    border-radius: 10px;
-    background: linear-gradient(135deg, #1c142b, #2b1744);
-    display: flex;
-    flex-direction: column;
     align-items: center;
     justify-content: center;
-    flex: none;
-    border: 1px solid rgba(255,255,255,.08);
-    position: relative;
-    overflow: hidden;
-  }
-  .rec-thumb svg { width: 28px; height: 28px; color: var(--purple); opacity: .7; }
-  .rec-thumb .badge-fmt {
-    position: absolute;
-    bottom: 6px;
-    font-size: 9px;
     font-weight: 800;
+    font-size: 16px;
     color: #fff;
-    background: rgba(0,0,0,.6);
-    padding: 2px 5px;
-    border-radius: 4px;
+    object-fit: cover;
+    background: linear-gradient(135deg, #7c3aed, #a855f7);
+    border: 1.5px solid rgba(255, 255, 255, 0.12);
   }
-  .rec-details {
+  .stream-avatar.rec-gradient {
+    background: linear-gradient(135deg, #ec4899, #f43f5e);
+  }
+  .stream-avatar.green-gradient {
+    background: linear-gradient(135deg, #10b981, #06b6d4);
+  }
+  .stream-avatar.orange-gradient {
+    background: linear-gradient(135deg, #ef4444, #f97316);
+  }
+  .stream-avatar.indigo-gradient {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  }
+
+  .stream-info {
     flex: 1;
     min-width: 0;
   }
-  .rec-username {
-    font-size: 17px;
+  .stream-handle {
+    font-size: 15px;
     font-weight: 700;
+    color: #fff;
     margin-bottom: 2px;
-  }
-  .rec-caption {
-    font-size: 13px;
-    color: var(--muted);
-    margin-bottom: 8px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .rec-meta {
+  .stream-meta {
     font-size: 12px;
-    color: #a49cb5;
-    margin-bottom: 12px;
+    color: #94a3b8;
     font-family: ui-monospace, Consolas, monospace;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .stream-badges {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: none;
+  }
+  .pill-status {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    padding: 5px 12px;
+    border-radius: 8px;
+    text-transform: uppercase;
+    flex: none;
+  }
+  .pill-status.rec {
+    background: rgba(255, 71, 102, 0.15);
+    color: #ff4766;
+    border: 1px solid rgba(255, 71, 102, 0.3);
+  }
+  .pill-status.saved {
+    background: #7c3aed;
+    color: #fff;
+  }
+  .pill-status.standby {
+    background: rgba(255, 255, 255, 0.08);
+    color: #94a3b8;
   }
 
-  /* Card Action Buttons (Matching Screenshot) */
-  .rec-actions {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-  }
-  .btn-action {
+  .btn-row-action {
     background: transparent;
-    border: 1px solid rgba(255,255,255,.2);
-    color: #fff;
-    padding: 6px 16px;
-    border-radius: 8px;
-    font-size: 13px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    color: #e2e8f0;
+    font-size: 12px;
     font-weight: 600;
+    padding: 5px 10px;
+    border-radius: 7px;
     cursor: pointer;
     text-decoration: none;
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    transition: background .15s, border-color .15s;
+    transition: all 0.15s ease;
   }
-  .btn-action:hover {
-    background: rgba(255,255,255,.1);
+  .btn-row-action:hover {
+    background: rgba(255, 255, 255, 0.1);
     border-color: #fff;
+    color: #fff;
   }
-  .btn-action.del {
+  .btn-row-action.danger {
     color: #ff5470;
-    border-color: rgba(255,84,112,.3);
+    border-color: rgba(255, 84, 112, 0.3);
   }
-  .btn-action.del:hover {
-    background: rgba(255,84,112,.12);
+  .btn-row-action.danger:hover {
+    background: rgba(255, 84, 112, 0.15);
     border-color: #ff5470;
   }
+  .btn-row-stop {
+    background: #ff3b5c;
+    border: 1px solid #ff3b5c;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 6px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    box-shadow: 0 0 14px rgba(255, 59, 92, 0.4);
+    transition: all 0.15s ease;
+  }
+  .btn-row-stop:hover { background: #e02848; }
 
-  .empty-recordings {
+  .empty-monitor {
     text-align: center;
-    padding: 34px 14px;
+    padding: 26px 16px;
     color: var(--muted);
-    font-size: 14px;
-    background: #0d0917;
-    border-radius: 16px;
-    border: 1px dashed rgba(255,255,255,.07);
+    font-size: 13px;
+    border-radius: 12px;
+    background: rgba(255,255,255,.015);
+    border: 1px dashed rgba(255,255,255,.06);
   }
 
   /* Video Modal */
@@ -655,7 +517,7 @@
     border: 1px solid #2a1f40;
     border-radius: 22px;
     width: 100%;
-    max-width: 460px;
+    max-width: 480px;
     padding: 18px 18px 22px;
     position: relative;
     box-shadow: 0 30px 90px rgba(0,0,0,.9), 0 0 40px rgba(234,30,99,.25);
@@ -687,31 +549,46 @@
   .modal-close:hover { background: rgba(255,255,255,.18); }
 
   /* Lock Overlay (if no license) */
-  body.locked .app-body { filter: blur(24px) saturate(.5); opacity: .4; pointer-events: none; }
-  body.locked { overflow: hidden; }
   #lockOverlay {
-    position: fixed; inset: 0; z-index: 50; display: none; place-items: center; padding: 20px;
-    background: radial-gradient(900px 600px at 50% 45%, rgba(139,92,246,.15), transparent 70%);
+    position: fixed;
+    inset: 0;
+    background: rgba(5,2,8,.92);
+    backdrop-filter: blur(10px);
+    z-index: 99;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
   }
-  body.locked #lockOverlay { display: grid; }
+  body.locked #lockOverlay { display: flex; }
+  body.locked .app-body { filter: blur(6px); pointer-events: none; user-select: none; }
+  body.pending .app-body, body.pending #lockOverlay { display: none; }
+
   .lock-box {
-    max-width: 420px; width: 100%; text-align: center;
-    background: #120c22; border: 1px solid var(--border); border-radius: 24px; padding: 36px 26px;
-    box-shadow: 0 40px 80px rgba(0,0,0,.7);
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 20px;
+    padding: 34px 28px;
+    max-width: 420px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 24px 60px rgba(0,0,0,.7);
   }
-  .lock-icon {
-    width: 72px; height: 72px; border-radius: 20px; background: linear-gradient(135deg,#7c4dff,#3b1a8f);
-    margin: 0 auto 18px; display: grid; place-items: center; color: #fff; font-size: 28px;
-  }
+  .lock-icon { font-size: 42px; margin-bottom: 14px; }
   .lock-btn {
-    display: inline-block; background: var(--purple); color: #fff; padding: 14px 34px;
-    border-radius: 12px; font-weight: 700; font-size: 15px; text-decoration: none; margin-top: 16px;
+    display: inline-block;
+    background: var(--purple);
+    color: #fff;
+    font-weight: 700;
+    padding: 12px 24px;
+    border-radius: 10px;
+    text-decoration: none;
+    margin-top: 12px;
   }
 
-  /* Toast Notification */
   #wkToast {
-    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
-    background: #1e1533; border: 1px solid #3d2b63; color: #fff;
+    position: fixed; bottom: 24px; right: 24px;
+    background: #1b122c; border: 1px solid rgba(139,92,246,.35); color: #fff;
     padding: 10px 18px; border-radius: 12px; font-size: 13px; font-weight: 600;
     display: none; z-index: 1000; box-shadow: 0 16px 36px rgba(0,0,0,.5);
   }
@@ -736,7 +613,7 @@
   <header class="top-header">
     <div class="brand-group">
       <span class="rec-indicator" id="headerRecDot"></span>
-      <span>DevSupplies</span>
+      <span>waurk</span>
     </div>
     <div class="header-status">
       <span id="headerRecStatus">Not recording</span> · <a href="/admin" id="adminLink" style="display:none;color:var(--purple);text-decoration:underline;margin-left:6px">Admin</a>
@@ -754,7 +631,7 @@
     <button class="btn-copy-sm" onclick="copyKey()">Copy key</button>
   </div>
 
-  <!-- Live Stream Input Area (Upright Style) -->
+  <!-- Live Stream Input Area -->
   <section class="input-section">
     <div class="input-label">@ username</div>
     <div class="input-field-wrapper">
@@ -768,10 +645,11 @@
       />
     </div>
 
+    <!-- Mode Selector (No Emojis) -->
     <div class="orientation-toggle">
       <span class="toggle-label">Mode:</span>
-      <button type="button" class="btn-toggle active" id="btnModePortrait" onclick="setOrientation('portrait')">📱 Portrait (9:16)</button>
-      <button type="button" class="btn-toggle" id="btnModeLandscape" onclick="setOrientation('landscape')">🖥️ Landscape (16:9)</button>
+      <button type="button" class="btn-toggle active" id="btnModePortrait" onclick="setOrientation('portrait')">Portrait (9:16)</button>
+      <button type="button" class="btn-toggle" id="btnModeLandscape" onclick="setOrientation('landscape')">Landscape (16:9)</button>
     </div>
 
     <div class="button-row">
@@ -780,72 +658,28 @@
     </div>
 
     <p class="helper-text">
-      Records the vertical picture directly in source 1080p. When stopped, your recording is ready to watch or download immediately below.
+      Records source live video directly in-browser. When stopped, your recording is ready to watch or download below.
     </p>
 
+    <!-- Status Alert Card -->
     <div id="statusAlert" class="status-alert"></div>
   </section>
 
-  <!-- Saved Creators Section -->
-  <section style="margin-top: 24px">
-    <div class="sec-heading">
-      <div style="display:flex;align-items:center;gap:8px">
-        <span>Saved Creators</span>
-        <span class="badge-count" id="savedCount">0</span>
-      </div>
-      <button class="btn-copy-sm" onclick="loadSavedCreators()">Refresh</button>
-    </div>
-    <div id="savedCreatorsList" class="saved-creators-list">
-      <div class="empty-saved">No saved creators yet. Enter a username above to track their lives and earnings.</div>
-    </div>
-  </section>
-
-  <!-- Live Recorder Console (Custom DevSupplies Style) -->
-  <section>
-    <div class="sec-heading">
-      <span>Recorder Console</span>
-      <span class="console-mode-badge" id="consoleModeBadge">📱 Portrait (9:16)</span>
-    </div>
-    <div class="rec-console" id="recConsole">
-      <!-- Idle state -->
-      <div class="console-idle" id="vfIdle">
-        <div class="radar-orbit">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg>
+  <!-- Live Stream Monitor (Matching Screenshot) -->
+  <section class="monitor-section">
+    <div class="monitor-card">
+      <div class="monitor-header">
+        <div class="monitor-title">Live Stream Monitor</div>
+        <div class="monitor-badge idle" id="monitorStatusBadge">
+          STANDBY
         </div>
-        <div class="console-idle-title">Recorder Standby</div>
-        <div class="console-idle-desc">Ready to capture TikTok lives directly in your browser without downloads.<br>Enter a username or click a saved creator to start.</div>
       </div>
 
-      <!-- Active recording state -->
-      <div class="console-active" id="vfActive">
-        <div class="live-rec-badge">
-          <span class="live-blink-dot"></span>
-          <span>RECORDING IN PROGRESS</span>
+      <div class="monitor-list" id="monitorList">
+        <div class="empty-monitor" id="emptyMonitor">
+          No active streams or recordings. Enter a username above to start.
         </div>
-        <div class="active-user-pill">
-          <div class="active-user-title" id="vfUser">@username</div>
-        </div>
-        <div class="active-timer-display" id="vfTimer">00:00:00</div>
-        <div class="console-chips">
-          <span class="c-chip"><b id="vfSize">0 B</b> saved</span>
-          <span class="c-chip">1080p 60fps</span>
-          <span class="c-chip" id="vfChipMode">📱 Portrait</span>
-        </div>
-        <button class="btn-stop-broadcast" id="btnStopRec" onclick="stopRecord()">
-          <span class="stop-sq">■</span> Stop Recording & Save MP4
-        </button>
       </div>
-    </div>
-  </section>
-
-  <!-- Recordings Section -->
-  <section>
-    <div class="sec-heading">
-      <span>Recordings</span>
-      <button class="btn-copy-sm" onclick="loadRecordings()">Refresh</button>
-    </div>
-    <div id="recordingsList" class="recordings-list">
-      <div class="empty-recordings">No saved recordings yet. Enter a username above to capture your first live.</div>
     </div>
   </section>
 </div>
@@ -854,7 +688,7 @@
 <div class="modal-overlay" id="videoModal">
   <div class="modal-card">
     <button class="modal-close" onclick="closeVideoModal()">Close</button>
-    <h3 style="font-size:16px;margin:0 0 14px;color:#fff" id="videoModalTitle">Playing Live Stream</h3>
+    <h3 style="font-size:16px;margin:0 0 14px;color:#fff" id="videoModalTitle">Viewing Stream</h3>
     <video id="playerVideo" controls autoplay playsinline></video>
   </div>
 </div>
@@ -862,9 +696,12 @@
 <script>
   let activeLicense = null;
   let activeJobId = null;
+  let activeJobData = null;
   let activeStartTime = 0;
   let timerInterval = null;
   let user = null;
+  let savedRecordings = [];
+  let savedCreators = [];
 
   function notify(msg, isErr = false) {
     const t = document.getElementById('wkToast');
@@ -880,7 +717,7 @@
     notify('License key copied to clipboard!');
   }
 
-  // Load user & license info
+  // Initial load
   window.addEventListener('DOMContentLoaded', async () => {
     try {
       const s = await (await fetch('/api/v1/auth/status')).json();
@@ -896,99 +733,13 @@
       document.body.classList.add('locked');
     }
     document.body.classList.remove('pending');
+
     await loadSavedCreators();
     await loadRecordings();
     await checkActiveRecordings();
 
-    // Poll active recording status every 3 seconds
     setInterval(checkActiveRecordings, 3000);
   });
-
-  // Saved Creators
-  async function loadSavedCreators() {
-    const listEl = document.getElementById('savedCreatorsList');
-    const countEl = document.getElementById('savedCount');
-    if (!user) return;
-    try {
-      const r = await fetch('/api/v1/creators/saved');
-      const data = await r.json();
-      const creators = data.creators || [];
-      if (countEl) countEl.textContent = creators.length;
-
-      if (!creators.length) {
-        listEl.innerHTML = '<div class="empty-saved">No saved creators yet. Check any creator above and click "⭐ Save Creator" to track their live status and earnings here.</div>';
-        return;
-      }
-
-      listEl.innerHTML = creators.map(c => `
-        <div class="saved-card" id="saved-card-${c.id}">
-          <div class="saved-card-top">
-            <img src="${c.avatarUrl || 'https://www.tiktok.com/favicon.ico'}" class="saved-avatar ${c.isLive ? 'live' : ''}" alt="${c.username}">
-            <div class="saved-info">
-              <div class="saved-name">@${c.username}</div>
-              <div class="saved-sub">${c.nickname || ''}</div>
-            </div>
-            <span class="saved-badge ${c.isLive ? 'live' : 'off'}">
-              ${c.isLive ? '🔴 LIVE' : '⚪ Offline'}
-            </span>
-          </div>
-
-          <div class="saved-earnings-row">
-            <div>
-              <span style="color:var(--muted)">Est. Live:</span> 
-              <b style="color:#2ed573">$${c.estEarnings || '0.00'}</b>
-            </div>
-            <a href="${c.tikleapUrl}" target="_blank" class="tikleap-pill">TikLeap ↗</a>
-          </div>
-
-          <div class="saved-actions">
-            <button class="btn-saved-rec" onclick="quickRecord('${c.username}')">
-              ${c.isLive ? '🔴 Record Live' : 'Record'}
-            </button>
-            <button class="btn-saved-del" title="Remove creator" onclick="deleteSavedCreator(${c.id})">✕</button>
-          </div>
-        </div>
-      `).join('');
-    } catch (e) {
-      if (listEl) listEl.innerHTML = '<div class="empty-saved">Failed to load saved creators.</div>';
-    }
-  }
-
-  async function saveCreatorFromAlert(username) {
-    if (!username) return;
-    try {
-      const r = await fetch('/api/v1/creators/save', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username })
-      });
-      const data = await r.json();
-      if (data.success) {
-        notify(`@${username} saved to your creators!`);
-        await loadSavedCreators();
-      } else {
-        notify(data.error || 'Could not save creator', true);
-      }
-    } catch (e) {
-      notify('Error saving creator: ' + e.message, true);
-    }
-  }
-
-  async function deleteSavedCreator(id) {
-    try {
-      const r = await fetch(`/api/v1/creators/saved/${id}`, { method: 'DELETE' });
-      const data = await r.json();
-      if (data.success) {
-        notify('Creator removed');
-        await loadSavedCreators();
-      }
-    } catch (e) {}
-  }
-
-  function quickRecord(username) {
-    document.getElementById('usernameInput').value = username;
-    startRecord();
-  }
 
   async function loadLicense() {
     try {
@@ -1012,7 +763,7 @@
     }
   }
 
-  // Check only button
+  // Check live status
   async function checkLive() {
     const raw = document.getElementById('usernameInput').value.trim();
     if (!raw) return notify('Please enter a username', true);
@@ -1022,52 +773,54 @@
     btn.disabled = true;
     btn.textContent = 'Checking...';
     alert.style.display = 'block';
-    alert.className = 'status-alert off';
-    alert.textContent = `Checking live status for ${raw}...`;
+    alert.className = 'status-alert';
+    alert.innerHTML = `<span style="color:var(--muted)">Checking status for @${raw}...</span>`;
 
     try {
       const r = await fetch(`/api/v1/recorder/status?user=${encodeURIComponent(raw)}`);
       const data = await r.json();
+      const tikleapLink = `https://www.tikleap.com/profile/${encodeURIComponent(data.username || raw)}`;
+
       if (data.is_live) {
         alert.className = 'status-alert live';
         alert.innerHTML = `
-          <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
-            ${data.avatar ? `<img src="${data.avatar}" style="width:42px;height:42px;border-radius:50%;object-fit:cover;border:2px solid #ea1e63">` : ''}
-            <div>
-              <div style="font-weight:700;font-size:15px;color:#fff">🔴 @${data.username} <span style="font-weight:400;color:var(--muted);font-size:12px">(${data.nickname || ''})</span></div>
-              <div style="font-size:12px;color:#c4b5fd">${data.title || 'Live Broadcast'}</div>
+          <div class="status-alert-top">
+            ${data.avatar ? `<img src="${data.avatar}" class="status-alert-avatar" alt="${data.username}">` : ''}
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:700;font-size:15px;color:#fff">
+                @${data.username} <span class="badge-live-tag">LIVE</span>
+              </div>
+              <div style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+                ${data.title || 'Live Stream'}
+              </div>
             </div>
-          </div>
-          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;font-size:12px;margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,.08)">
-            <div>
-              <b>Est. Live Earnings:</b> <span style="color:#2ed573;font-weight:700">$${data.est_earnings || '0.00'}</span> 
-              <span style="color:var(--muted);font-size:11px">(${data.diamonds || 0} diamonds)</span>
+            <div style="display:flex;align-items:center;gap:8px">
+              <a href="${tikleapLink}" target="_blank" class="btn-tikleap">Check on TikLeap ↗</a>
+              <button class="btn-save-creator" onclick="saveCreatorFromAlert('${data.username}')">Save Creator</button>
             </div>
-            <a href="${data.tikleap_url || `https://www.tikleap.com/profile/${data.username}`}" target="_blank" class="tikleap-pill">Check on TikLeap ↗</a>
-          </div>
-          <div style="margin-top:10px;display:flex;gap:8px">
-            <button class="btn-copy-sm" onclick="saveCreatorFromAlert('${data.username}')">⭐ Save Creator</button>
-            <button class="btn-copy-sm" style="background:#ea1e63;color:#fff;border-color:#ea1e63" onclick="startRecord()">● Record Now</button>
           </div>
         `;
       } else {
-        alert.className = 'status-alert off';
+        alert.className = 'status-alert';
         alert.innerHTML = `
-          <div style="display:flex;align-items:center;gap:12px">
-            ${data.avatar ? `<img src="${data.avatar}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:1px solid rgba(255,255,255,.15)">` : ''}
-            <div>
-              <div style="font-weight:700">⚪ @${data.username} is currently offline</div>
-              <div style="font-size:12px;color:var(--muted);margin-top:2px"><a href="${data.tikleap_url || `https://www.tikleap.com/profile/${data.username}`}" target="_blank" style="color:#a78bfa;text-decoration:underline">Check on TikLeap ↗</a></div>
+          <div class="status-alert-top">
+            ${data.avatar ? `<img src="${data.avatar}" class="status-alert-avatar" alt="${data.username}">` : ''}
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:700;font-size:15px;color:#fff">
+                @${data.username} <span class="badge-off-tag">Offline</span>
+              </div>
+              <div style="font-size:12px;color:var(--muted)">Creator is currently offline</div>
             </div>
-            <div style="margin-left:auto">
-              <button class="btn-copy-sm" onclick="saveCreatorFromAlert('${data.username}')">⭐ Save</button>
+            <div style="display:flex;align-items:center;gap:8px">
+              <a href="${tikleapLink}" target="_blank" class="btn-tikleap">Check on TikLeap ↗</a>
+              <button class="btn-save-creator" onclick="saveCreatorFromAlert('${data.username}')">Save Creator</button>
             </div>
           </div>
         `;
       }
     } catch (e) {
-      alert.className = 'status-alert off';
-      alert.textContent = `Creator appears to be offline right now.`;
+      alert.className = 'status-alert';
+      alert.textContent = `Could not load status for creator.`;
     } finally {
       btn.disabled = false;
       btn.textContent = 'Check only';
@@ -1079,13 +832,9 @@
     selectedOrientation = mode;
     document.getElementById('btnModePortrait').classList.toggle('active', mode === 'portrait');
     document.getElementById('btnModeLandscape').classList.toggle('active', mode === 'landscape');
-    const badge = document.getElementById('consoleModeBadge');
-    if (badge) badge.textContent = mode === 'portrait' ? '📱 Portrait (9:16)' : '🖥️ Landscape (16:9)';
-    const chip = document.getElementById('vfChipMode');
-    if (chip) chip.textContent = mode === 'portrait' ? '📱 Portrait' : '🖥️ Landscape';
   }
 
-  // Record button
+  // Start recording
   async function startRecord() {
     const raw = document.getElementById('usernameInput').value.trim();
     if (!raw) return notify('Please enter a TikTok @username', true);
@@ -1102,7 +851,10 @@
       });
       const data = await r.json();
       if (data.success && data.job) {
-        showActiveRecording(data.job);
+        activeJobId = data.job.jobId;
+        activeJobData = data.job;
+        activeStartTime = data.job.startTime || Date.now();
+        updateMonitorUI();
         notify(`Recording started for @${data.job.username}!`);
       } else {
         notify(data.error || 'Could not start recording', true);
@@ -1118,9 +870,11 @@
   // Stop recording
   async function stopRecord() {
     if (!activeJobId) return;
-    const btn = document.getElementById('btnStopRec');
-    btn.disabled = true;
-    btn.textContent = 'Finalizing MP4...';
+    const btn = document.getElementById('btnStopActiveRec');
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+    }
 
     try {
       const r = await fetch('/api/v1/recorder/stop', {
@@ -1130,49 +884,19 @@
       });
       const data = await r.json();
       if (data.success) {
-        notify(`Recording saved! You can now watch or download it below.`);
-        hideActiveRecording();
+        notify('Recording saved! You can now watch or download it below.');
+        activeJobId = null;
+        activeJobData = null;
+        clearInterval(timerInterval);
+        document.getElementById('headerRecStatus').textContent = 'Not recording';
+        document.getElementById('headerRecDot').classList.remove('active');
         await loadRecordings();
       } else {
         notify(data.error || 'Error stopping recording', true);
       }
     } catch (e) {
       notify('Error finalizing recording: ' + e.message, true);
-    } finally {
-      btn.disabled = false;
-      btn.textContent = 'Stop Recording';
     }
-  }
-
-  function showActiveRecording(job) {
-    activeJobId = job.jobId;
-    activeStartTime = job.startTime || Date.now();
-
-    document.getElementById('vfIdle').style.display = 'none';
-    document.getElementById('vfActive').style.display = 'block';
-    document.getElementById('vfUser').textContent = `@${job.username}`;
-    document.getElementById('headerRecStatus').textContent = `🔴 Recording @${job.username}`;
-    document.getElementById('headerRecDot').classList.add('active');
-
-    clearInterval(timerInterval);
-    timerInterval = setInterval(() => {
-      const sec = Math.max(0, Math.floor((Date.now() - activeStartTime) / 1000));
-      const m = Math.floor(sec / 60);
-      const s = sec % 60;
-      const h = Math.floor(m / 60);
-      const remM = m % 60;
-      document.getElementById('vfTimer').textContent = 
-        `${String(h).padStart(2, '0')}:${String(remM).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-    }, 1000);
-  }
-
-  function hideActiveRecording() {
-    activeJobId = null;
-    clearInterval(timerInterval);
-    document.getElementById('vfIdle').style.display = 'block';
-    document.getElementById('vfActive').style.display = 'none';
-    document.getElementById('headerRecStatus').textContent = 'Not recording';
-    document.getElementById('headerRecDot').classList.remove('active');
   }
 
   async function checkActiveRecordings() {
@@ -1181,52 +905,71 @@
       const data = await r.json();
       if (data.active && data.active.length > 0) {
         const cur = data.active[0];
-        if (!activeJobId || activeJobId !== cur.jobId) {
-          showActiveRecording(cur);
-        }
-        document.getElementById('vfSize').textContent = cur.fileSizeFormatted || '0 B';
+        activeJobId = cur.jobId;
+        activeJobData = cur;
+        activeStartTime = cur.startTime || Date.now();
+        updateMonitorUI();
       } else if (activeJobId) {
-        hideActiveRecording();
+        activeJobId = null;
+        activeJobData = null;
+        clearInterval(timerInterval);
+        document.getElementById('headerRecStatus').textContent = 'Not recording';
+        document.getElementById('headerRecDot').classList.remove('active');
         await loadRecordings();
       }
     } catch (e) {}
   }
 
-  // Load Saved Recordings List (Matching Frame 1 from user video)
+  // Load Saved Recordings
   async function loadRecordings() {
-    const listEl = document.getElementById('recordingsList');
     try {
       const r = await fetch('/api/v1/recorder/list');
       const data = await r.json();
-      const recs = data.recordings || [];
+      savedRecordings = data.recordings || [];
+      renderMonitor();
+    } catch (e) {}
+  }
 
-      if (!recs.length) {
-        listEl.innerHTML = '<div class="empty-recordings">No saved recordings yet. Enter a username above to capture your first live.</div>';
-        return;
+  // Load Saved Creators
+  async function loadSavedCreators() {
+    if (!user) return;
+    try {
+      const r = await fetch('/api/v1/creators/saved');
+      const data = await r.json();
+      savedCreators = data.creators || [];
+      renderMonitor();
+    } catch (e) {}
+  }
+
+  async function saveCreatorFromAlert(username) {
+    if (!username) return;
+    try {
+      const r = await fetch('/api/v1/creators/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username })
+      });
+      const data = await r.json();
+      if (data.success) {
+        notify(`@${username} saved to your monitor!`);
+        await loadSavedCreators();
+      } else {
+        notify(data.error || 'Could not save creator', true);
       }
-
-      listEl.innerHTML = recs.map(rec => `
-        <div class="rec-card" id="rec-card-${rec.id}">
-          <div class="rec-thumb">
-            ${rec.thumbnailUrl ? `<img src="${rec.thumbnailUrl}" class="rec-thumb-img" alt="First frame cover" onerror="this.style.display='none'">` : ''}
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
-            <span class="badge-fmt">MP4</span>
-          </div>
-          <div class="rec-details">
-            <div class="rec-username">@${rec.username}</div>
-            <div class="rec-caption">${rec.title || 'Live Broadcast Stream'}</div>
-            <div class="rec-meta">${rec.durationFormatted || '0:00'} &nbsp; ${rec.fileSizeFormatted || '0 B'} &nbsp; ${rec.dateFormatted || ''}</div>
-            <div class="rec-actions">
-              <button class="btn-action" onclick="playVideo('${rec.downloadUrl}', '@${rec.username}')">Play</button>
-              <a class="btn-action" href="${rec.downloadUrl}" download="${rec.filename}">Download</a>
-              <button class="btn-action del" onclick="deleteVideo(${rec.id})">Delete</button>
-            </div>
-          </div>
-        </div>
-      `).join('');
     } catch (e) {
-      listEl.innerHTML = '<div class="empty-recordings">Could not load recordings.</div>';
+      notify('Error saving creator: ' + e.message, true);
     }
+  }
+
+  async function deleteSavedCreator(id) {
+    try {
+      const r = await fetch(`/api/v1/creators/saved/${id}`, { method: 'DELETE' });
+      const data = await r.json();
+      if (data.success) {
+        notify('Creator removed from monitor');
+        await loadSavedCreators();
+      }
+    } catch (e) {}
   }
 
   async function deleteVideo(id) {
@@ -1236,9 +979,7 @@
       const data = await r.json();
       if (data.success) {
         notify('Recording deleted');
-        const card = document.getElementById(`rec-card-${id}`);
-        if (card) card.remove();
-        loadRecordings();
+        await loadRecordings();
       } else {
         notify(data.error || 'Failed to delete', true);
       }
@@ -1247,12 +988,150 @@
     }
   }
 
+  function quickRecord(username) {
+    document.getElementById('usernameInput').value = username;
+    startRecord();
+  }
+
+  // -------------------------------------------------------------
+  // RENDER MONITOR LIST (Matching User Reference Image)
+  // -------------------------------------------------------------
+  const avatarGradients = [
+    'rec-gradient',
+    'green-gradient',
+    'orange-gradient',
+    'indigo-gradient'
+  ];
+
+  function getInitial(name) {
+    const clean = String(name || '').replace(/^@/, '').trim();
+    return clean ? clean.charAt(0).toUpperCase() : 'S';
+  }
+
+  function updateMonitorUI() {
+    if (activeJobData) {
+      document.getElementById('headerRecStatus').textContent = `Recording @${activeJobData.username}`;
+      document.getElementById('headerRecDot').classList.add('active');
+      document.getElementById('monitorStatusBadge').className = 'monitor-badge active';
+      document.getElementById('monitorStatusBadge').innerHTML = '<span class="dot-pulse"></span> ACTIVE RECORDING';
+
+      clearInterval(timerInterval);
+      timerInterval = setInterval(() => {
+        const sec = Math.max(0, Math.floor((Date.now() - activeStartTime) / 1000));
+        const m = Math.floor(sec / 60);
+        const s = sec % 60;
+        const timeStr = `${m}m ${String(s).padStart(2, '0')}s elapsed`;
+        const timerEl = document.getElementById('activeRecElapsed');
+        if (timerEl) timerEl.textContent = timeStr;
+      }, 1000);
+    } else {
+      document.getElementById('headerRecStatus').textContent = 'Not recording';
+      document.getElementById('headerRecDot').classList.remove('active');
+      document.getElementById('monitorStatusBadge').className = 'monitor-badge idle';
+      document.getElementById('monitorStatusBadge').textContent = 'STANDBY';
+    }
+    renderMonitor();
+  }
+
+  function renderMonitor() {
+    const listEl = document.getElementById('monitorList');
+    if (!listEl) return;
+
+    let rowsHtml = '';
+
+    // 1. Active Recording Row (if recording)
+    if (activeJobData) {
+      const uInitial = getInitial(activeJobData.username);
+      const sec = Math.max(0, Math.floor((Date.now() - activeStartTime) / 1000));
+      const m = Math.floor(sec / 60);
+      const s = sec % 60;
+      const elapsedStr = `${m}m ${String(s).padStart(2, '0')}s elapsed`;
+
+      rowsHtml += `
+        <div class="stream-row is-recording">
+          <div class="stream-avatar-wrap">
+            <div class="stream-avatar rec-gradient">${uInitial}</div>
+          </div>
+          <div class="stream-info">
+            <div class="stream-handle">@${activeJobData.username}</div>
+            <div class="stream-meta">1080p 60fps · ${activeJobData.fileSizeFormatted || '0 B'} · <span id="activeRecElapsed">${elapsedStr}</span></div>
+          </div>
+          <div class="stream-badges">
+            <span class="pill-status rec">RECORDING</span>
+            <button class="btn-row-stop" id="btnStopActiveRec" onclick="stopRecord()">Stop</button>
+          </div>
+        </div>
+      `;
+    }
+
+    // 2. Saved Recordings Rows
+    if (savedRecordings && savedRecordings.length > 0) {
+      savedRecordings.forEach((rec, idx) => {
+        const uInitial = getInitial(rec.username);
+        const gradClass = avatarGradients[(idx + 1) % avatarGradients.length];
+
+        rowsHtml += `
+          <div class="stream-row is-saved" id="rec-card-${rec.id}">
+            <div class="stream-avatar-wrap">
+              ${rec.thumbnailUrl ? `<img src="${rec.thumbnailUrl}" class="stream-avatar" alt="cover" onerror="this.style.display='none'">` : `<div class="stream-avatar ${gradClass}">${uInitial}</div>`}
+            </div>
+            <div class="stream-info">
+              <div class="stream-handle">@${rec.username}</div>
+              <div class="stream-meta">1080p MP4 · ${rec.fileSizeFormatted || '0 B'} · ${rec.durationFormatted || '0:00'} · ${rec.dateFormatted || ''}</div>
+            </div>
+            <div class="stream-badges">
+              <span class="pill-status saved">SAVED</span>
+              <button class="btn-row-action" onclick="playVideo('${rec.downloadUrl}', '@${rec.username}')">Play</button>
+              <a class="btn-row-action" href="${rec.downloadUrl}" download="${rec.filename}">Download</a>
+              <button class="btn-row-action danger" onclick="deleteVideo(${rec.id})">Delete</button>
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    // 3. Monitored / Saved Creators Rows
+    if (savedCreators && savedCreators.length > 0) {
+      savedCreators.forEach((c, idx) => {
+        const uInitial = getInitial(c.username);
+        const gradClass = avatarGradients[(idx + 2) % avatarGradients.length];
+        const tikleapUrl = `https://www.tikleap.com/profile/${encodeURIComponent(c.username)}`;
+
+        rowsHtml += `
+          <div class="stream-row" id="creator-card-${c.id}">
+            <div class="stream-avatar-wrap">
+              ${c.avatarUrl ? `<img src="${c.avatarUrl}" class="stream-avatar" alt="${c.username}" onerror="this.style.display='none'">` : `<div class="stream-avatar ${gradClass}">${uInitial}</div>`}
+            </div>
+            <div class="stream-info">
+              <div class="stream-handle">@${c.username}</div>
+              <div class="stream-meta">${c.isLive ? 'Live now · Ready to capture' : 'Auto-Watcher standby'} · <a href="${tikleapUrl}" target="_blank" class="btn-tikleap" style="padding:1px 6px;font-size:10px">TikLeap ↗</a></div>
+            </div>
+            <div class="stream-badges">
+              <span class="pill-status ${c.isLive ? 'rec' : 'standby'}">${c.isLive ? 'LIVE' : 'STANDBY'}</span>
+              <button class="btn-row-action" style="${c.isLive ? 'background:rgba(255,59,92,.2);border-color:#ff3b5c;color:#ff5470;' : ''}" onclick="quickRecord('${c.username}')">Record</button>
+              <button class="btn-row-action danger" title="Remove creator" onclick="deleteSavedCreator(${c.id})">✕</button>
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    if (!rowsHtml) {
+      listEl.innerHTML = '<div class="empty-monitor">No active streams or saved recordings. Enter a username above to start.</div>';
+    } else {
+      listEl.innerHTML = rowsHtml;
+    }
+  }
+
+  // -------------------------------------------------------------
+  // VIDEO PLAYBACK MODAL
+  // -------------------------------------------------------------
   let activeMpegtsPlayer = null;
 
   function playVideo(url, title) {
     const modal = document.getElementById('videoModal');
     const player = document.getElementById('playerVideo');
-    document.getElementById('videoModalTitle').textContent = `Playing: ${title || 'Stream Recording'}`;
+    document.getElementById('videoModalTitle').textContent = `Viewing: ${title || 'Stream Recording'}`;
 
     if (activeMpegtsPlayer) {
       try { activeMpegtsPlayer.destroy(); } catch (e) {}
@@ -1283,7 +1162,6 @@
       }
     };
 
-    // Load URL into native HTML5 video
     player.src = url;
     player.load();
     const p = player.play();
@@ -1301,7 +1179,6 @@
     modal.classList.add('open');
   }
 
-  // Click outside to close modal
   document.getElementById('videoModal').addEventListener('click', (e) => {
     if (e.target === document.getElementById('videoModal')) {
       closeVideoModal();

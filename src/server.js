@@ -138,14 +138,14 @@ async function saveSetting(key, value) {
 function maintenancePage(message) {
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DevSupplies — Maintenance</title>
+<title>waurk — Maintenance</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
 <style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#09080c;color:#f3f1f7;font-family:Inter,sans-serif;padding:20px;text-align:center}
 .card{max-width:460px;background:#121017;border:1px solid #272233;border-radius:18px;padding:36px 28px}
 .ic{width:44px;height:44px;border-radius:12px;background:#9b5cff;color:#fff;display:flex;align-items:center;justify-content:center;margin:0 auto 18px;font:700 22px 'Space Grotesk',sans-serif}
 h1{font-family:'Space Grotesk',sans-serif;font-size:28px;margin:0 0 10px}p{color:#9b94a8;font-size:15px;line-height:1.6;margin:0}
 a{display:inline-block;margin-top:24px;color:#9b5cff;font-size:12px;text-decoration:none}</style></head>
-<body><div class="card"><div class="ic">D</div><h1>Be right back</h1>
+<body><div class="card"><div class="ic">w</div><h1>Be right back</h1>
 <p>${esc(message || "We're fixing a few things. Check back soon.")}</p>
 <a href="/api/v1/auth/discord/login?next=/admin">Staff sign in</a></div></body></html>`;
 }
@@ -578,7 +578,7 @@ app.get('/health', (req, res) => {
   }
   res.json({
     status: 'ok',
-    service: 'DevSupplies Live Stream Engine',
+    service: 'waurk Live Stream Engine',
     ffmpeg: ffmpegInfo,
     node: process.version,
     time: new Date().toISOString()
@@ -1233,7 +1233,7 @@ app.post('/api/v1/admin/blacklist/:id/delete', adminAuthMiddleware, async (req, 
 // Start Server
 if (require.main === module) {
   app.listen(PORT, () => {
-    console.log(`[DevSupplies] TikTok Live Recorder Server running on http://localhost:${PORT}`);
+    console.log(`[waurk] TikTok Live Recorder Server running on http://localhost:${PORT}`);
     // Watch the LTC wallet and issue keys automatically when payments confirm
     ltcPayments.start(orderId => paymentService.completeOrder(orderId), 30);
     // One time: turn auto-accept off for existing accounts, so real players show on the Friend requests page
