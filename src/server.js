@@ -18,10 +18,7 @@ const paymentService = require('./services/paymentService');
 const discordAuth = require('./auth/discord');
 const robloxCloudService = require('./services/robloxCloudService');
 const ltcPayments = require('./services/ltcPayments');
-const zipExtension = require('./services/zipExtension');
-
-// Ensure latest extension zip is bundled and ready for download
-zipExtension.ensureExtensionZip();
+const liveRecorderService = require('./services/liveRecorderService');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -89,6 +86,7 @@ app.use(async (req, res, next) => {
   res.status(503).set('Retry-After', '600').type('html').send(maintenancePage(siteSettings.maintenanceMessage));
 });
 
+app.use('/recordings', express.static(path.join(__dirname, '..', 'public', 'recordings')));
 app.use(express.static(path.join(__dirname, '..', 'public'), { extensions: ['html'] }));
 
 // -------------------------------------------------------------
@@ -305,34 +303,56 @@ app.get('/api/v1/tiers', (req, res) => {
 // -------------------------------------------------------------
 // TIKTOK RECORDER API
 // -------------------------------------------------------------
+// TIKTOK LIVE RECORDER API
+// -------------------------------------------------------------
 app.get('/api/v1/recorder/status', async (req, res) => {
-  const username = String(req.query.user || '').trim().replace(/^@/, '');
+  const username = String(req.query.user || '').trim();
   if (!username) return res.status(400).json({ error: 'Username required' });
+  const result = await liveRecorderService.checkStatus(username);
+  res.json(result);
+});
 
+app.post('/api/v1/recorder/start', authMiddleware, async (req, res) => {
   try {
-    const url = `https://www.tiktok.com/@${encodeURIComponent(username)}/live`;
-    const resp = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
-      },
-      signal: AbortSignal.timeout(6000)
-    });
-    const html = await resp.text();
-    const isLive = !html.includes('"status":4') && !html.includes('"liveRoom":{"status":4') && (html.includes('"liveRoom"') || html.includes('room_id') || html.includes('stream_url'));
-    res.json({
-      username,
-      is_live: isLive,
-      url,
-      message: isLive ? 'User is LIVE' : 'User is currently offline'
-    });
+    const { username } = req.body;
+    if (!username) return res.status(400).json({ error: 'Username required' });
+    const job = await liveRecorderService.startRecording(req.user.id, username);
+    res.json({ success: true, job });
   } catch (err) {
-    res.json({
-      username,
-      is_live: false,
-      url: `https://www.tiktok.com/@${encodeURIComponent(username)}/live`,
-      message: 'User is currently offline'
-    });
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.post('/api/v1/recorder/stop', authMiddleware, async (req, res) => {
+  try {
+    const { jobId } = req.body;
+    if (!jobId) return res.status(400).json({ error: 'Job ID required' });
+    const result = await liveRecorderService.stopRecording(jobId);
+    res.json({ success: true, recording: result });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.get('/api/v1/recorder/active', (req, res) => {
+  res.json({ active: liveRecorderService.getActiveJobs(req.user?.id) });
+});
+
+app.get('/api/v1/recorder/list', async (req, res) => {
+  try {
+    const recordings = await liveRecorderService.getRecordings(req.user?.id);
+    res.json({ recordings });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/v1/recorder/:id', authMiddleware, async (req, res) => {
+  try {
+    await liveRecorderService.deleteRecording(req.params.id, req.user.id);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
   }
 });
 
@@ -796,12 +816,7 @@ app.get('/api/v1/admin/users', adminAuthMiddleware, async (req, res) => {
       `SELECT u.id, u.discord_id, u.username, u.avatar, u.created_at, COALESCE(u.banned,0) AS banned,
         (SELECT COUNT(*) FROM licenses l WHERE l.user_id = u.id AND l.status = 'active' AND l.expires_at > datetime('now')) AS active_keys,
         (SELECT COALESCE(SUM(amount_usd),0) FROM orders o WHERE o.user_id = u.id AND o.status = 'completed') AS spent_usd,
-        (SELECT roblox_username FROM roblox_accounts r WHERE r.user_id = u.id LIMIT 1) AS roblox_username,
-        (SELECT roblox_id FROM roblox_accounts r WHERE r.user_id = u.id LIMIT 1) AS roblox_id,
-        (SELECT avatar_url FROM roblox_accounts r WHERE r.user_id = u.id LIMIT 1) AS roblox_avatar,
-        (SELECT is_active FROM roblox_accounts r WHERE r.user_id = u.id LIMIT 1) AS is_active,
-        (SELECT mode FROM roblox_accounts r WHERE r.user_id = u.id LIMIT 1) AS botter_mode,
-        (SELECT (CASE WHEN r.last_check_at > datetime('now', '-45 seconds') THEN 1 ELSE 0 END) FROM roblox_accounts r WHERE r.user_id = u.id LIMIT 1) AS is_online
+        (SELECT COUNT(*) FROM recordings r WHERE r.user_id = u.id) AS total_recordings
        FROM users u
        WHERE u.username LIKE ? OR u.discord_id LIKE ?
        ORDER BY u.id DESC LIMIT 100`,
@@ -999,19 +1014,13 @@ app.post('/api/v1/admin/licenses/:licenseId/reset-hwid', adminAuthMiddleware, as
 
 app.get('/api/v1/admin/stats', adminAuthMiddleware, async (req, res) => {
   try {
-    const revenue = await db.get(`SELECT SUM(amount_usd) as total_usd, COUNT(*) as total_orders FROM orders WHERE status = 'completed'`);
+    const revenue = await db.get(`SELECT COALESCE(SUM(amount_usd),0) as total_usd, COUNT(*) as total_orders FROM orders WHERE status = 'completed'`);
     const activeKeys = await db.get(`SELECT COUNT(*) as active_count FROM licenses WHERE status = 'active' AND expires_at > datetime('now')`);
     const pendingTrades = await db.get(`SELECT COUNT(*) as pending_count FROM orders WHERE payment_method = 'items' AND status = 'pending'`);
     const users = await db.get(`SELECT COUNT(*) as n FROM users`);
     const week = await db.get(`SELECT COALESCE(SUM(amount_usd),0) as usd FROM orders WHERE status = 'completed' AND created_at > datetime('now','-7 days')`);
-    const connectedAccounts = await db.get(`SELECT COUNT(*) as accounts_count FROM roblox_accounts`);
-    const botStats = await db.get(
-      `SELECT 
-        COUNT(*) as total_filtered,
-        SUM(CASE WHEN verdict = 'DECLINE' THEN 1 ELSE 0 END) as bots_blocked,
-        SUM(CASE WHEN verdict = 'ACCEPT' THEN 1 ELSE 0 END) as players_accepted
-       FROM scan_activity_logs`
-    );
+    const recStats = await db.get(`SELECT COUNT(*) as total_rec, COALESCE(SUM(file_size_bytes),0) as total_bytes FROM recordings`);
+    const activeJobs = liveRecorderService.getActiveJobs().length;
 
     res.json({
       revenueUsd: revenue?.total_usd || 0,
@@ -1020,10 +1029,29 @@ app.get('/api/v1/admin/stats', adminAuthMiddleware, async (req, res) => {
       totalOrders: revenue?.total_orders || 0,
       activeSubscriptions: activeKeys?.active_count || 0,
       pendingTradeTickets: pendingTrades?.pending_count || 0,
-      connectedRobloxAccounts: connectedAccounts?.accounts_count || 0,
-      totalBotsBlocked: botStats?.bots_blocked || 0,
-      totalPlayersAccepted: botStats?.players_accepted || 0
+      totalRecordings: recStats?.total_rec || 0,
+      totalRecordingBytes: recStats?.total_bytes || 0,
+      activeJobs
     });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/v1/admin/recordings', adminAuthMiddleware, async (req, res) => {
+  try {
+    const recordings = await liveRecorderService.getRecordings();
+    res.json({ recordings });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/v1/admin/recordings/:id', adminAuthMiddleware, async (req, res) => {
+  try {
+    await liveRecorderService.deleteRecording(req.params.id);
+    await logAdmin(req, 'DELETE_RECORDING', `deleted recording #${req.params.id}`);
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

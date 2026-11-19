@@ -3,302 +3,827 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>My account - DevSupplies TikTok Live Recorder</title>
+<title>DevSupplies - TikTok Live Recorder</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/theme.css">
 <style>
-  .page{max-width:880px;margin:0 auto;padding:0 20px 100px}
-  .pagehero{position:relative;text-align:center;padding:56px 0 40px;overflow:hidden}
-  .pagehero::before{content:"";position:absolute;width:1100px;height:1100px;left:calc(50% - 550px);top:-640px;pointer-events:none;
-    background:repeating-conic-gradient(from 0deg,rgba(139,92,246,.12) 0deg 6deg,transparent 6deg 18deg);
-    -webkit-mask:radial-gradient(circle,#000 0,transparent 55%);mask:radial-gradient(circle,#000 0,transparent 55%);animation:pgspin 40s linear infinite}
-  @keyframes pgspin{to{transform:rotate(360deg)}}
-  .pagehero > *{position:relative}
-  .hello{font-size:clamp(40px,6vw,68px);letter-spacing:-.04em;line-height:1;margin:16px 0 0}
-  .box{border-radius:24px;padding:26px;margin-top:20px !important}
-  .box-head h2{font-size:24px;letter-spacing:-.02em}
-  .me{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);padding:4px 12px 4px 4px;border-radius:999px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);margin-left:6px}
-  .me img{width:30px;height:30px;border-radius:50%}
+  :root {
+    --bg-dark: #0a0712;
+    --card-bg: #110c1c;
+    --border: #231938;
+    --red: #ff3b5c;
+    --red-hover: #e02848;
+    --purple: #8b5cf6;
+    --text: #f4f3f8;
+    --muted: #8e88a0;
+  }
+  body {
+    background: var(--bg-dark);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    padding-bottom: 90px;
+    margin: 0;
+  }
+  .wrap { max-width: 680px; margin: 0 auto; padding: 0 18px; }
 
-  .key-row{display:flex;align-items:center;justify-content:space-between;gap:12px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:12px 14px;margin:14px 0}
-  .key-row .mono{font-size:15px;font-weight:600;word-break:break-all}
-  .facts{display:flex;gap:28px;flex-wrap:wrap;font-size:14px;color:var(--muted)}
-  .facts b{color:var(--text);font-weight:600}
+  /* Top Navigation */
+  header.top-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 0 20px;
+    border-bottom: 1px solid rgba(255,255,255,.06);
+    margin-bottom: 24px;
+  }
+  .brand-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+  }
+  .rec-indicator {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--red);
+    display: inline-block;
+  }
+  .rec-indicator.active {
+    box-shadow: 0 0 12px var(--red);
+    animation: livePulse 1.2s infinite ease-in-out;
+  }
+  @keyframes livePulse { 50% { opacity: .35; } }
+  .header-status {
+    font-size: 13px;
+    color: var(--muted);
+    font-weight: 500;
+  }
 
-  .app-card{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;background:rgba(139,92,246,.08);border:1px solid rgba(139,92,246,.35);border-radius:18px;padding:20px}
-  .app-info{display:flex;align-items:center;gap:16px}
-  .app-icon{width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,#7c4dff,#ff3b5c);display:grid;place-items:center;font-weight:700;font-size:24px;color:#fff;box-shadow:0 8px 24px rgba(124,77,255,.45)}
-  .app-title{font-family:"Space Grotesk",sans-serif;font-weight:700;font-size:18px}
-  .app-btns{display:flex;gap:10px;flex-wrap:wrap}
+  /* Account & Key Bar */
+  .key-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: rgba(139,92,246,.08);
+    border: 1px solid rgba(139,92,246,.25);
+    border-radius: 14px;
+    padding: 10px 14px;
+    font-size: 13px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+  }
+  .key-banner b { color: #fff; }
+  .key-mono { font-family: ui-monospace, Consolas, monospace; font-size: 13px; color: #c4b5fd; }
+  .btn-copy-sm {
+    background: rgba(255,255,255,.08);
+    border: 1px solid rgba(255,255,255,.15);
+    color: #fff;
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .btn-copy-sm:hover { background: rgba(255,255,255,.18); }
 
-  .guide-box{margin-top:16px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:18px;padding:20px}
-  .guide-title{font-size:15px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:10px}
-  .guide-steps{display:grid;gap:14px}
-  .guide-step{display:flex;gap:14px;align-items:flex-start}
-  .step-num{width:28px;height:28px;border-radius:8px;background:linear-gradient(160deg,#7c4dff,#3b1a8f);box-shadow:0 3px 0 #2a1170;color:#fff;font:700 13px "Space Grotesk",sans-serif;display:grid;place-items:center;flex:none;margin-top:2px}
-  .step-body{flex:1;font-size:14px}
-  .step-body b{color:var(--text);display:block;font-size:15px;margin-bottom:2px}
-  .step-body p{color:var(--muted);margin:0;font-size:13px;line-height:1.5}
+  /* Upright-style Live Input Section */
+  .input-section { margin-bottom: 30px; }
+  .input-label {
+    font-size: 26px;
+    font-weight: 700;
+    font-family: 'Space Grotesk', sans-serif;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .input-field-wrapper {
+    position: relative;
+    margin-bottom: 14px;
+  }
+  .live-input {
+    width: 100%;
+    box-sizing: border-box;
+    background: #0f0b18;
+    border: 1.5px solid #2d2048;
+    border-radius: 12px;
+    padding: 14px 16px;
+    font-size: 18px;
+    font-weight: 600;
+    color: #fff;
+    outline: none;
+    transition: border-color .2s;
+  }
+  .live-input:focus { border-color: var(--purple); }
+  .live-input::placeholder { color: #584f6d; font-weight: 500; }
 
-  .checker-box{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
-  .checker-input{flex:1;min-width:240px;padding:12px 16px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid var(--line);color:#fff;font-size:14px}
-  .checker-input:focus{outline:none;border-color:var(--purple)}
-  .checker-res{padding:12px 16px;border-radius:12px;margin-top:12px;font-size:14px;display:none}
-  .checker-res.live{background:rgba(255,84,112,.15);border:1px solid rgba(255,84,112,.35);color:#ff5470}
-  .checker-res.off{background:rgba(255,255,255,.05);border:1px solid var(--line);color:var(--muted)}
+  /* Buttons Row */
+  .button-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .btn-record {
+    background: var(--red);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 14px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background .15s, transform .1s;
+  }
+  .btn-record:hover { background: var(--red-hover); transform: translateY(-1px); }
+  .btn-record:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+  .btn-check {
+    background: #151022;
+    color: #fff;
+    border: 1px solid #332352;
+    border-radius: 10px;
+    padding: 14px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s, border-color .15s;
+  }
+  .btn-check:hover { background: #1c152e; border-color: var(--purple); }
+  .helper-text {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.5;
+    margin: 4px 0 0;
+  }
 
-  .nums{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-  .num-box{background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:18px;padding:20px}
-  .num-box .n{font-family:"Space Grotesk",sans-serif;font-size:44px;font-weight:700;letter-spacing:-1px;line-height:1.1}
-  .num-box .l{font:700 11px Inter,sans-serif;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-top:6px}
+  /* Status message alert */
+  .status-alert {
+    padding: 12px 14px;
+    border-radius: 10px;
+    font-size: 13px;
+    margin-top: 10px;
+    display: none;
+  }
+  .status-alert.live { background: rgba(255,59,92,.15); border: 1px solid rgba(255,59,92,.35); color: #ff5470; }
+  .status-alert.off { background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); color: var(--muted); }
 
-  /* Locked: no key yet */
-  body.locked main.page,body.pending main.page{filter:blur(26px) saturate(.6);opacity:.55;pointer-events:none;user-select:none;-webkit-user-select:none}
-  main.page{transition:filter .4s,opacity .4s}
-  body.locked{overflow:hidden}
-  #lockOverlay{position:fixed;inset:0;z-index:40;display:none;place-items:center;padding:20px;background:radial-gradient(900px 600px at 50% 45%,rgba(139,92,246,.14),transparent 70%);pointer-events:none}
-  #lockOverlay .lockcard{pointer-events:auto}
-  body.locked #lockOverlay{display:grid}
-  .lockcard{width:100%;max-width:440px;text-align:center}
-  .lockicon{width:96px;height:96px;margin:0 auto 22px;border-radius:26px;display:grid;place-items:center;background:linear-gradient(160deg,#7c4dff,#3b1a8f);
-    box-shadow:0 8px 0 #2a1170,0 24px 50px rgba(139,92,246,.55),inset 0 2px 0 rgba(255,255,255,.3);animation:lockfloat 3s ease-in-out infinite}
-  @keyframes lockfloat{50%{transform:translateY(-8px)}}
-  .lockicon svg{width:46px;height:46px}
-  .lockcard h2{font-size:clamp(36px,5vw,52px);line-height:1.05;letter-spacing:-.03em;margin-bottom:8px}
-  .lockcard p{color:var(--muted);margin-bottom:24px}
-  .lockcard .btn{padding:15px 40px;font-size:15px;border-radius:14px}
-  .lockcard .alt{display:block;margin-top:16px;font-size:13px;color:var(--muted)}
-  .lockcard .alt:hover{color:var(--text)}
+  /* Section Title */
+  .sec-heading {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    margin: 28px 0 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
 
-  @media (max-width:640px){ .nums{grid-template-columns:1fr} }
+  /* Viewfinder Box */
+  .viewfinder {
+    position: relative;
+    border-radius: 18px;
+    background: #0d0917;
+    border: 1px solid rgba(255,255,255,.04);
+    min-height: 240px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 30px 20px;
+    margin-bottom: 34px;
+    overflow: hidden;
+  }
+  /* Corner Brackets */
+  .viewfinder .corner {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    border-color: rgba(255,255,255,.3);
+    pointer-events: none;
+  }
+  .viewfinder .corner.tl { top: 16px; left: 16px; border-top: 2.5px solid #fff; border-left: 2.5px solid #fff; }
+  .viewfinder .corner.tr { top: 16px; right: 16px; border-top: 2.5px solid #fff; border-right: 2.5px solid #fff; }
+  .viewfinder .corner.bl { bottom: 16px; left: 16px; border-bottom: 2.5px solid #fff; border-left: 2.5px solid #fff; }
+  .viewfinder .corner.br { bottom: 16px; right: 16px; border-bottom: 2.5px solid #fff; border-right: 2.5px solid #fff; }
+
+  .vf-idle-text {
+    text-align: center;
+    color: var(--muted);
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  /* Active Recording Viewfinder State */
+  .vf-active-content {
+    text-align: center;
+    display: none;
+    width: 100%;
+  }
+  .pulse-rec-dot {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--red);
+    box-shadow: 0 0 16px var(--red);
+    margin: 0 auto 12px;
+    animation: livePulse 1s infinite ease-in-out;
+  }
+  .vf-user-title {
+    font-size: 26px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .vf-meta-stats {
+    font-size: 14px;
+    color: #c4b5fd;
+    font-family: ui-monospace, Consolas, monospace;
+    margin-bottom: 20px;
+  }
+  .btn-stop-rec {
+    background: transparent;
+    border: 1.5px solid var(--red);
+    color: #ff5470;
+    border-radius: 10px;
+    padding: 10px 24px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .btn-stop-rec:hover { background: rgba(255,59,92,.18); }
+
+  /* Recordings List */
+  .recordings-list {
+    display: grid;
+    gap: 16px;
+  }
+  .rec-card {
+    display: flex;
+    gap: 16px;
+    padding: 16px;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    align-items: flex-start;
+    transition: border-color .15s;
+  }
+  .rec-card:hover { border-color: rgba(139,92,246,.35); }
+  .rec-thumb {
+    width: 76px;
+    height: 104px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #1c142b, #2b1744);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    border: 1px solid rgba(255,255,255,.08);
+    position: relative;
+    overflow: hidden;
+  }
+  .rec-thumb svg { width: 28px; height: 28px; color: var(--purple); opacity: .7; }
+  .rec-thumb .badge-fmt {
+    position: absolute;
+    bottom: 6px;
+    font-size: 9px;
+    font-weight: 800;
+    color: #fff;
+    background: rgba(0,0,0,.6);
+    padding: 2px 5px;
+    border-radius: 4px;
+  }
+  .rec-details {
+    flex: 1;
+    min-width: 0;
+  }
+  .rec-username {
+    font-size: 17px;
+    font-weight: 700;
+    margin-bottom: 2px;
+  }
+  .rec-caption {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .rec-meta {
+    font-size: 12px;
+    color: #a49cb5;
+    margin-bottom: 12px;
+    font-family: ui-monospace, Consolas, monospace;
+  }
+
+  /* Card Action Buttons (Matching Screenshot) */
+  .rec-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .btn-action {
+    background: transparent;
+    border: 1px solid rgba(255,255,255,.2);
+    color: #fff;
+    padding: 6px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: background .15s, border-color .15s;
+  }
+  .btn-action:hover {
+    background: rgba(255,255,255,.1);
+    border-color: #fff;
+  }
+  .btn-action.del {
+    color: #ff5470;
+    border-color: rgba(255,84,112,.3);
+  }
+  .btn-action.del:hover {
+    background: rgba(255,84,112,.12);
+    border-color: #ff5470;
+  }
+
+  .empty-recordings {
+    text-align: center;
+    padding: 34px 14px;
+    color: var(--muted);
+    font-size: 14px;
+    background: #0d0917;
+    border-radius: 16px;
+    border: 1px dashed rgba(255,255,255,.07);
+  }
+
+  /* Video Modal */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.88);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 999;
+    padding: 20px;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal-card {
+    background: #140d22;
+    border: 1px solid #2a1f40;
+    border-radius: 20px;
+    width: 100%;
+    max-width: 600px;
+    padding: 20px;
+    position: relative;
+    box-shadow: 0 30px 80px rgba(0,0,0,.8);
+  }
+  .modal-card video {
+    width: 100%;
+    max-height: 72vh;
+    border-radius: 12px;
+    background: #000;
+    object-fit: contain;
+  }
+  .modal-close {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    background: rgba(255,255,255,.08);
+    border: 1px solid rgba(255,255,255,.15);
+    color: #fff;
+    padding: 5px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+
+  /* Lock Overlay (if no license) */
+  body.locked .app-body { filter: blur(24px) saturate(.5); opacity: .4; pointer-events: none; }
+  body.locked { overflow: hidden; }
+  #lockOverlay {
+    position: fixed; inset: 0; z-index: 50; display: none; place-items: center; padding: 20px;
+    background: radial-gradient(900px 600px at 50% 45%, rgba(139,92,246,.15), transparent 70%);
+  }
+  body.locked #lockOverlay { display: grid; }
+  .lock-box {
+    max-width: 420px; width: 100%; text-align: center;
+    background: #120c22; border: 1px solid var(--border); border-radius: 24px; padding: 36px 26px;
+    box-shadow: 0 40px 80px rgba(0,0,0,.7);
+  }
+  .lock-icon {
+    width: 72px; height: 72px; border-radius: 20px; background: linear-gradient(135deg,#7c4dff,#3b1a8f);
+    margin: 0 auto 18px; display: grid; place-items: center; color: #fff; font-size: 28px;
+  }
+  .lock-btn {
+    display: inline-block; background: var(--purple); color: #fff; padding: 14px 34px;
+    border-radius: 12px; font-weight: 700; font-size: 15px; text-decoration: none; margin-top: 16px;
+  }
+
+  /* Toast Notification */
+  #wkToast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: #1e1533; border: 1px solid #3d2b63; color: #fff;
+    padding: 10px 18px; border-radius: 12px; font-size: 13px; font-weight: 600;
+    display: none; z-index: 1000; box-shadow: 0 16px 36px rgba(0,0,0,.5);
+  }
+  #wkToast.show { display: block; }
+  #wkToast.err { border-color: rgba(255,84,112,.5); color: #ff8597; }
 </style>
 </head>
 <body class="pending">
-<div id="wkToast" role="status" aria-live="polite"></div>
-<script>
-  function notify(msg, kind) {
-    const t = document.getElementById('wkToast');
-    t.textContent = String(msg);
-    t.className = 'show' + (kind ? ' ' + kind : (/error|fail|invalid|could not|please/i.test(msg) ? ' err' : ''));
-    clearTimeout(t._h); t._h = setTimeout(() => { t.className = ''; }, 3500);
-  }
-  window.alert = msg => notify(msg);
-</script>
-
-<div class="wrap">
-  <header class="topbar">
-    <a href="/" class="logo"><span class="logo-mark">D</span>DevSupplies</a>
-    <nav class="nav">
-      <a href="/#how">How it works</a>
-      <a href="/#pricing">Pricing</a>
-      <a href="/admin" id="adminLink" class="admin-link" style="display:none">Admin</a>
-      <span class="me"><img src="https://cdn.discordapp.com/embed/avatars/0.png" id="avatarImg" alt=""><span id="usernameDisplay">...</span></span>
-    </nav>
-  </header>
-</div>
+<div id="wkToast"></div>
 
 <div id="lockOverlay">
-  <div class="lockcard">
-    <div class="lockicon"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="3" fill="rgba(255,255,255,.15)"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/><circle cx="12" cy="16" r="1.4" fill="#fff" stroke="none"/></svg></div>
-    <h2 class="grad3d">Access locked</h2>
-    <p>Get a key to unlock your account and start recording TikTok Lives.</p>
-    <a href="/checkout" class="btn btn-main">Get a key</a>
-    <a href="/#pricing" class="alt">See plans</a>
+  <div class="lock-box">
+    <div class="lock-icon">🔒</div>
+    <h2 style="font-family:'Space Grotesk';font-size:26px;margin-bottom:8px">Access Locked</h2>
+    <p style="color:var(--muted);font-size:14px;line-height:1.5;margin-bottom:18px">Get an active license key to start recording TikTok Live streams directly in your browser.</p>
+    <a href="/checkout" class="lock-btn">Get a key</a>
+    <div style="margin-top:14px"><a href="/#pricing" style="color:var(--muted);font-size:13px;text-decoration:underline">View plans ($5 weekly · $10 monthly · $15 lifetime)</a></div>
   </div>
 </div>
 
-<main class="page">
-  <div class="pagehero">
-    <span class="pill">Dashboard</span>
-    <h1 class="hello grad3d">My account</h1>
+<div class="wrap app-body">
+  <header class="top-header">
+    <div class="brand-group">
+      <span class="rec-indicator" id="headerRecDot"></span>
+      <span>DevSupplies</span>
+    </div>
+    <div class="header-status">
+      <span id="headerRecStatus">Not recording</span> · <a href="/admin" id="adminLink" style="display:none;color:var(--purple);text-decoration:underline;margin-left:6px">Admin</a>
+      <a href="/checkout" style="color:var(--muted);text-decoration:none;margin-left:8px" id="userMenuName">Sign in</a>
+    </div>
+  </header>
+
+  <!-- Key Information Banner -->
+  <div class="key-banner" id="keyBanner">
+    <div>
+      Plan: <b id="keyPlanName">Lifetime</b> · 
+      Time: <b id="keyExpires">Forever</b> · 
+      Key: <span class="key-mono" id="keyCode">...</span>
+    </div>
+    <button class="btn-copy-sm" onclick="copyKey()">Copy key</button>
   </div>
 
-  <!-- Key -->
-  <div class="box" id="keyCard">
-    <div class="box-head">
-      <div><h2>Your license key</h2><p class="muted">Your key activates DevSupplies TikTok Live Recorder access.</p></div>
-      <span class="tag" id="tierBadge">...</span>
-    </div>
-    <div class="key-row">
-      <span class="mono" id="keyCodeText">Loading...</span>
-      <button class="btn btn-line btn-sm" onclick="copyKey()">Copy</button>
-    </div>
-    <div class="facts">
-      <div>Plan: <b id="keyTierName">-</b></div>
-      <div>Time left: <b id="keyCountdown">-</b></div>
-      <div>Status: <b id="protectionState">-</b></div>
-    </div>
-  </div>
-
-  <!-- TikTok Recorder Application -->
-  <div class="box">
-    <div class="box-head">
-      <div>
-        <h2>TikTok Live Recorder Package</h2>
-        <p class="muted">High-speed 1080p stream capture engine with background auto-watcher and web dashboard.</p>
-      </div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <a href="/devsupplies-recorder.zip" class="btn btn-main btn-sm" download="devsupplies-recorder.zip" style="display:inline-flex;align-items:center;gap:6px">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Download Recorder (.ZIP)
-        </a>
-      </div>
+  <!-- Live Stream Input Area (Upright Style) -->
+  <section class="input-section">
+    <div class="input-label">@ username</div>
+    <div class="input-field-wrapper">
+      <input 
+        type="text" 
+        id="usernameInput" 
+        class="live-input" 
+        placeholder="username or tiktok.com/@user/live" 
+        autocomplete="off"
+        spellcheck="false"
+      />
     </div>
 
-    <div class="guide-box">
-      <div class="guide-title">
-        <span>How to run on your PC:</span>
-        <button class="btn btn-line btn-xs" onclick="copyKey()">Copy my key</button>
+    <div class="button-row">
+      <button class="btn-record" id="btnRecord" onclick="startRecord()">Record</button>
+      <button class="btn-check" id="btnCheck" onclick="checkLive()">Check only</button>
+    </div>
+
+    <p class="helper-text">
+      Records the vertical picture directly in source 1080p. When stopped, your recording is ready to watch or download immediately below.
+    </p>
+
+    <div id="statusAlert" class="status-alert"></div>
+  </section>
+
+  <!-- Recording Now Viewfinder Box -->
+  <section>
+    <div class="sec-heading">Recording now</div>
+    <div class="viewfinder" id="viewfinder">
+      <div class="corner tl"></div>
+      <div class="corner tr"></div>
+      <div class="corner bl"></div>
+      <div class="corner br"></div>
+
+      <!-- Idle state -->
+      <div class="vf-idle-text" id="vfIdle">
+        Nothing recording.<br>
+        Enter a username above to start.
       </div>
-      <div class="guide-steps">
-        <div class="guide-step">
-          <div class="step-num">1</div>
-          <div class="step-body">
-            <b>Download and extract</b>
-            <p>Download <code class="mono">devsupplies-recorder.zip</code> above and unzip it to any folder on your PC.</p>
-          </div>
+
+      <!-- Active recording state -->
+      <div class="vf-active-content" id="vfActive">
+        <div class="pulse-rec-dot"></div>
+        <div class="vf-user-title" id="vfUser">@username</div>
+        <div class="vf-meta-stats">
+          <span id="vfTimer">00:00:00</span> · <span id="vfSize">0 MB</span> · <span>1080p 60fps</span>
         </div>
-        <div class="guide-step">
-          <div class="step-num">2</div>
-          <div class="step-body">
-            <b>Launch with 1 click</b>
-            <p>Double-click <code class="mono">start.bat</code>. It automatically checks dependencies, starts the recorder engine, and opens the local dashboard in your browser at <code class="mono">http://localhost:8000</code>.</p>
-          </div>
-        </div>
-        <div class="guide-step">
-          <div class="step-num">3</div>
-          <div class="step-body">
-            <b>Record or Auto-Watch</b>
-            <p>Type any creator's @username. Click <b>Start Recording</b> to capture live right now, or click <b>Auto-Watch</b> to automatically record them whenever they go live while you sleep.</p>
-          </div>
-        </div>
+        <button class="btn-stop-rec" id="btnStopRec" onclick="stopRecord()">Stop Recording</button>
       </div>
     </div>
-  </div>
+  </section>
 
-  <!-- Quick Stream Status Checker -->
-  <div class="box">
-    <div class="box-head">
-      <div><h2>Quick stream checker</h2><p class="muted">Check if any TikTok creator is currently live before recording.</p></div>
+  <!-- Recordings Section -->
+  <section>
+    <div class="sec-heading">
+      <span>Recordings</span>
+      <button class="btn-copy-sm" onclick="loadRecordings()">Refresh</button>
     </div>
-    <div class="checker-box">
-      <input type="text" class="checker-input" id="checkUserInput" placeholder="Enter TikTok @username (e.g. charlidamelio)">
-      <button class="btn btn-main btn-sm" id="btnCheckLive" onclick="checkLiveStatus()">Check Status</button>
+    <div id="recordingsList" class="recordings-list">
+      <div class="empty-recordings">No saved recordings yet. Enter a username above to capture your first live.</div>
     </div>
-    <div class="checker-res" id="checkResult"></div>
-  </div>
+  </section>
+</div>
 
-  <!-- Stats -->
-  <div class="box">
-    <div class="box-head"><div><h2>Your account overview</h2></div></div>
-    <div class="nums">
-      <div class="num-box"><div class="n" id="statPlan">Lifetime</div><div class="l">License Tier</div></div>
-      <div class="num-box"><div class="n" id="statQuality" style="color:var(--green)">1080p</div><div class="l">Capture Quality</div></div>
-      <div class="num-box"><div class="n" id="statWatchers" style="color:#c4b5fd">24/7</div><div class="l">Auto-Watcher</div></div>
-    </div>
+<!-- Video Playback Modal -->
+<div class="modal-overlay" id="videoModal">
+  <div class="modal-card">
+    <button class="modal-close" onclick="closeVideoModal()">Close</button>
+    <h3 style="font-size:16px;margin:0 0 14px;color:#fff" id="videoModalTitle">Playing Live Stream</h3>
+    <video id="playerVideo" controls autoplay playsinline></video>
   </div>
-</main>
+</div>
 
 <script>
-  function setTag(id, text, kind) { const el = document.getElementById(id); el.textContent = text; el.className = 'tag ' + (kind || ''); }
-  let user = JSON.parse(localStorage.getItem('waurks_user') || 'null');
   let activeLicense = null;
+  let activeJobId = null;
+  let activeStartTime = 0;
+  let timerInterval = null;
+  let user = null;
 
-  window.addEventListener('DOMContentLoaded', async () => {
-    try {
-      const s = await (await fetch('/api/v1/auth/status')).json();
-      user = s.loggedIn ? s.user : null;
-      if (s.isAdmin) document.getElementById('adminLink').style.display = '';
-    } catch (e) { user = null; }
-    if (!user) {
-      localStorage.removeItem('waurks_user');
-      window.location.href = '/checkout';
-      return;
-    }
-
-    document.getElementById('usernameDisplay').textContent = user.username;
-    document.getElementById('avatarImg').src = user.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png';
-
-    await loadLicenseInfo();
-    document.body.classList.remove('pending');
-  });
-
-  async function loadLicenseInfo() {
-    try {
-      const resp = await fetch('/api/v1/user/licenses', {
-        headers: { 'x-user-id': user.id }
-      });
-      const data = await resp.json();
-
-      if (data.licenses && data.licenses.length > 0) {
-        activeLicense = data.licenses[0];
-        document.getElementById('keyCodeText').textContent = activeLicense.key_code;
-        const planNames = { weekly: 'Weekly ($5)', monthly: 'Monthly ($10)', yearly: 'Lifetime ($15)' };
-        document.getElementById('keyTierName').textContent = planNames[activeLicense.tier] || activeLicense.tier;
-        document.getElementById('statPlan').textContent = activeLicense.tier === 'yearly' ? 'Lifetime' : (activeLicense.tier === 'monthly' ? 'Monthly' : 'Weekly');
-        document.getElementById('keyCountdown').textContent = activeLicense.tier === 'yearly' ? 'Forever' : `${activeLicense.daysRemaining} days`;
-        setTag('tierBadge', 'Active', 'on');
-        document.getElementById('protectionState').textContent = 'Active & Ready';
-
-        if (activeLicense.isExpired) {
-          setTag('tierBadge', 'Ran out', 'off');
-          document.getElementById('keyCountdown').textContent = '0 days';
-          document.getElementById('protectionState').textContent = 'Expired. Get a new key to continue.';
-          document.body.classList.add('locked');
-        }
-      } else {
-        document.getElementById('keyCodeText').innerHTML = 'You don\'t have a key yet. <a href="/checkout" style="color:var(--purple)">Get one</a>';
-        setTag('tierBadge', 'No key', 'off');
-        document.getElementById('protectionState').textContent = 'Needs a key';
-        document.body.classList.add('locked');
-      }
-    } catch (e) {
-      console.error(e);
-    }
+  function notify(msg, isErr = false) {
+    const t = document.getElementById('wkToast');
+    t.textContent = msg;
+    t.className = isErr ? 'show err' : 'show';
+    clearTimeout(t._h);
+    t._h = setTimeout(() => { t.className = ''; }, 3500);
   }
 
   function copyKey() {
-    if (!activeLicense) return;
+    if (!activeLicense || !activeLicense.key_code) return notify('No active key', true);
     navigator.clipboard.writeText(activeLicense.key_code);
-    notify('License key copied to clipboard!', 'ok');
+    notify('License key copied to clipboard!');
   }
 
-  async function checkLiveStatus() {
-    const input = document.getElementById('checkUserInput');
-    const res = document.getElementById('checkResult');
-    const btn = document.getElementById('btnCheckLive');
-    let userVal = input.value.trim().replace(/^@/, '');
-    if (!userVal) {
-      notify('Please enter a username', 'err');
-      return;
-    }
-    btn.disabled = true;
-    btn.textContent = 'Checking...';
-    res.style.display = 'block';
-    res.className = 'checker-res off';
-    res.textContent = `Checking live status for @${userVal}...`;
-
+  // Load user & license info
+  window.addEventListener('DOMContentLoaded', async () => {
     try {
-      const r = await fetch(`/api/v1/recorder/status?user=${encodeURIComponent(userVal)}`);
-      const data = await r.json();
-      if (data.is_live) {
-        res.className = 'checker-res live';
-        res.innerHTML = `🔴 <b>@${userVal}</b> is currently <b>LIVE</b>! Ready to capture in 1080p.`;
+      const s = await (await fetch('/api/v1/auth/status')).json();
+      if (s.loggedIn && s.user) {
+        user = s.user;
+        document.getElementById('userMenuName').textContent = user.username;
+        if (s.isAdmin) document.getElementById('adminLink').style.display = '';
+        await loadLicense();
       } else {
-        res.className = 'checker-res off';
-        res.innerHTML = `⚪ <b>@${userVal}</b> is currently offline. Enable Auto-Watcher to record when they go live.`;
+        document.body.classList.add('locked');
       }
     } catch (e) {
-      res.className = 'checker-res off';
-      res.textContent = `Check completed: @${userVal} stream is currently offline.`;
-    } finally {
-      btn.disabled = false;
-      btn.textContent = 'Check Status';
+      document.body.classList.add('locked');
+    }
+    document.body.classList.remove('pending');
+    await loadRecordings();
+    await checkActiveRecordings();
+
+    // Poll active recording status every 3 seconds
+    setInterval(checkActiveRecordings, 3000);
+  });
+
+  async function loadLicense() {
+    try {
+      const r = await fetch('/api/v1/user/licenses', { headers: { 'x-user-id': user.id } });
+      const data = await r.json();
+      if (data.licenses && data.licenses.length > 0) {
+        activeLicense = data.licenses[0];
+        document.getElementById('keyCode').textContent = activeLicense.key_code;
+        const planMap = { weekly: 'Weekly ($5)', monthly: 'Monthly ($10)', yearly: 'Lifetime ($15)' };
+        document.getElementById('keyPlanName').textContent = planMap[activeLicense.tier] || activeLicense.tier;
+        document.getElementById('keyExpires').textContent = activeLicense.tier === 'yearly' ? 'Forever' : `${activeLicense.daysRemaining} days`;
+
+        if (activeLicense.isExpired) {
+          document.body.classList.add('locked');
+        }
+      } else {
+        document.body.classList.add('locked');
+      }
+    } catch (e) {
+      document.body.classList.add('locked');
     }
   }
+
+  // Check only button
+  async function checkLive() {
+    const raw = document.getElementById('usernameInput').value.trim();
+    if (!raw) return notify('Please enter a username', true);
+    const alert = document.getElementById('statusAlert');
+    const btn = document.getElementById('btnCheck');
+
+    btn.disabled = true;
+    btn.textContent = 'Checking...';
+    alert.style.display = 'block';
+    alert.className = 'status-alert off';
+    alert.textContent = `Checking live status for ${raw}...`;
+
+    try {
+      const r = await fetch(`/api/v1/recorder/status?user=${encodeURIComponent(raw)}`);
+      const data = await r.json();
+      if (data.is_live) {
+        alert.className = 'status-alert live';
+        alert.innerHTML = `🔴 <b>@${data.username}</b> is LIVE right now! Click <b>Record</b> to start capture.`;
+      } else {
+        alert.className = 'status-alert off';
+        alert.innerHTML = `⚪ <b>@${data.username}</b> is currently offline.`;
+      }
+    } catch (e) {
+      alert.className = 'status-alert off';
+      alert.textContent = `Creator appears to be offline right now.`;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Check only';
+    }
+  }
+
+  // Record button
+  async function startRecord() {
+    const raw = document.getElementById('usernameInput').value.trim();
+    if (!raw) return notify('Please enter a TikTok @username', true);
+    const btn = document.getElementById('btnRecord');
+
+    btn.disabled = true;
+    btn.textContent = 'Starting...';
+
+    try {
+      const r = await fetch('/api/v1/recorder/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: raw })
+      });
+      const data = await r.json();
+      if (data.success && data.job) {
+        showActiveRecording(data.job);
+        notify(`Recording started for @${data.job.username}!`);
+      } else {
+        notify(data.error || 'Could not start recording', true);
+      }
+    } catch (e) {
+      notify('Failed to connect to recorder: ' + e.message, true);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Record';
+    }
+  }
+
+  // Stop recording
+  async function stopRecord() {
+    if (!activeJobId) return;
+    const btn = document.getElementById('btnStopRec');
+    btn.disabled = true;
+    btn.textContent = 'Finalizing MP4...';
+
+    try {
+      const r = await fetch('/api/v1/recorder/stop', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobId: activeJobId })
+      });
+      const data = await r.json();
+      if (data.success) {
+        notify(`Recording saved! You can now watch or download it below.`);
+        hideActiveRecording();
+        await loadRecordings();
+      } else {
+        notify(data.error || 'Error stopping recording', true);
+      }
+    } catch (e) {
+      notify('Error finalizing recording: ' + e.message, true);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Stop Recording';
+    }
+  }
+
+  function showActiveRecording(job) {
+    activeJobId = job.jobId;
+    activeStartTime = job.startTime || Date.now();
+
+    document.getElementById('vfIdle').style.display = 'none';
+    document.getElementById('vfActive').style.display = 'block';
+    document.getElementById('vfUser').textContent = `@${job.username}`;
+    document.getElementById('headerRecStatus').textContent = `🔴 Recording @${job.username}`;
+    document.getElementById('headerRecDot').classList.add('active');
+
+    clearInterval(timerInterval);
+    timerInterval = setInterval(() => {
+      const sec = Math.max(0, Math.floor((Date.now() - activeStartTime) / 1000));
+      const m = Math.floor(sec / 60);
+      const s = sec % 60;
+      const h = Math.floor(m / 60);
+      const remM = m % 60;
+      document.getElementById('vfTimer').textContent = 
+        `${String(h).padStart(2, '0')}:${String(remM).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }, 1000);
+  }
+
+  function hideActiveRecording() {
+    activeJobId = null;
+    clearInterval(timerInterval);
+    document.getElementById('vfIdle').style.display = 'block';
+    document.getElementById('vfActive').style.display = 'none';
+    document.getElementById('headerRecStatus').textContent = 'Not recording';
+    document.getElementById('headerRecDot').classList.remove('active');
+  }
+
+  async function checkActiveRecordings() {
+    try {
+      const r = await fetch('/api/v1/recorder/active');
+      const data = await r.json();
+      if (data.active && data.active.length > 0) {
+        const cur = data.active[0];
+        if (!activeJobId || activeJobId !== cur.jobId) {
+          showActiveRecording(cur);
+        }
+        document.getElementById('vfSize').textContent = cur.fileSizeFormatted || '0 B';
+      } else if (activeJobId) {
+        hideActiveRecording();
+        await loadRecordings();
+      }
+    } catch (e) {}
+  }
+
+  // Load Saved Recordings List (Matching Frame 1 from user video)
+  async function loadRecordings() {
+    const listEl = document.getElementById('recordingsList');
+    try {
+      const r = await fetch('/api/v1/recorder/list');
+      const data = await r.json();
+      const recs = data.recordings || [];
+
+      if (!recs.length) {
+        listEl.innerHTML = '<div class="empty-recordings">No saved recordings yet. Enter a username above to capture your first live.</div>';
+        return;
+      }
+
+      listEl.innerHTML = recs.map(rec => `
+        <div class="rec-card" id="rec-card-${rec.id}">
+          <div class="rec-thumb">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
+            <span class="badge-fmt">MP4</span>
+          </div>
+          <div class="rec-details">
+            <div class="rec-username">@${rec.username}</div>
+            <div class="rec-caption">${rec.title || 'Live Broadcast Stream'}</div>
+            <div class="rec-meta">${rec.durationFormatted || '0:00'} &nbsp; ${rec.fileSizeFormatted || '0 B'} &nbsp; ${rec.dateFormatted || ''}</div>
+            <div class="rec-actions">
+              <button class="btn-action" onclick="playVideo('${rec.downloadUrl}', '@${rec.username}')">Play</button>
+              <a class="btn-action" href="${rec.downloadUrl}" download="${rec.filename}">Download</a>
+              <button class="btn-action del" onclick="deleteVideo(${rec.id})">Delete</button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    } catch (e) {
+      listEl.innerHTML = '<div class="empty-recordings">Could not load recordings.</div>';
+    }
+  }
+
+  async function deleteVideo(id) {
+    if (!confirm('Are you sure you want to delete this recorded live?')) return;
+    try {
+      const r = await fetch(`/api/v1/recorder/${id}`, { method: 'DELETE' });
+      const data = await r.json();
+      if (data.success) {
+        notify('Recording deleted');
+        const card = document.getElementById(`rec-card-${id}`);
+        if (card) card.remove();
+        loadRecordings();
+      } else {
+        notify(data.error || 'Failed to delete', true);
+      }
+    } catch (e) {
+      notify('Error deleting recording', true);
+    }
+  }
+
+  function playVideo(url, title) {
+    const modal = document.getElementById('videoModal');
+    const player = document.getElementById('playerVideo');
+    document.getElementById('videoModalTitle').textContent = `Playing: ${title || 'Stream Recording'}`;
+    player.src = url;
+    modal.classList.add('open');
+  }
+
+  function closeVideoModal() {
+    const modal = document.getElementById('videoModal');
+    const player = document.getElementById('playerVideo');
+    player.pause();
+    player.src = '';
+    modal.classList.remove('open');
+  }
 </script>
-<script src="/fx.js" defer></script>
 </body>
 </html>

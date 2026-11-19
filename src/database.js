@@ -32,9 +32,7 @@ db.serialize(() => {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       expires_at DATETIME NOT NULL,
       last_used_at DATETIME,
-      total_requests_filtered INTEGER DEFAULT 0,
-      total_bots_blocked INTEGER DEFAULT 0,
-      total_players_accepted INTEGER DEFAULT 0,
+      total_streams_recorded INTEGER DEFAULT 0,
       FOREIGN KEY(user_id) REFERENCES users(id)
     )
   `);
@@ -60,107 +58,33 @@ db.serialize(() => {
     )
   `);
 
-  // Global bot blacklist (Known bot networks, spam patterns, flagged accounts)
+  // TikTok Live Stream Recordings
   db.run(`
-    CREATE TABLE IF NOT EXISTS global_bot_blacklist (
+    CREATE TABLE IF NOT EXISTS recordings (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      roblox_user_id TEXT UNIQUE,
-      username_pattern TEXT,
-      reason TEXT,
-      added_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
-
-  // User personal bot blacklist (only affects the user who added it)
-  db.run(`
-    CREATE TABLE IF NOT EXISTS user_bot_blacklist (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL,
-      roblox_user_id TEXT NOT NULL,
-      reason TEXT,
-      added_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      UNIQUE(user_id, roblox_user_id)
-    )
-  `);
-
-  // Connected Roblox Accounts table (Runs 24/7 in the cloud)
-  db.run(`
-    CREATE TABLE IF NOT EXISTS roblox_accounts (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL,
-      license_id INTEGER,
-      roblox_id TEXT NOT NULL,
-      roblox_username TEXT NOT NULL,
-      avatar_url TEXT,
-      encrypted_cookie TEXT NOT NULL,
-      cookie_iv TEXT NOT NULL,
-      is_active INTEGER DEFAULT 1,
-      auto_decline_bots INTEGER DEFAULT 1,
-      auto_accept_players INTEGER DEFAULT 1,
-      hold_review INTEGER DEFAULT 1,
-      last_scan_at DATETIME,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY(user_id) REFERENCES users(id),
-      FOREIGN KEY(license_id) REFERENCES licenses(id)
-    )
-  `);
-
-  // Live Cloud Sorter Activity Logs
-  db.run(`
-    CREATE TABLE IF NOT EXISTS scan_activity_logs (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL,
-      roblox_id TEXT NOT NULL,
-      target_id TEXT NOT NULL,
-      target_username TEXT NOT NULL,
-      verdict TEXT NOT NULL CHECK(verdict IN ('DECLINE', 'ACCEPT', 'REVIEW')),
-      threat_score INTEGER NOT NULL,
-      reason TEXT,
+      user_id INTEGER,
+      username TEXT NOT NULL,
+      title TEXT,
+      filename TEXT NOT NULL,
+      file_path TEXT NOT NULL,
+      file_size_bytes INTEGER DEFAULT 0,
+      duration_seconds INTEGER DEFAULT 0,
+      thumbnail_url TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY(user_id) REFERENCES users(id)
     )
   `);
 
-  // Pending Review Queue for Borderline Requests
+  // Site settings table
   db.run(`
-    CREATE TABLE IF NOT EXISTS review_queue (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL,
-      roblox_id TEXT NOT NULL,
-      target_id TEXT NOT NULL,
-      target_username TEXT NOT NULL,
-      target_display_name TEXT,
-      target_avatar TEXT,
-      threat_score INTEGER NOT NULL,
-      reasons TEXT,
-      account_age_days INTEGER,
-      badge_count INTEGER,
-      status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'accepted', 'declined')),
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY(user_id) REFERENCES users(id)
+    CREATE TABLE IF NOT EXISTS site_settings (
+      key TEXT PRIMARY KEY,
+      value TEXT,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
 
-  // Column auto-migrations for custom filters
-  db.all(`PRAGMA table_info(roblox_accounts)`, (err, cols) => {
-    if (!err && cols) {
-      const colNames = cols.map(c => c.name);
-      if (!colNames.includes('min_account_age_days')) {
-        db.run(`ALTER TABLE roblox_accounts ADD COLUMN min_account_age_days INTEGER DEFAULT 7`);
-      }
-      if (!colNames.includes('min_badges')) {
-        db.run(`ALTER TABLE roblox_accounts ADD COLUMN min_badges INTEGER DEFAULT 0`);
-      }
-      if (!colNames.includes('custom_blacklist')) {
-        db.run(`ALTER TABLE roblox_accounts ADD COLUMN custom_blacklist TEXT DEFAULT ''`);
-      }
-      if (!colNames.includes('custom_whitelist')) {
-        db.run(`ALTER TABLE roblox_accounts ADD COLUMN custom_whitelist TEXT DEFAULT ''`);
-      }
-    }
-  });
-
-  // Audit and security access logs
+  // Audit logs
   db.run(`
     CREATE TABLE IF NOT EXISTS audit_logs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -171,18 +95,6 @@ db.serialize(() => {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
-
-  // Seed sample known botnet patterns into blacklist if empty
-  db.get(`SELECT COUNT(*) as count FROM global_bot_blacklist`, (err, row) => {
-    if (!err && row && row.count === 0) {
-      const stmt = db.prepare(`INSERT INTO global_bot_blacklist (username_pattern, reason) VALUES (?, ?)`);
-      stmt.run('^CLAIM_NOW_.*', 'Scam claim botnet');
-      stmt.run('.*giftcard\\.gg.*', 'Phishing giftcard domain spammer');
-      stmt.run('^FreeRobux_.*', 'Phishing generator account');
-      stmt.run('^rbx_free_.*', 'Robux generator bot');
-      stmt.finalize();
-    }
-  });
 });
 
 // Helper promises for clean async/await
@@ -203,4 +115,3 @@ const dbAsync = {
 };
 
 module.exports = dbAsync;
-
