@@ -53,14 +53,33 @@ function getFlvDimensions(filePath) {
   return null;
 }
 
-function getFfmpegBinary() {
-  try {
-    const ffmpegPkg = require('@ffmpeg-installer/ffmpeg');
-    if (ffmpegPkg && ffmpegPkg.path && fs.existsSync(ffmpegPkg.path)) {
-      return ffmpegPkg.path;
+function selectOptimalFlv(streamDataObj) {
+  if (!streamDataObj || !streamDataObj.data) return null;
+  const qData = streamDataObj.data;
+  // 1. Look for standard H.264 streams first (hd, sd, uhd_60, hd_60) which remux cleanly to MP4
+  for (const q of ['hd', 'sd', 'uhd_60', 'hd_60']) {
+    if (qData[q]?.main?.flv) {
+      return qData[q].main.flv;
     }
-  } catch (e) {}
+  }
+  // 2. Check if sdk_params explicitly specifies H.264
+  for (const key of Object.keys(qData)) {
+    try {
+      const sp = qData[key]?.main?.sdk_params;
+      const parsed = typeof sp === 'string' ? JSON.parse(sp) : sp;
+      if (parsed?.VCodec?.toLowerCase() === 'h264' && qData[key]?.main?.flv) {
+        return qData[key].main.flv;
+      }
+    } catch (e) {}
+  }
+  // 3. Fallbacks
+  for (const q of ['origin', 'ld']) {
+    if (qData[q]?.main?.flv) return qData[q].main.flv;
+  }
+  return null;
+}
 
+function getFfmpegBinary() {
   const candidates = [
     'ffmpeg',
     '/root/.nix-profile/bin/ffmpeg',
@@ -74,6 +93,15 @@ function getFfmpegBinary() {
       return bin;
     } catch (e) {}
   }
+
+  try {
+    const ffmpegPkg = require('@ffmpeg-installer/ffmpeg');
+    if (ffmpegPkg && ffmpegPkg.path && fs.existsSync(ffmpegPkg.path)) {
+      try { fs.chmodSync(ffmpegPkg.path, 0o755); } catch (e) {}
+      return ffmpegPkg.path;
+    }
+  } catch (e) {}
+
   return null;
 }
 
@@ -102,8 +130,7 @@ function remuxToMp4(rawFlvPath, targetMp4Path, orientation = 'portrait') {
         // Stream is already native 9:16 portrait (e.g. 720x1280 vertical phone stream)
         args = ['-y', '-i', rawFlvPath, '-c', 'copy', '-movflags', '+faststart', targetMp4Path];
       } else {
-        // Stream is landscape or square (e.g. 720x720, 1280x720)
-        // Pad to standard 720:1280 vertical portrait (9:16) with black letterbox top & bottom
+        // Pad to standard 720:1280 vertical portrait (9:16) with ultrafast H.264
         args = [
           '-y',
           '-i', rawFlvPath,
@@ -118,22 +145,69 @@ function remuxToMp4(rawFlvPath, targetMp4Path, orientation = 'portrait') {
       }
     }
 
-    const proc = spawn(ffmpegBin, args);
+    console.log(`[remuxToMp4] Running FFmpeg (${orientation}): ${ffmpegBin} ${args.join(' ')}`);
+
+    let proc;
+    try {
+      proc = spawn(ffmpegBin, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    } catch (spawnErr) {
+      console.error('[remuxToMp4] Spawn error:', spawnErr);
+      return resolve({ success: false, reason: spawnErr.message });
+    }
+
+    // Drain stderr & stdout so the 64KB OS pipe buffer NEVER blocks FFmpeg
+    let stderrTail = '';
+    proc.stderr.on('data', chunk => {
+      stderrTail += chunk.toString();
+      if (stderrTail.length > 2000) stderrTail = stderrTail.slice(-2000);
+    });
+    proc.stdout.on('data', () => {});
+
+    // Safety timeout: 40 seconds max
+    const timer = setTimeout(() => {
+      try {
+        console.warn('[remuxToMp4] FFmpeg timed out, terminating');
+        proc.kill('SIGKILL');
+      } catch (e) {}
+    }, 40000);
+
     proc.on('close', (code) => {
+      clearTimeout(timer);
       if (code === 0 && fs.existsSync(targetMp4Path) && fs.statSync(targetMp4Path).size > 0) {
+        console.log(`[remuxToMp4] Success! MP4 created: ${targetMp4Path} (${fs.statSync(targetMp4Path).size} bytes)`);
         try { fs.unlinkSync(rawFlvPath); } catch (e) {}
         resolve({ success: true, orientation });
       } else {
-        console.warn(`[remuxToMp4] FFmpeg exited with code ${code}, falling back to copy`);
-        try {
-          if (!fs.existsSync(targetMp4Path) && fs.existsSync(rawFlvPath)) {
-            fs.copyFileSync(rawFlvPath, targetMp4Path);
-          }
-        } catch (e) {}
+        console.warn(`[remuxToMp4] FFmpeg exited with code ${code}. Tail: ${stderrTail.slice(-200)}`);
+        // If re-encode failed, try fast copy fallback
+        if (args.includes('-c:v')) {
+          console.log('[remuxToMp4] Attempting stream copy fallback...');
+          const fallbackArgs = ['-y', '-i', rawFlvPath, '-c', 'copy', '-movflags', '+faststart', targetMp4Path];
+          try {
+            const fProc = spawn(ffmpegBin, fallbackArgs, { stdio: ['ignore', 'ignore', 'ignore'] });
+            fProc.on('close', (fCode) => {
+              if (fCode === 0 && fs.existsSync(targetMp4Path) && fs.statSync(targetMp4Path).size > 0) {
+                try { fs.unlinkSync(rawFlvPath); } catch (e) {}
+                return resolve({ success: true, orientation: 'copied' });
+              }
+              if (!fs.existsSync(targetMp4Path) && fs.existsSync(rawFlvPath)) {
+                fs.copyFileSync(rawFlvPath, targetMp4Path);
+              }
+              resolve({ success: false, reason: 'ffmpeg_exit_' + code });
+            });
+            return;
+          } catch (e) {}
+        }
+
+        if (!fs.existsSync(targetMp4Path) && fs.existsSync(rawFlvPath)) {
+          fs.copyFileSync(rawFlvPath, targetMp4Path);
+        }
         resolve({ success: false, reason: 'ffmpeg_exit_' + code });
       }
     });
+
     proc.on('error', (procErr) => {
+      clearTimeout(timer);
       console.error('[remuxToMp4] Process error:', procErr.message);
       try {
         if (!fs.existsSync(targetMp4Path) && fs.existsSync(rawFlvPath)) {
@@ -218,13 +292,8 @@ class LiveRecorderService {
           if (rawStreamData) {
             try {
               const streamJson = JSON.parse(rawStreamData);
-              const qualities = streamJson.data || {};
-              for (const q of ['origin', 'uhd_60', 'hd_60', 'hd', 'sd', 'ld']) {
-                if (qualities[q]?.main?.flv) {
-                  landscapeUrl = qualities[q].main.flv;
-                  break;
-                }
-              }
+              const opt = selectOptimalFlv(streamJson);
+              if (opt) landscapeUrl = opt;
             } catch (e) {}
           }
 
@@ -247,13 +316,8 @@ class LiveRecorderService {
                 if (mRoom?.multi_stream_url?.live_core_sdk_data?.pull_data?.stream_data) {
                   try {
                     const msd = JSON.parse(mRoom.multi_stream_url.live_core_sdk_data.pull_data.stream_data);
-                    const mq = msd.data || {};
-                    for (const k of ['origin', 'hd', 'sd', 'ld']) {
-                      if (mq[k]?.main?.flv) {
-                        portraitUrl = mq[k].main.flv;
-                        break;
-                      }
-                    }
+                    const opt = selectOptimalFlv(msd);
+                    if (opt) portraitUrl = opt;
                   } catch (e) {}
                 }
 
@@ -261,13 +325,8 @@ class LiveRecorderService {
                 if (mRoom?.stream_url?.live_core_sdk_data?.pull_data?.stream_data) {
                   try {
                     const lsd = JSON.parse(mRoom.stream_url.live_core_sdk_data.pull_data.stream_data);
-                    const lq = lsd.data || {};
-                    for (const k of ['origin', 'hd', 'sd', 'ld']) {
-                      if (lq[k]?.main?.flv) {
-                        landscapeUrl = lq[k].main.flv;
-                        break;
-                      }
-                    }
+                    const opt = selectOptimalFlv(lsd);
+                    if (opt) landscapeUrl = opt;
                   } catch (e) {}
                 }
               }

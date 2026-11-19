@@ -343,13 +343,15 @@ app.post('/api/v1/recorder/stop', authMiddleware, async (req, res) => {
   }
 });
 
-app.get('/api/v1/recorder/active', (req, res) => {
-  res.json({ active: liveRecorderService.getActiveJobs(req.user?.id) });
+app.get('/api/v1/recorder/active', async (req, res) => {
+  const user = await getSessionUser(req);
+  res.json({ active: liveRecorderService.getActiveJobs(user?.id) });
 });
 
 app.get('/api/v1/recorder/list', async (req, res) => {
   try {
-    const recordings = await liveRecorderService.getRecordings(req.user?.id);
+    const user = await getSessionUser(req);
+    const recordings = await liveRecorderService.getRecordings(user?.id);
     res.json({ recordings });
   } catch (err) {
     res.status(500).json({ error: err.message });

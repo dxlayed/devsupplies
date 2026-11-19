@@ -420,18 +420,17 @@
     border: 1px solid #2a1f40;
     border-radius: 22px;
     width: 100%;
-    max-width: 420px;
+    max-width: 460px;
     padding: 18px 18px 22px;
     position: relative;
-    box-shadow: 0 30px 90px rgba(0,0,0,.9), 0 0 40px rgba(234,30,99,.15);
+    box-shadow: 0 30px 90px rgba(0,0,0,.9), 0 0 40px rgba(234,30,99,.25);
     display: flex;
     flex-direction: column;
     align-items: center;
   }
   .modal-card video {
     width: 100%;
-    max-height: 72vh;
-    aspect-ratio: 9/16;
+    max-height: 75vh;
     border-radius: 14px;
     background: #000;
     object-fit: contain;
@@ -902,13 +901,13 @@
       }
     };
 
-    // Try native HTML5 video first
+    // Load URL into native HTML5 video
     player.src = url;
+    player.load();
     const p = player.play();
     if (p !== undefined) {
       p.catch(err => {
-        console.warn('Native video error, using mpegts fallback:', err);
-        tryMpegts();
+        console.log('Autoplay deferred, press play button to start:', err);
       });
     }
 
@@ -919,6 +918,13 @@
 
     modal.classList.add('open');
   }
+
+  // Click outside to close modal
+  document.getElementById('videoModal').addEventListener('click', (e) => {
+    if (e.target === document.getElementById('videoModal')) {
+      closeVideoModal();
+    }
+  });
 
   function closeVideoModal() {
     const modal = document.getElementById('videoModal');
