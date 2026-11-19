@@ -35,9 +35,112 @@ function formatDuration(seconds) {
   return `${mins}:${String(secs).padStart(2, '0')}`;
 }
 
+function getFlvDimensions(filePath) {
+  try {
+    const fd = fs.openSync(filePath, 'r');
+    const buf = Buffer.alloc(4096);
+    fs.readSync(fd, buf, 0, 4096, 0);
+    fs.closeSync(fd);
+    const str = buf.toString('latin1');
+    const wIdx = str.indexOf('width');
+    const hIdx = str.indexOf('height');
+    if (wIdx !== -1 && hIdx !== -1) {
+      const width = buf.readDoubleBE(wIdx + 6);
+      const height = buf.readDoubleBE(hIdx + 7);
+      if (width > 0 && height > 0) return { width: Math.round(width), height: Math.round(height) };
+    }
+  } catch (e) {}
+  return null;
+}
+
+function remuxToMp4(rawFlvPath, targetMp4Path) {
+  return new Promise((resolve) => {
+    exec('ffmpeg -version', (err) => {
+      if (err) {
+        // FFmpeg not found: keep raw file
+        try {
+          if (rawFlvPath !== targetMp4Path && fs.existsSync(rawFlvPath)) {
+            fs.copyFileSync(rawFlvPath, targetMp4Path);
+          }
+        } catch (e) {}
+        return resolve({ success: false, reason: 'ffmpeg_not_installed' });
+      }
+
+      const dims = getFlvDimensions(rawFlvPath);
+      let args = [];
+      // If height > width, it's ALREADY a vertical portrait mobile stream (e.g. 720x1280)
+      // Fast remux: preserve pristine quality with instant stream copy!
+      if (dims && dims.height > dims.width) {
+        args = ['-y', '-i', rawFlvPath, '-c', 'copy', '-movflags', '+faststart', targetMp4Path];
+      } else {
+        // Landscape or square stream (e.g. 720x720, 1280x720):
+        // Pad to standard 720:1280 portrait (9:16) with black letterbox top & bottom
+        args = [
+          '-y',
+          '-i', rawFlvPath,
+          '-vf', 'scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2:black',
+          '-c:v', 'libx264',
+          '-preset', 'ultrafast',
+          '-crf', '22',
+          '-c:a', 'aac',
+          '-movflags', '+faststart',
+          targetMp4Path
+        ];
+      }
+
+      const proc = spawn('ffmpeg', args);
+      proc.on('close', (code) => {
+        if (code === 0 && fs.existsSync(targetMp4Path) && fs.statSync(targetMp4Path).size > 0) {
+          try { fs.unlinkSync(rawFlvPath); } catch (e) {}
+          resolve({ success: true, portrait: true });
+        } else {
+          try {
+            if (!fs.existsSync(targetMp4Path) && fs.existsSync(rawFlvPath)) {
+              fs.copyFileSync(rawFlvPath, targetMp4Path);
+            }
+          } catch (e) {}
+          resolve({ success: false, reason: 'ffmpeg_exit_' + code });
+        }
+      });
+      proc.on('error', (procErr) => {
+        try {
+          if (!fs.existsSync(targetMp4Path) && fs.existsSync(rawFlvPath)) {
+            fs.copyFileSync(rawFlvPath, targetMp4Path);
+          }
+        } catch (e) {}
+        resolve({ success: false, reason: procErr.message });
+      });
+    });
+  });
+}
+
 class LiveRecorderService {
   constructor() {
     this.activeJobs = new Map(); // jobId -> job details
+    this.scanAndRemuxLegacy().catch(() => {});
+  }
+
+  async scanAndRemuxLegacy() {
+    try {
+      const files = fs.readdirSync(RECORDINGS_DIR);
+      for (const file of files) {
+        if (file.endsWith('.mp4')) {
+          const fullPath = path.join(RECORDINGS_DIR, file);
+          try {
+            const fd = fs.openSync(fullPath, 'r');
+            const header = Buffer.alloc(4);
+            fs.readSync(fd, header, 0, 4, 0);
+            fs.closeSync(fd);
+            if (header.toString('utf8', 0, 3) === 'FLV') {
+              console.log(`[LiveRecorder] Remuxing legacy FLV recording to portrait MP4: ${file}`);
+              const tempRaw = path.join(RECORDINGS_DIR, file.replace('.mp4', '_temp.flv'));
+              fs.renameSync(fullPath, tempRaw);
+              await remuxToMp4(tempRaw, fullPath);
+            }
+          } catch (err) {}
+        }
+      }
+    } catch (e) {}
   }
 
   /**
@@ -155,6 +258,8 @@ class LiveRecorderService {
 
     const timestamp = Date.now();
     const jobId = `${user}_${timestamp}`;
+    const rawFilename = `${jobId}_raw.flv`;
+    const rawPath = path.join(RECORDINGS_DIR, rawFilename);
     const filename = `${jobId}.mp4`;
     const filePath = path.join(RECORDINGS_DIR, filename);
 
@@ -165,6 +270,7 @@ class LiveRecorderService {
       title: statusInfo.title || `Live Stream (@${user})`,
       filename,
       filePath,
+      rawPath,
       streamUrl: statusInfo.stream_url,
       startTime: Date.now(),
       bytesWritten: 0,
@@ -174,10 +280,10 @@ class LiveRecorderService {
       fileStream: null
     };
 
-    // If direct stream URL is found, stream directly over HTTP into the file
+    // If direct stream URL is found, stream directly over HTTP into the raw file
     if (job.streamUrl) {
       try {
-        const fileStream = fs.createWriteStream(filePath);
+        const fileStream = fs.createWriteStream(rawPath);
         job.fileStream = fileStream;
 
         const client = job.streamUrl.startsWith('https') ? https : http;
@@ -217,7 +323,7 @@ class LiveRecorderService {
       // Fallback: spawn streamlink if available
       try {
         const url = `https://www.tiktok.com/@${user}/live`;
-        const proc = spawn('python', ['-m', 'streamlink', '--loglevel', 'info', '--force', url, 'best', '-o', filePath], {
+        const proc = spawn('python', ['-m', 'streamlink', '--loglevel', 'info', '--force', url, 'best', '-o', rawPath], {
           windowsHide: true
         });
         job.process = proc;
@@ -257,6 +363,9 @@ class LiveRecorderService {
       } catch (e) {}
     }
 
+    // Wait brief tick for file write stream to flush
+    await new Promise(r => setTimeout(r, 600));
+
     return await this.finishJob(jobId);
   }
 
@@ -266,6 +375,15 @@ class LiveRecorderService {
 
     job.status = 'finished';
     this.activeJobs.delete(jobId);
+
+    // Convert raw FLV stream to genuine portrait MP4
+    if (job.rawPath && fs.existsSync(job.rawPath)) {
+      try {
+        await remuxToMp4(job.rawPath, job.filePath);
+      } catch (err) {
+        console.error('Error during remuxToMp4:', err);
+      }
+    }
 
     let fileSize = job.bytesWritten || 0;
     try {
@@ -319,6 +437,8 @@ class LiveRecorderService {
     try {
       if (fs.existsSync(job.filePath)) {
         currentSize = fs.statSync(job.filePath).size;
+      } else if (job.rawPath && fs.existsSync(job.rawPath)) {
+        currentSize = fs.statSync(job.rawPath).size;
       }
     } catch (e) {}
 
@@ -378,6 +498,12 @@ class LiveRecorderService {
       } catch (e) {
         console.error('Error deleting file:', e);
       }
+    }
+    const rawLeftover = record.file_path?.replace('.mp4', '_raw.flv');
+    if (rawLeftover && fs.existsSync(rawLeftover)) {
+      try {
+        fs.unlinkSync(rawLeftover);
+      } catch (e) {}
     }
 
     await db.run(`DELETE FROM recordings WHERE id = ?`, [id]);

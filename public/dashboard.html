@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/theme.css">
+<script src="https://cdn.jsdelivr.net/npm/mpegts.js@1.7.3/dist/mpegts.js"></script>
 <style>
   :root {
     --bg-dark: #0a0712;
@@ -370,30 +371,36 @@
   .modal-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0,0,0,.88);
+    background: rgba(0,0,0,.92);
     display: none;
     align-items: center;
     justify-content: center;
     z-index: 999;
-    padding: 20px;
+    padding: 16px;
+    backdrop-filter: blur(8px);
   }
   .modal-overlay.open { display: flex; }
   .modal-card {
     background: #140d22;
     border: 1px solid #2a1f40;
-    border-radius: 20px;
+    border-radius: 22px;
     width: 100%;
-    max-width: 600px;
-    padding: 20px;
+    max-width: 420px;
+    padding: 18px 18px 22px;
     position: relative;
-    box-shadow: 0 30px 80px rgba(0,0,0,.8);
+    box-shadow: 0 30px 90px rgba(0,0,0,.9), 0 0 40px rgba(234,30,99,.15);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
   }
   .modal-card video {
     width: 100%;
     max-height: 72vh;
-    border-radius: 12px;
+    aspect-ratio: 9/16;
+    border-radius: 14px;
     background: #000;
     object-fit: contain;
+    border: 1px solid rgba(255,255,255,.08);
   }
   .modal-close {
     position: absolute;
@@ -406,7 +413,9 @@
     border-radius: 8px;
     font-size: 12px;
     cursor: pointer;
+    transition: background .15s;
   }
+  .modal-close:hover { background: rgba(255,255,255,.18); }
 
   /* Lock Overlay (if no license) */
   body.locked .app-body { filter: blur(24px) saturate(.5); opacity: .4; pointer-events: none; }
@@ -809,19 +818,71 @@
     }
   }
 
+  let activeMpegtsPlayer = null;
+
   function playVideo(url, title) {
     const modal = document.getElementById('videoModal');
     const player = document.getElementById('playerVideo');
     document.getElementById('videoModalTitle').textContent = `Playing: ${title || 'Stream Recording'}`;
+
+    if (activeMpegtsPlayer) {
+      try { activeMpegtsPlayer.destroy(); } catch (e) {}
+      activeMpegtsPlayer = null;
+    }
+
+    player.pause();
+    player.removeAttribute('src');
+    player.load();
+
+    let mpegtsStarted = false;
+    const tryMpegts = () => {
+      if (mpegtsStarted) return;
+      if (window.mpegts && mpegts.isSupported()) {
+        try {
+          mpegtsStarted = true;
+          activeMpegtsPlayer = mpegts.createPlayer({
+            type: 'flv',
+            isLive: false,
+            url: url
+          });
+          activeMpegtsPlayer.attachMediaElement(player);
+          activeMpegtsPlayer.load();
+          activeMpegtsPlayer.play().catch(e => console.warn('mpegts play warning:', e));
+        } catch (e) {
+          console.error('mpegts setup error:', e);
+        }
+      }
+    };
+
+    // Try native HTML5 video first
     player.src = url;
+    const p = player.play();
+    if (p !== undefined) {
+      p.catch(err => {
+        console.warn('Native video error, using mpegts fallback:', err);
+        tryMpegts();
+      });
+    }
+
+    player.onerror = () => {
+      console.warn('Native player onerror fired, falling back to mpegts');
+      tryMpegts();
+    };
+
     modal.classList.add('open');
   }
 
   function closeVideoModal() {
     const modal = document.getElementById('videoModal');
     const player = document.getElementById('playerVideo');
+    if (activeMpegtsPlayer) {
+      try { activeMpegtsPlayer.destroy(); } catch (e) {}
+      activeMpegtsPlayer = null;
+    }
     player.pause();
-    player.src = '';
+    player.removeAttribute('src');
+    player.load();
+    player.onerror = null;
     modal.classList.remove('open');
   }
 </script>
