@@ -203,20 +203,81 @@ class LiveRecorderService {
 
           // In TikTok API: status 2 is LIVE, status 4 is OFFLINE
           const isLive = status === 2;
-          let streamUrl = null;
+          let landscapeUrl = null;
+          let portraitUrl = null;
 
-          if (room?.streamData?.pull_data?.stream_data) {
+          // Extract roomId without 64-bit float precision loss
+          let roomId = null;
+          const rawStreamData = room?.streamData?.pull_data?.stream_data || '';
+          const matchRoomId = rawStreamData.match(/"room_id":\s*(\d+)/);
+          if (matchRoomId) {
+            roomId = matchRoomId[1];
+          }
+
+          // Extract base stream URL from web API
+          if (rawStreamData) {
             try {
-              const streamJson = JSON.parse(room.streamData.pull_data.stream_data);
+              const streamJson = JSON.parse(rawStreamData);
               const qualities = streamJson.data || {};
               for (const q of ['origin', 'uhd_60', 'hd_60', 'hd', 'sd', 'ld']) {
                 if (qualities[q]?.main?.flv) {
-                  streamUrl = qualities[q].main.flv;
+                  landscapeUrl = qualities[q].main.flv;
                   break;
                 }
               }
             } catch (e) {}
           }
+
+          // If live and roomId is known, query mobile webcast API for true Dual Layout scenes (Portrait vs Landscape)
+          if (isLive && roomId) {
+            try {
+              const webcastUrl = `https://webcast.tiktok.com/webcast/room/info/?aid=1233&room_id=${roomId}&device_platform=iphone`;
+              const mRes = await fetch(webcastUrl, {
+                headers: {
+                  'User-Agent': 'TikTok 30.1.0 (iPhone; iOS 17.4; Scale/3.00)',
+                  'Accept': 'application/json'
+                },
+                signal: AbortSignal.timeout(5000)
+              });
+              if (mRes.ok) {
+                const mJson = await mRes.json().catch(() => null);
+                const mRoom = mJson?.data;
+
+                // multi_stream_url is the dedicated portrait scene for Dual Stream / TikTok Live Studio
+                if (mRoom?.multi_stream_url?.live_core_sdk_data?.pull_data?.stream_data) {
+                  try {
+                    const msd = JSON.parse(mRoom.multi_stream_url.live_core_sdk_data.pull_data.stream_data);
+                    const mq = msd.data || {};
+                    for (const k of ['origin', 'hd', 'sd', 'ld']) {
+                      if (mq[k]?.main?.flv) {
+                        portraitUrl = mq[k].main.flv;
+                        break;
+                      }
+                    }
+                  } catch (e) {}
+                }
+
+                // stream_url is the desktop/game landscape scene
+                if (mRoom?.stream_url?.live_core_sdk_data?.pull_data?.stream_data) {
+                  try {
+                    const lsd = JSON.parse(mRoom.stream_url.live_core_sdk_data.pull_data.stream_data);
+                    const lq = lsd.data || {};
+                    for (const k of ['origin', 'hd', 'sd', 'ld']) {
+                      if (lq[k]?.main?.flv) {
+                        landscapeUrl = lq[k].main.flv;
+                        break;
+                      }
+                    }
+                  } catch (e) {}
+                }
+              }
+            } catch (mErr) {
+              console.warn('[LiveCheck] Mobile webcast dual stream query warning:', mErr.message);
+            }
+          }
+
+          if (!portraitUrl) portraitUrl = landscapeUrl;
+          if (!landscapeUrl) landscapeUrl = portraitUrl;
 
           return {
             username: u?.uniqueId || user,
@@ -225,7 +286,10 @@ class LiveRecorderService {
             title: room?.title || 'Live Stream',
             is_live: isLive,
             status_code: status,
-            stream_url: streamUrl,
+            portrait_stream_url: portraitUrl,
+            landscape_stream_url: landscapeUrl,
+            stream_url: portraitUrl,
+            has_dual_scene: !!(portraitUrl && landscapeUrl && portraitUrl !== landscapeUrl),
             message: isLive ? `@${user} is LIVE right now!` : `@${user} is currently offline.`
           };
         }
@@ -294,6 +358,10 @@ class LiveRecorderService {
     const filename = `${jobId}.mp4`;
     const filePath = path.join(RECORDINGS_DIR, filename);
 
+    const targetStreamUrl = (orientation === 'landscape')
+      ? (statusInfo.landscape_stream_url || statusInfo.stream_url)
+      : (statusInfo.portrait_stream_url || statusInfo.stream_url);
+
     const job = {
       jobId,
       userId: userId || null,
@@ -303,7 +371,7 @@ class LiveRecorderService {
       filename,
       filePath,
       rawPath,
-      streamUrl: statusInfo.stream_url,
+      streamUrl: targetStreamUrl,
       startTime: Date.now(),
       bytesWritten: 0,
       status: 'recording',
