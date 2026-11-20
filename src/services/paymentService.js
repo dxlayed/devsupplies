@@ -36,7 +36,7 @@ class PaymentService {
         `SELECT COUNT(*) AS n FROM orders WHERE user_id = ? AND status = 'pending' AND payment_method = 'crypto' AND ltc_expires_at > datetime('now')`,
         [userId]
       );
-      if (open.n >= 3) throw new Error('You already have 3 open payments. Finish or wait for one to expire.');
+      if (open.n >= 5) throw new Error('You already have multiple open orders. Complete one or wait for it to expire.');
       ltc = await ltcPayments.quote(amountUsd);
       cryptoAddress = ltc.address;
       cryptoCurrency = 'LTC';

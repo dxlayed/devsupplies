@@ -16,9 +16,11 @@
  */
 const db = require('../database');
 const { HDKey } = require('@scure/bip32');
-const { bech32 } = require('@scure/base');
+const { bech32, createBase58check } = require('@scure/base');
 const { sha256 } = require('@noble/hashes/sha256');
 const { ripemd160 } = require('@noble/hashes/ripemd160');
+
+const base58check = createBase58check(sha256);
 
 const RAW_KEY = (process.env.LTC_XPUB || process.env.LTC_ADDRESS || '').trim();
 const REQUIRED_CONFS = Math.max(0, parseInt(process.env.LTC_CONFIRMATIONS || '1', 10) || 1);
@@ -39,36 +41,53 @@ db.run(`ALTER TABLE orders ADD COLUMN ltc_confirmations INTEGER DEFAULT 0`).catc
 
 const state = { lastCheck: null, lastError: null, lastRate: null, lastRateAt: 0, configError: null };
 
-// ---------- Address generation from the zpub / static address ----------
+// ---------- Address generation from Electrum master public key (HD Wallet) ----------
 let receiveChain = null;
+let keyPrefix = 'zpub';
 let staticAddress = null;
+
+function parseElectrumMasterKey(rawKey) {
+  const clean = String(rawKey || '').trim().replace(/\s+/g, '');
+  const rawBytes = Buffer.from(base58check.decode(clean));
+  if (rawBytes.length !== 78) {
+    throw new Error(`Invalid extended key length (${rawBytes.length} bytes instead of 78)`);
+  }
+  // Standardize the version bytes to Bitcoin xpub (0x0488b21e)
+  // This allows BIP32 to parse any Electrum xpub/zpub/Ltub/Mtub without version mismatch errors
+  const normalized = Buffer.from(rawBytes);
+  normalized.writeUInt32BE(0x0488b21e, 0);
+  const stdXpub = base58check.encode(normalized);
+  const hd = HDKey.fromExtendedKey(stdXpub);
+  return { hd, prefix: clean.slice(0, 4) };
+}
 
 function configure(key) {
   state.configError = null;
-  const k = (key || '').trim();
+  const k = (key || '').trim().replace(/\s+/g, '');
   if (!k) {
     receiveChain = null;
     staticAddress = null;
     return false;
   }
   try {
+    // Check if user entered a direct static address
     if (/^(ltc1|[LM3])[a-km-zA-HJ-NP-Z1-9]{25,62}$/i.test(k)) {
       staticAddress = k;
       receiveChain = null;
       console.log(`[ltc] Configured with static LTC address: ${staticAddress}`);
       return true;
-    } else {
-      const versions = k.startsWith('zpub') ? { private: 0x04b2430c, public: 0x04b24746 }
-        : k.startsWith('Ltub') ? { private: 0x019d9cfe, public: 0x019da462 }
-        : { private: 0x0488ade4, public: 0x0488b21e };
-      receiveChain = HDKey.fromExtendedKey(k, versions).deriveChild(0);
-      staticAddress = null;
-      console.log(`[ltc] Configured with HD wallet xpub, first address: ${addressAt(0)}`);
-      return true;
     }
+
+    // Parse as Electrum HD Master Public Key (zpub, Ltub, Mtub, xpub)
+    const { hd, prefix } = parseElectrumMasterKey(k);
+    keyPrefix = prefix;
+    receiveChain = hd.deriveChild(0); // Electrum external receiving chain
+    staticAddress = null;
+    console.log(`[ltc] Configured with Electrum HD wallet (${keyPrefix}). Address 0: ${addressAt(0)}, Address 1: ${addressAt(1)}`);
+    return true;
   } catch (e) {
-    console.error('[ltc] LTC key is invalid:', e.message);
-    state.configError = `Invalid key: ${e.message}. Tip: Enter your standard Litecoin receiving address (starts with ltc1 or L).`;
+    console.error('[ltc] Electrum key error:', e.message);
+    state.configError = `Electrum key error: ${e.message}. In Electrum-LTC, open Wallet -> Information and copy the Master Public Key.`;
     receiveChain = null;
     staticAddress = null;
     return false;
@@ -76,10 +95,10 @@ function configure(key) {
 }
 
 // Initialize with environment key first
-configure(RAW_KEY);
+if (RAW_KEY) configure(RAW_KEY);
 
 // Also check database site_settings on startup
-db.get(`SELECT value FROM site_settings WHERE key = 'ltc_address'`).then(row => {
+db.get(`SELECT value FROM site_settings WHERE key = 'ltc_address' OR key = 'ltc_xpub'`).then(row => {
   if (row?.value && !isConfigured()) {
     configure(row.value);
   }
@@ -91,8 +110,21 @@ function isConfigured() {
 
 function addressAt(index) {
   if (staticAddress) return staticAddress;
-  const pub = receiveChain.deriveChild(index).publicKey;
-  return bech32.encode('ltc', [0, ...bech32.toWords(ripemd160(sha256(pub)))]);
+  const childPub = receiveChain.deriveChild(index).publicKey;
+  const h160 = ripemd160(sha256(childPub));
+
+  if (keyPrefix === 'Ltub') {
+    // Legacy Litecoin address starting with 'L' (BIP44)
+    return base58check.encode(Buffer.concat([Buffer.from([0x30]), Buffer.from(h160)]));
+  } else if (keyPrefix === 'Mtub') {
+    // P2SH SegWit address starting with 'M' (BIP49)
+    const redeem = Buffer.concat([Buffer.from([0x00, 0x14]), Buffer.from(h160)]);
+    const sh = ripemd160(sha256(redeem));
+    return base58check.encode(Buffer.concat([Buffer.from([0x32]), Buffer.from(sh)]));
+  } else {
+    // Native SegWit address starting with 'ltc1' (BIP84 / zpub / xpub)
+    return bech32.encode('ltc', [0, ...bech32.toWords(h160)]);
+  }
 }
 
 async function getJson(url) {
@@ -252,8 +284,12 @@ function status() {
   return {
     enabled: isConfigured(),
     configured: isConfigured(),
+    mode: receiveChain ? 'hd_electrum' : (staticAddress ? 'static' : 'off'),
+    prefix: keyPrefix,
     address: isConfigured() ? addressAt(0) : null,
     firstAddress: isConfigured() ? addressAt(0) : null,
+    sampleAddress1: isConfigured() ? addressAt(0) : null,
+    sampleAddress2: receiveChain ? addressAt(1) : null,
     configError: state.configError,
     confirmationsRequired: REQUIRED_CONFS,
     quoteMinutes: QUOTE_MINUTES,

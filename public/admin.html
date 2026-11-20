@@ -139,11 +139,12 @@
       <input id="mtMessage" class="input-field" maxlength="300" placeholder="Message shown to visitors (optional), e.g. Upgrading live recording servers! Back soon.">
       <button class="btn btn-danger" id="mtBtn" style="padding:10px 16px">Turn maintenance ON</button>
 
-      <div class="sec-title" style="margin-top:28px"><span>Litecoin payments</span><span id="ltcBadge" class="badge-admin">—</span></div>
+      <div class="sec-title" style="margin-top:28px"><span>Electrum-LTC Automated Crypto Checkout</span><span id="ltcBadge" class="badge-admin">—</span></div>
+      <p style="color:var(--muted);font-size:13px;margin-bottom:8px">Paste your Electrum-LTC Master Public Key (<b>Wallet → Information</b> in Electrum-LTC). Every single customer automatically receives their own fresh unique Litecoin address generated from your wallet.</p>
       <div id="ltcInfo" style="font-size:13px;color:var(--muted);line-height:1.8"></div>
-      <div style="margin-top:12px;display:flex;gap:8px;max-width:540px">
-        <input id="ltcAddressInput" class="input-field" placeholder="Paste your LTC address (e.g. ltc1q... or L...)">
-        <button class="btn btn-outline" id="btnSaveLtc" style="flex:none;padding:8px 16px">Save Address</button>
+      <div style="margin-top:12px;display:flex;gap:8px;max-width:640px">
+        <input id="ltcAddressInput" class="input-field" placeholder="Paste Electrum Master Public Key (zpub... / Ltub... / xpub...)">
+        <button class="btn btn-approve" id="btnSaveLtc" style="flex:none;padding:8px 18px">Save Key</button>
       </div>
     </div>
 
@@ -240,13 +241,17 @@
 
     const l = d.ltc || {};
     const isLtcOn = !!(l.enabled || l.configured);
-    $('ltcBadge').textContent = isLtcOn ? 'ACTIVE' : 'DISABLED';
+    $('ltcBadge').textContent = isLtcOn ? (l.mode === 'hd_electrum' ? 'ELECTRUM HD' : 'ACTIVE') : 'DISABLED';
     $('ltcBadge').style.color = isLtcOn ? 'var(--pass)' : 'var(--muted)';
-    if (l.address) $('ltcAddressInput').value = l.address;
+    if (l.address && !$('ltcAddressInput').value) $('ltcAddressInput').value = l.address;
     $('ltcInfo').innerHTML = isLtcOn
-      ? `Wallet connected (${esc(l.address || l.firstAddress)}). Keys issue after <b style="color:var(--text)">${+l.confirmationsRequired}</b> confirmation(s). Prices lock for ${+l.quoteMinutes} mins.<br>
-         Last check: ${l.lastCheck ? when(l.lastCheck) : 'not yet'}${l.lastRateUsd ? ' · LTC price $' + (+l.lastRateUsd).toFixed(2) : ''}`
-      : `${l.configError ? `<span style="color:var(--block);font-weight:600">${esc(l.configError)}</span><br>` : ''}Paste your standard Litecoin receiving address below or add LTC_XPUB/LTC_ADDRESS in Railway variables.`;
+      ? (l.mode === 'hd_electrum'
+          ? `Connected to Electrum HD Wallet! Each order gets a fresh, unique Litecoin address.<br>
+             Next address (#1): <code class="mono" style="color:#d7c2ff">${esc(l.sampleAddress1 || l.address)}</code><br>
+             Next address (#2): <code class="mono" style="color:#d7c2ff">${esc(l.sampleAddress2 || '')}</code><br>
+             Keys issue automatically after <b style="color:var(--text)">${+l.confirmationsRequired}</b> confirmation(s).`
+          : `Static address mode: <code class="mono" style="color:#d7c2ff">${esc(l.address)}</code>`)
+      : `${l.configError ? `<span style="color:var(--block);font-weight:600">${esc(l.configError)}</span><br>` : ''}In Electrum-LTC, open <b>Wallet → Information</b>, copy your <b>Master Public Key</b>, and paste it below.`;
   });
 
   $('btnSaveLtc').onclick = safe(async () => {
