@@ -667,6 +667,7 @@
               ` : ''}
             </div>
             <div style="font-size:10px;color:var(--muted);margin-top:4px;display:flex;align-items:center;gap:6px;align-self:${isAdmin ? 'flex-end' : 'flex-start'}">
+              <img src="${isAdmin ? (m.sender_avatar || 'https://cdn.discordapp.com/avatars/1094670363071361147/a_ff7ee85cffa44cc31d888e5d14294c5c.png') : (user.avatar || m.sender_avatar || 'https://cdn.discordapp.com/embed/avatars/0.png')}" style="width:16px;height:16px;border-radius:50%;object-fit:cover;border:1px solid rgba(255,255,255,.1)">
               <span>${isAdmin ? 'WAURK (You)' : esc(user.username)}</span>
               <span>•</span>
               <span>${when(m.created_at)}</span>

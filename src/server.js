@@ -168,6 +168,68 @@ app.use(async (req, res, next) => {
   res.status(503).set('Retry-After', '600').type('html').send(maintenancePage(siteSettings.maintenanceMessage));
 });
 
+// Robust HTTP 206 video streaming handler for recordings & pre-records
+app.get('/recordings/:filename', (req, res) => {
+  const filename = path.basename(req.params.filename);
+  const primaryPath = path.join(liveRecorderService.RECORDINGS_DIR, filename);
+  const localPath = path.join(__dirname, '..', 'public', 'recordings', filename);
+
+  let filePath = fs.existsSync(primaryPath) ? primaryPath : (fs.existsSync(localPath) ? localPath : null);
+
+  // Auto-recovery: if .mp4 was renamed or saved as _temp.flv or _raw.flv, serve it seamlessly!
+  if (!filePath && filename.endsWith('.mp4')) {
+    const alts = [
+      filename.replace('.mp4', '_temp.flv'),
+      filename.replace('.mp4', '_raw.flv')
+    ];
+    for (const alt of alts) {
+      const pAlt = path.join(liveRecorderService.RECORDINGS_DIR, alt);
+      const lAlt = path.join(__dirname, '..', 'public', 'recordings', alt);
+      const found = fs.existsSync(pAlt) ? pAlt : (fs.existsSync(lAlt) ? lAlt : null);
+      if (found) {
+        filePath = found;
+        break;
+      }
+    }
+  }
+
+  // Cover image fallback
+  if (!filePath && filename.endsWith('_thumb.jpg')) {
+    return res.status(404).end();
+  }
+
+  if (!filePath || !fs.existsSync(filePath)) {
+    return res.status(404).send('Recording file not found');
+  }
+
+  const stat = fs.statSync(filePath);
+  const fileSize = stat.size;
+  const isVideo = filePath.endsWith('.mp4') || filePath.endsWith('.flv');
+
+  if (isVideo && req.headers.range) {
+    const range = req.headers.range;
+    const parts = range.replace(/bytes=/, '').split('-');
+    const start = parseInt(parts[0], 10);
+    const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+    const chunksize = (end - start) + 1;
+    const stream = fs.createReadStream(filePath, { start, end });
+    res.writeHead(206, {
+      'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+      'Accept-Ranges': 'bytes',
+      'Content-Length': chunksize,
+      'Content-Type': filePath.endsWith('.flv') ? 'video/x-flv' : 'video/mp4'
+    });
+    stream.pipe(res);
+  } else {
+    res.writeHead(200, {
+      'Content-Length': fileSize,
+      'Accept-Ranges': 'bytes',
+      'Content-Type': isVideo ? (filePath.endsWith('.flv') ? 'video/x-flv' : 'video/mp4') : 'image/jpeg'
+    });
+    fs.createReadStream(filePath).pipe(res);
+  }
+});
+
 app.use('/recordings', express.static(path.join(__dirname, '..', 'public', 'recordings')));
 app.use(express.static(path.join(__dirname, '..', 'public'), { extensions: ['html'] }));
 
@@ -450,6 +512,31 @@ function formatChatDuration(sec) {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
+// Sync Discord avatar helper
+async function getAdminDiscordProfile() {
+  const owner = await db.get(`SELECT username, avatar FROM users WHERE discord_id = '1094670363071361147' LIMIT 1`);
+  return {
+    username: owner?.username || 'waurk',
+    avatar: owner?.avatar || 'https://cdn.discordapp.com/avatars/1094670363071361147/a_ff7ee85cffa44cc31d888e5d14294c5c.png'
+  };
+}
+
+app.get('/api/v1/chat/profile', authMiddleware, async (req, res) => {
+  try {
+    const admin = await getAdminDiscordProfile();
+    res.json({
+      currentUser: {
+        id: req.user.id,
+        username: req.user.username,
+        avatar: req.user.avatar || `https://cdn.discordapp.com/embed/avatars/${Number(req.user.id) % 5}.png`
+      },
+      supportAdmin: admin
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/v1/chat/messages', authMiddleware, async (req, res) => {
   try {
     const messages = await db.all(
@@ -553,13 +640,19 @@ app.post('/api/v1/admin/chat/send', adminAuthMiddleware, async (req, res) => {
     if (!userId) return res.status(400).json({ error: 'userId is required' });
     if (!message && !attachmentUrl) return res.status(400).json({ error: 'Message or attachment required' });
 
+    const adminProfile = await getAdminDiscordProfile();
+    const adminAvatar = req.adminUser?.avatar || adminProfile.avatar;
+    const adminName = req.adminUser?.username || adminProfile.username;
+
     const cleanMsg = String(message || '').trim();
     const result = await db.run(
       `INSERT INTO chat_messages (user_id, sender_type, sender_id, sender_name, sender_avatar, message, attachment_type, attachment_url, attachment_name, attachment_size, attachment_duration, read_by_user, read_by_admin)
-       VALUES (?, 'admin', ?, 'waurk', '/waurk_pfp.png', ?, ?, ?, ?, ?, ?, 0, 1)`,
+       VALUES (?, 'admin', ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1)`,
       [
         userId,
         req.user?.id || 0,
+        adminName,
+        adminAvatar,
         cleanMsg,
         attachmentType || (attachmentUrl ? 'video' : null),
         attachmentUrl || null,
@@ -1480,6 +1573,8 @@ if (require.main === module) {
     db.run(`UPDATE friend_requests SET checked_at = NULL WHERE status = 'pending'`).catch(() => {});
     // Lifetime keys: make older "yearly" keys never expire too
     db.run(`UPDATE licenses SET expires_at = '2126-01-01T00:00:00.000Z' WHERE tier = 'yearly' AND status != 'revoked' AND expires_at < '2100'`).catch(() => {});
+    // Sync real Discord avatar for admin chat messages
+    db.run(`UPDATE chat_messages SET sender_avatar = 'https://cdn.discordapp.com/avatars/1094670363071361147/a_ff7ee85cffa44cc31d888e5d14294c5c.png' WHERE sender_type = 'admin' AND (sender_avatar LIKE '%waurk_pfp%' OR sender_avatar IS NULL)`).catch(() => {});
   });
 }
 

@@ -5,8 +5,11 @@ const path = require('path');
 const fs = require('fs');
 const db = require('../database');
 
-const RECORDINGS_DIR = path.join(__dirname, '..', '..', 'public', 'recordings');
+const VOLUME_DIR = process.env.DB_PATH ? path.dirname(process.env.DB_PATH) : null;
+const RECORDINGS_DIR = VOLUME_DIR ? path.join(VOLUME_DIR, 'recordings') : path.join(__dirname, '..', '..', 'public', 'recordings');
 try { fs.mkdirSync(RECORDINGS_DIR, { recursive: true }); } catch (e) {}
+// Also ensure public/recordings exists for static fallback
+try { fs.mkdirSync(path.join(__dirname, '..', '..', 'public', 'recordings'), { recursive: true }); } catch (e) {}
 
 function cleanUsername(raw) {
   let clean = String(raw || '').trim();
@@ -118,44 +121,25 @@ function remuxToMp4(rawFlvPath, targetMp4Path, orientation = 'portrait') {
       return resolve({ success: false, reason: 'ffmpeg_not_installed' });
     }
 
-    const dims = getFlvDimensions(rawFlvPath);
-    let args = [];
+    // Always use fast stream copy with faststart
+    // TikTok streams are native H.264/AAC. Stream copy is instantaneous (0.5s), zero quality loss, and never times out.
+    const args = ['-y', '-i', rawFlvPath, '-c', 'copy', '-movflags', '+faststart', targetMp4Path];
 
-    if (orientation === 'landscape') {
-      // Landscape/original: fast stream copy to MP4
-      args = ['-y', '-i', rawFlvPath, '-c', 'copy', '-movflags', '+faststart', targetMp4Path];
-    } else {
-      // Portrait (9:16)
-      if (dims && dims.height > dims.width) {
-        // Stream is already native 9:16 portrait (e.g. 720x1280 vertical phone stream)
-        args = ['-y', '-i', rawFlvPath, '-c', 'copy', '-movflags', '+faststart', targetMp4Path];
-      } else {
-        // Pad to standard 720:1280 vertical portrait (9:16) with ultrafast H.264
-        args = [
-          '-y',
-          '-i', rawFlvPath,
-          '-vf', 'scale=w=720:h=1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2:black',
-          '-c:v', 'libx264',
-          '-preset', 'ultrafast',
-          '-crf', '22',
-          '-c:a', 'aac',
-          '-movflags', '+faststart',
-          targetMp4Path
-        ];
-      }
-    }
-
-    console.log(`[remuxToMp4] Running FFmpeg (${orientation}): ${ffmpegBin} ${args.join(' ')}`);
+    console.log(`[remuxToMp4] Remuxing stream copy: ${ffmpegBin} ${args.join(' ')}`);
 
     let proc;
     try {
       proc = spawn(ffmpegBin, args, { stdio: ['ignore', 'pipe', 'pipe'] });
     } catch (spawnErr) {
       console.error('[remuxToMp4] Spawn error:', spawnErr);
+      try {
+        if (rawFlvPath !== targetMp4Path && fs.existsSync(rawFlvPath) && !fs.existsSync(targetMp4Path)) {
+          fs.copyFileSync(rawFlvPath, targetMp4Path);
+        }
+      } catch (e) {}
       return resolve({ success: false, reason: spawnErr.message });
     }
 
-    // Drain stderr & stdout so the 64KB OS pipe buffer NEVER blocks FFmpeg
     let stderrTail = '';
     proc.stderr.on('data', chunk => {
       stderrTail += chunk.toString();
@@ -163,45 +147,30 @@ function remuxToMp4(rawFlvPath, targetMp4Path, orientation = 'portrait') {
     });
     proc.stdout.on('data', () => {});
 
-    // Safety timeout: 40 seconds max
+    // Timeout: 120 seconds
     const timer = setTimeout(() => {
       try {
-        console.warn('[remuxToMp4] FFmpeg timed out, terminating');
+        console.warn('[remuxToMp4] FFmpeg process timed out, terminating');
         proc.kill('SIGKILL');
       } catch (e) {}
-    }, 40000);
+    }, 120000);
 
     proc.on('close', (code) => {
       clearTimeout(timer);
       if (code === 0 && fs.existsSync(targetMp4Path) && fs.statSync(targetMp4Path).size > 0) {
         console.log(`[remuxToMp4] Success! MP4 created: ${targetMp4Path} (${fs.statSync(targetMp4Path).size} bytes)`);
-        try { fs.unlinkSync(rawFlvPath); } catch (e) {}
+        if (rawFlvPath !== targetMp4Path) {
+          try { fs.unlinkSync(rawFlvPath); } catch (e) {}
+        }
         resolve({ success: true, orientation });
       } else {
-        console.warn(`[remuxToMp4] FFmpeg exited with code ${code}. Tail: ${stderrTail.slice(-200)}`);
-        // If re-encode failed, try fast copy fallback
-        if (args.includes('-c:v')) {
-          console.log('[remuxToMp4] Attempting stream copy fallback...');
-          const fallbackArgs = ['-y', '-i', rawFlvPath, '-c', 'copy', '-movflags', '+faststart', targetMp4Path];
-          try {
-            const fProc = spawn(ffmpegBin, fallbackArgs, { stdio: ['ignore', 'ignore', 'ignore'] });
-            fProc.on('close', (fCode) => {
-              if (fCode === 0 && fs.existsSync(targetMp4Path) && fs.statSync(targetMp4Path).size > 0) {
-                try { fs.unlinkSync(rawFlvPath); } catch (e) {}
-                return resolve({ success: true, orientation: 'copied' });
-              }
-              if (!fs.existsSync(targetMp4Path) && fs.existsSync(rawFlvPath)) {
-                fs.copyFileSync(rawFlvPath, targetMp4Path);
-              }
-              resolve({ success: false, reason: 'ffmpeg_exit_' + code });
-            });
-            return;
-          } catch (e) {}
-        }
-
-        if (!fs.existsSync(targetMp4Path) && fs.existsSync(rawFlvPath)) {
-          fs.copyFileSync(rawFlvPath, targetMp4Path);
-        }
+        console.warn(`[remuxToMp4] Stream copy exited with code ${code}. Tail: ${stderrTail.slice(-200)}`);
+        // Fallback: copy file directly so data is NEVER lost
+        try {
+          if (rawFlvPath !== targetMp4Path && fs.existsSync(rawFlvPath) && (!fs.existsSync(targetMp4Path) || fs.statSync(targetMp4Path).size === 0)) {
+            fs.copyFileSync(rawFlvPath, targetMp4Path);
+          }
+        } catch (e) {}
         resolve({ success: false, reason: 'ffmpeg_exit_' + code });
       }
     });
@@ -210,7 +179,7 @@ function remuxToMp4(rawFlvPath, targetMp4Path, orientation = 'portrait') {
       clearTimeout(timer);
       console.error('[remuxToMp4] Process error:', procErr.message);
       try {
-        if (!fs.existsSync(targetMp4Path) && fs.existsSync(rawFlvPath)) {
+        if (rawFlvPath !== targetMp4Path && fs.existsSync(rawFlvPath) && !fs.existsSync(targetMp4Path)) {
           fs.copyFileSync(rawFlvPath, targetMp4Path);
         }
       } catch (e) {}
@@ -262,32 +231,42 @@ class LiveRecorderService {
   async scanAndRemuxLegacy() {
     try {
       const files = fs.readdirSync(RECORDINGS_DIR);
-      for (const file of files) {
-        if (file.endsWith('.mp4')) {
-          const fullPath = path.join(RECORDINGS_DIR, file);
-          try {
-            const fd = fs.openSync(fullPath, 'r');
-            const header = Buffer.alloc(4);
-            fs.readSync(fd, header, 0, 4, 0);
-            fs.closeSync(fd);
-            if (header.toString('utf8', 0, 3) === 'FLV') {
-              console.log(`[LiveRecorder] Remuxing legacy FLV recording to portrait MP4: ${file}`);
-              const tempRaw = path.join(RECORDINGS_DIR, file.replace('.mp4', '_temp.flv'));
-              fs.renameSync(fullPath, tempRaw);
-              await remuxToMp4(tempRaw, fullPath, 'portrait');
-            }
 
-            // Generate thumbnail if missing
-            const thumbFilename = file.replace('.mp4', '_thumb.jpg');
-            const thumbPath = path.join(RECORDINGS_DIR, thumbFilename);
-            if (!fs.existsSync(thumbPath)) {
-              await generateThumbnail(fullPath, thumbPath);
-              await db.run(`UPDATE recordings SET thumbnail_url = ? WHERE filename = ?`, [`/recordings/${thumbFilename}`, file]).catch(() => {});
+      // Pass 1: Auto-recover any _temp.flv or _raw.flv files whose target .mp4 is missing or broken
+      for (const file of files) {
+        if (file.endsWith('_temp.flv') || file.endsWith('_raw.flv')) {
+          const targetMp4 = file.replace(/_temp\.flv$|_raw\.flv$/, '.mp4');
+          const targetPath = path.join(RECORDINGS_DIR, targetMp4);
+          const sourcePath = path.join(RECORDINGS_DIR, file);
+          const statSource = fs.statSync(sourcePath);
+          const needsRestore = !fs.existsSync(targetPath) || fs.statSync(targetPath).size < 1000;
+
+          if (needsRestore && statSource.size > 1000) {
+            console.log(`[AutoRecover] Restoring recording from ${file} to ${targetMp4} (${statSource.size} bytes)`);
+            await remuxToMp4(sourcePath, targetPath, 'landscape');
+            if (!fs.existsSync(targetPath) || fs.statSync(targetPath).size < 1000) {
+              try { fs.copyFileSync(sourcePath, targetPath); } catch (_) {}
             }
-          } catch (err) {}
+          }
         }
       }
-    } catch (e) {}
+
+      // Pass 2: Ensure all MP4s have covers
+      const updatedFiles = fs.readdirSync(RECORDINGS_DIR);
+      for (const file of updatedFiles) {
+        if (file.endsWith('.mp4')) {
+          const fullPath = path.join(RECORDINGS_DIR, file);
+          const thumbFilename = file.replace('.mp4', '_thumb.jpg');
+          const thumbPath = path.join(RECORDINGS_DIR, thumbFilename);
+          if (!fs.existsSync(thumbPath)) {
+            await generateThumbnail(fullPath, thumbPath).catch(() => {});
+            await db.run(`UPDATE recordings SET thumbnail_url = ? WHERE filename = ?`, [`/recordings/${thumbFilename}`, file]).catch(() => {});
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[scanAndRemuxLegacy] Notice:', e.message);
+    }
   }
 
   /**
@@ -934,4 +913,6 @@ class LiveRecorderService {
   }
 }
 
-module.exports = new LiveRecorderService();
+const service = new LiveRecorderService();
+service.RECORDINGS_DIR = RECORDINGS_DIR;
+module.exports = service;

@@ -1832,9 +1832,9 @@
         <div class="recording-card" id="rec-card-${rec.id}" onclick="playVideo('${rec.downloadUrl}', '@${rec.username}')" title="Click to play recording">
           <div class="recording-thumb-wrap">
             ${rec.thumbnailUrl 
-              ? `<img src="${rec.thumbnailUrl}" class="recording-thumb" alt="cover" onerror="this.style.display='none'; if (this.nextElementSibling) this.nextElementSibling.style.display='block';">
-                 <video src="${rec.downloadUrl}#t=0.5" class="recording-thumb" style="display:none" preload="metadata" muted playsinline></video>` 
-              : `<video src="${rec.downloadUrl}#t=0.5" class="recording-thumb" preload="metadata" muted playsinline></video>`}
+              ? `<img src="${rec.thumbnailUrl}" class="recording-thumb" alt="cover" onerror="this.style.display='none'; if (this.nextElementSibling) this.nextElementSibling.style.display='flex';">
+                 <div class="recording-thumb-placeholder" style="display:none"><span style="font-size:12px;font-weight:800;color:#c4b5fd">1080p</span><span style="font-size:10px;font-weight:700;color:#8b5cf6">MP4</span></div>` 
+              : `<div class="recording-thumb-placeholder"><span style="font-size:12px;font-weight:800;color:#c4b5fd">1080p</span><span style="font-size:10px;font-weight:700;color:#8b5cf6">MP4</span></div>`}
             <div class="recording-thumb-play">
               <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
             </div>
@@ -1871,15 +1871,20 @@
     }
 
     player.pause();
-    player.removeAttribute('src');
+    player.src = url;
     player.load();
 
-    let mpegtsStarted = false;
-    const tryMpegts = () => {
-      if (mpegtsStarted) return;
-      if (window.mpegts && mpegts.isSupported()) {
+    const p = player.play();
+    if (p !== undefined) {
+      p.catch(err => {
+        console.log('Autoplay deferred, press play button to start:', err);
+      });
+    }
+
+    player.onerror = () => {
+      console.warn('Native player error, checking mpegts fallback for FLV...');
+      if (url.includes('.flv') && window.mpegts && mpegts.isSupported()) {
         try {
-          mpegtsStarted = true;
           activeMpegtsPlayer = mpegts.createPlayer({
             type: 'flv',
             isLive: false,
@@ -1892,20 +1897,6 @@
           console.error('mpegts setup error:', e);
         }
       }
-    };
-
-    player.src = url;
-    player.load();
-    const p = player.play();
-    if (p !== undefined) {
-      p.catch(err => {
-        console.log('Autoplay deferred, press play button to start:', err);
-      });
-    }
-
-    player.onerror = () => {
-      console.warn('Native player onerror fired, falling back to mpegts');
-      tryMpegts();
     };
 
     modal.classList.add('open');
@@ -1983,8 +1974,26 @@
     return `${m}:${String(s).padStart(2, '0')}`;
   }
 
+  let chatProfile = null;
+
+  async function loadChatProfile() {
+    try {
+      const res = await fetch('/api/v1/chat/profile');
+      if (res.ok) {
+        chatProfile = await res.json();
+        if (chatProfile.supportAdmin && chatProfile.supportAdmin.avatar) {
+          const flImg = document.getElementById('floatingPfpImg');
+          const drImg = document.getElementById('drawerPfpImg');
+          if (flImg) flImg.src = chatProfile.supportAdmin.avatar;
+          if (drImg) drImg.src = chatProfile.supportAdmin.avatar;
+        }
+      }
+    } catch (e) {}
+  }
+
   async function loadChatMessages(scrollBottom = false) {
     try {
+      if (!chatProfile) await loadChatProfile();
       const res = await fetch('/api/v1/chat/messages');
       if (!res.ok) return;
       const data = await res.json();
@@ -2014,9 +2023,18 @@
       container.innerHTML = messages.map(m => {
         const isAdmin = m.sender_type === 'admin';
         const hasVideo = (m.attachment_type === 'video' || (m.attachment_url && m.attachment_url.endsWith('.mp4')));
+        const avatar = isAdmin 
+          ? (m.sender_avatar || chatProfile?.supportAdmin?.avatar || '/waurk_pfp.png')
+          : (m.sender_avatar || chatProfile?.currentUser?.avatar || user?.avatar || `https://cdn.discordapp.com/embed/avatars/${(user?.id || 1) % 5}.png`);
+        const senderLabel = isAdmin ? (m.sender_name || 'waurk') : (m.sender_name || user?.username || 'You');
 
         return `
           <div class="chat-bubble ${isAdmin ? 'admin' : 'user'}">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;${isAdmin ? '' : 'justify-content:flex-end'}">
+              <img src="${avatar}" style="width:18px;height:18px;border-radius:50%;object-fit:cover;border:1px solid rgba(255,255,255,0.15)">
+              <span style="font-size:11px;font-weight:700;color:${isAdmin ? '#c4b5fd' : '#fff'}">${escapeHtml(senderLabel)}</span>
+              ${isAdmin ? '<span class="admin-tag">WAURK</span>' : ''}
+            </div>
             <div class="bubble-content">
               ${m.message ? `<div>${escapeHtml(m.message)}</div>` : ''}
               ${hasVideo ? `
@@ -2040,7 +2058,6 @@
               ` : ''}
             </div>
             <div class="bubble-meta">
-              ${isAdmin ? '<span class="admin-tag">WAURK</span>' : ''}
               <span>${formatTime(m.created_at)}</span>
             </div>
           </div>
@@ -2110,12 +2127,13 @@
   // Poll for unread messages periodically
   setInterval(checkUnreadChat, 12000);
   setTimeout(checkUnreadChat, 2000);
+  setTimeout(loadChatProfile, 500);
 </script>
 
 <!-- Floating Chat Trigger -->
 <div class="floating-chat-trigger" id="floatingChatTrigger" onclick="toggleChat()">
   <div class="floating-pfp-wrap">
-    <img src="/waurk_pfp.png" class="floating-pfp" alt="waurk">
+    <img src="https://cdn.discordapp.com/avatars/1094670363071361147/a_ff7ee85cffa44cc31d888e5d14294c5c.png" id="floatingPfpImg" class="floating-pfp" alt="waurk">
     <span class="online-indicator"></span>
   </div>
   <div class="floating-info">
@@ -2133,7 +2151,7 @@
   <div class="chat-header">
     <div class="chat-header-user">
       <div class="floating-pfp-wrap">
-        <img src="/waurk_pfp.png" class="floating-pfp" alt="waurk">
+        <img src="https://cdn.discordapp.com/avatars/1094670363071361147/a_ff7ee85cffa44cc31d888e5d14294c5c.png" id="drawerPfpImg" class="floating-pfp" alt="waurk">
         <span class="online-indicator"></span>
       </div>
       <div>
