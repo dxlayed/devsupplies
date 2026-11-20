@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>waurk - TikTok Live Recorder & Downloader</title>
-<meta name="description" content="Capture any TikTok Live stream in high-definition 1080p 60FPS. Automatic 24/7 background recorder, live status checker, and instant MP4 downloads.">
+<meta name="description" content="Capture any TikTok Live stream in high-definition 1080p 60FPS. Instant in-browser recording, portrait and landscape modes, and direct MP4 downloads.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
@@ -113,6 +113,18 @@
   .end{padding:90px 0 20px;text-align:center}
   .end h2{font-size:clamp(34px,5vw,60px);letter-spacing:-.03em;margin-bottom:22px}
 
+  /* ---------- feature showcase cards ---------- */
+  .feature-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:20px}
+  @media (max-width:760px){.feature-grid{grid-template-columns:1fr}}
+  .feat-card{background:linear-gradient(165deg,#130d21,#08050e);border:1px solid #231638;border-radius:20px;padding:28px 24px;
+    box-shadow:0 20px 40px rgba(0,0,0,.4);transition:transform .2s,border-color .2s,box-shadow .2s;position:relative;overflow:hidden}
+  .feat-card:hover{transform:translateY(-3px);border-color:rgba(139,92,246,.4);box-shadow:0 24px 50px rgba(139,92,246,.15)}
+  .feat-card::before{content:"";position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(167,139,250,.3),transparent)}
+  .feat-icon-box{width:46px;height:46px;border-radius:13px;background:rgba(139,92,246,.12);border:1px solid rgba(139,92,246,.3);display:flex;align-items:center;justify-content:center;color:#c4b5fd;margin-bottom:16px}
+  .feat-icon-box svg{width:22px;height:22px}
+  .feat-card h3{font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:700;color:#fff;margin-bottom:8px}
+  .feat-card p{font-size:14px;color:var(--muted);line-height:1.6;margin:0}
+
   @media (max-width:860px){
     .sort,.how{grid-template-columns:1fr}
     .panel{transform:none}
@@ -144,7 +156,7 @@
     <div class="shield"><span class="logo-mark">w</span></div>
     <span class="pill"><span class="rec-live-dot" style="display:inline-block;margin-right:6px"></span>TikTok Live Stream Recorder</span>
     <h1 class="grad3d">Capture TikTok Lives.<br><span class="r" id="allBots">Never miss one.</span></h1>
-    <p class="lead">waurk monitors your favorite TikTok creators 24/7 and captures their streams in high-definition 1080p the second they go live. Instant MP4 downloads directly to your PC.</p>
+    <p class="lead">Capture any TikTok Live stream in crisp 1080p 60FPS. Record directly in your browser with portrait and landscape modes, instant playback, and fast MP4 downloads.</p>
     <div class="hero-btns">
       <a href="/checkout" class="btn btn-main">Get a key</a>
       <a href="#how" class="btn btn-line">How it works</a>
@@ -155,8 +167,8 @@
         1080p 60FPS Video
       </div>
       <div class="feat-badge">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-        24/7 Background Auto-Watcher
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+        Portrait &amp; Landscape Modes
       </div>
       <div class="feat-badge">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -166,41 +178,46 @@
   </div>
 </section>
 
-<section class="part">
-  <div class="wrap sort">
-    <div>
-      <span class="pill">Real-time Capture</span>
-      <h2 style="margin-top:16px">Records seamlessly <span style="color:var(--purple)">in the background.</span></h2>
-      <p class="lead">Add creator @handles or live links. As soon as a creator goes live, waurk kicks off an automatic high-speed capture with zero frame drops.</p>
+<section class="part" id="features">
+  <div class="wrap">
+    <div style="text-align:center;max-width:640px;margin:0 auto 46px">
+      <span class="pill">Built For Creators &amp; Clippers</span>
+      <h2 style="margin-top:16px">Everything you need to <span style="color:var(--purple)">capture high-res lives.</span></h2>
+      <p class="lead" style="margin:12px auto 0">No complicated screen recorders, no dropped frames, and zero video watermarks. Record directly in your browser.</p>
     </div>
-    <div class="panel" id="panel">
-      <div class="phead"><span>Live Stream Monitor</span><i>ACTIVE RECORDING</i></div>
-      <div class="row recording">
-        <div class="avatar-box">C</div>
-        <div class="info"><span class="un">@charlidamelio</span><span class="meta">1080p 60fps · 842 MB · 48m elapsed</span></div>
-        <span class="st">RECORDING</span>
+
+    <div class="feature-grid">
+      <div class="feat-card">
+        <div class="feat-icon-box">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
+        </div>
+        <h3>Source 1080p 60FPS</h3>
+        <p>Direct feed capture from broadcast servers ensures maximum visual clarity, smooth frame rates, and zero audio sync lag.</p>
       </div>
-      <div class="row saved">
-        <div class="avatar-box" style="background:linear-gradient(135deg,#38ef7d,#11998e)">S</div>
-        <div class="info"><span class="un">@streamer_pro</span><span class="meta">1080p MP4 · 1.4 GB · Completed</span></div>
-        <span class="st">SAVED</span>
+
+      <div class="feat-card">
+        <div class="feat-icon-box">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+        </div>
+        <h3>Portrait &amp; Landscape</h3>
+        <p>Record in native vertical 9:16 for TikTok, Shorts, and Reels, or switch to widescreen landscape 16:9 for desktop editing.</p>
       </div>
-      <div class="row recording">
-        <div class="avatar-box" style="background:linear-gradient(135deg,#ff7675,#d63031)">G</div>
-        <div class="info"><span class="un">@gamer_stream</span><span class="meta">1080p 60fps · 410 MB · 22m elapsed</span></div>
-        <span class="st">RECORDING</span>
+
+      <div class="feat-card">
+        <div class="feat-icon-box">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        </div>
+        <h3>Built-In Browser Player</h3>
+        <p>Preview and play back any recorded stream immediately inside your browser without needing VLC or third-party players.</p>
       </div>
-      <div class="row watch">
-        <div class="avatar-box" style="background:linear-gradient(135deg,#a29bfe,#6c5ce7)">D</div>
-        <div class="info"><span class="un">@daily_live</span><span class="meta">Auto-Watcher checking every 45s</span></div>
-        <span class="st">STANDBY</span>
+
+      <div class="feat-card">
+        <div class="feat-icon-box">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        </div>
+        <h3>Fast MP4 Downloads</h3>
+        <p>Direct universal .mp4 downloads straight to your PC or phone, perfectly formatted for CapCut, Premiere, and editing apps.</p>
       </div>
-      <div class="row saved">
-        <div class="avatar-box" style="background:linear-gradient(135deg,#fd79a8,#e84393)">V</div>
-        <div class="info"><span class="un">@viral_moments</span><span class="meta">1080p MP4 · 920 MB · Completed</span></div>
-        <span class="st">SAVED</span>
-      </div>
-      <div class="beam"></div>
     </div>
   </div>
 </section>
@@ -219,7 +236,7 @@
       <div class="box">
         <div class="num">2</div>
         <h3>Add creators</h3>
-        <p>Enter any TikTok @username or stream link. Click "Auto-Watch" to monitor the creator 24/7 while you're offline or asleep.</p>
+        <p>Enter any TikTok @username. Choose portrait or landscape mode, check if they are live, and start recording with one click.</p>
       </div>
       <div class="box">
         <div class="num">3</div>
@@ -274,8 +291,8 @@
         <p>Streams are captured at the highest broadcast bitrate available (up to 1080p at 60 FPS) and saved in universal `.mp4` format with full audio sync.</p>
       </details>
       <details>
-        <summary>Can it record while I'm away or asleep?</summary>
-        <p>Yes! With Auto-Watch mode enabled, the software monitors creators in the background every 45 seconds and automatically starts recording as soon as they go live.</p>
+        <summary>Do I need to install software or browser extensions?</summary>
+        <p>No. waurk operates 100% in the cloud and your browser. No downloads, installations, or extensions required.</p>
       </details>
       <details>
         <summary>Can I record multiple streams at the same time?</summary>
@@ -334,9 +351,9 @@
     const streams = [
       { user: 'charlidamelio', msg: 'Started 1080p recording' },
       { user: 'streamer_pro', msg: 'Recording saved (1.4 GB MP4)' },
-      { user: 'gamer_central', msg: 'Streamer is LIVE · Auto-capturing' },
-      { user: 'daily_tiktok', msg: 'Stream saved (680 MB MP4)' },
-      { user: 'dance_crew', msg: 'New live detected · Auto-Watch active' }
+      { user: 'gamer_central', msg: 'Started 1080p recording' },
+      { user: 'daily_tiktok', msg: 'Recording saved (680 MB MP4)' },
+      { user: 'dance_crew', msg: 'Creator is LIVE · Capturing' }
     ];
     let n = 0;
     while (true) {
