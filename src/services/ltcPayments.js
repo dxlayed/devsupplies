@@ -20,7 +20,7 @@ const { bech32 } = require('@scure/base');
 const { sha256 } = require('@noble/hashes/sha256');
 const { ripemd160 } = require('@noble/hashes/ripemd160');
 
-const XPUB = (process.env.LTC_XPUB || '').trim();
+const RAW_KEY = (process.env.LTC_XPUB || process.env.LTC_ADDRESS || '').trim();
 const REQUIRED_CONFS = Math.max(0, parseInt(process.env.LTC_CONFIRMATIONS || '1', 10) || 1);
 const QUOTE_MINUTES = Math.max(5, parseInt(process.env.LTC_QUOTE_MINUTES || '30', 10) || 30);
 const EXPLORER = 'https://litecoinspace.org/api';
@@ -39,26 +39,38 @@ db.run(`ALTER TABLE orders ADD COLUMN ltc_confirmations INTEGER DEFAULT 0`).catc
 
 const state = { lastCheck: null, lastError: null, lastRate: null, lastRateAt: 0 };
 
-// ---------- Address generation from the zpub ----------
+// ---------- Address generation from the zpub / static address ----------
 let receiveChain = null;
+let staticAddress = null;
+
 try {
-  if (XPUB) {
-    // zpub = native SegWit (ltc1...) keys, the Electrum-LTC default
-    const versions = XPUB.startsWith('zpub') ? { private: 0x04b2430c, public: 0x04b24746 }
-      : XPUB.startsWith('Ltub') ? { private: 0x019d9cfe, public: 0x019da462 }
-      : { private: 0x0488ade4, public: 0x0488b21e };
-    receiveChain = HDKey.fromExtendedKey(XPUB, versions).deriveChild(0); // Electrum receiving chain
+  if (RAW_KEY) {
+    // Check if user set a direct Litecoin address (starts with ltc1, L, or M)
+    if (/^(ltc1|[LM3])[a-km-zA-HJ-NP-Z1-9]{25,62}$/i.test(RAW_KEY)) {
+      staticAddress = RAW_KEY;
+      console.log(`[ltc] Configured with static LTC address: ${staticAddress}`);
+    } else {
+      // zpub = native SegWit (ltc1...) keys, the Electrum-LTC default
+      const versions = RAW_KEY.startsWith('zpub') ? { private: 0x04b2430c, public: 0x04b24746 }
+        : RAW_KEY.startsWith('Ltub') ? { private: 0x019d9cfe, public: 0x019da462 }
+        : { private: 0x0488ade4, public: 0x0488b21e };
+      receiveChain = HDKey.fromExtendedKey(RAW_KEY, versions).deriveChild(0); // Electrum receiving chain
+      console.log(`[ltc] Configured with HD wallet xpub, first address: ${addressAt(0)}`);
+    }
   }
 } catch (e) {
-  console.error('[ltc] LTC_XPUB is not a valid master public key:', e.message);
+  console.error('[ltc] LTC_XPUB/LTC_ADDRESS is invalid:', e.message);
+  console.error('[ltc] Note: If your zpub checksum failed, you can paste your standard Litecoin wallet receiving address (e.g. ltc1... or L...) directly into LTC_XPUB or LTC_ADDRESS.');
   receiveChain = null;
+  staticAddress = null;
 }
 
 function isConfigured() {
-  return !!receiveChain;
+  return !!receiveChain || !!staticAddress;
 }
 
 function addressAt(index) {
+  if (staticAddress) return staticAddress;
   const pub = receiveChain.deriveChild(index).publicKey;
   return bech32.encode('ltc', [0, ...bech32.toWords(ripemd160(sha256(pub)))]);
 }
@@ -99,6 +111,9 @@ function satsToLtc(sats) {
  */
 let allocating = Promise.resolve();
 function nextAddress() {
+  if (staticAddress) {
+    return Promise.resolve({ index: 0, address: staticAddress });
+  }
   const job = allocating.then(async () => {
     const busy = new Set((await db.all(
       `SELECT ltc_index FROM orders WHERE ltc_index IS NOT NULL AND (
@@ -166,6 +181,12 @@ async function checkPayments(completeOrder) {
         const paid = (tx.vout || []).reduce((s, o) => s + (o.scriptpubkey_address === order.crypto_address ? o.value : 0), 0);
         if (paid <= 0) continue;
         if (tx.status?.confirmed && tx.status.block_time * 1000 < created - 60000) continue; // older than the order
+        // Ensure this tx has not already been used to fulfill another completed order
+        const alreadyClaimed = await db.get(
+          `SELECT id FROM orders WHERE ltc_txid = ? AND status = 'completed' AND id != ?`,
+          [tx.txid, order.id]
+        );
+        if (alreadyClaimed) continue;
         received += paid;
         minConfs = Math.min(minConfs, tx.status?.confirmed ? tip - tx.status.block_height + 1 : 0);
         firstTx = firstTx || tx.txid;

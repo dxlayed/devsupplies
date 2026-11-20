@@ -43,8 +43,27 @@
   .method span{font-size:13px;color:var(--muted)}
   .method.active{border-color:var(--purple);background:var(--purple-soft)}
   .pay-note{font-size:14px;color:var(--muted);margin-top:14px}
-  .items-panel{display:none}
-  .items-panel.show{display:block}
+  .items-panel,.dm-panel{display:none}
+  .items-panel.show,.dm-panel.show{display:block}
+
+  /* Discord Profile Card */
+  .discord-card{margin-top:16px;background:#111214;border:1px solid rgba(255,255,255,.08);border-radius:16px;overflow:hidden;box-shadow:0 12px 36px rgba(0,0,0,.45)}
+  .discord-banner{height:80px;background:#965445;position:relative}
+  .discord-body{padding:0 20px 20px;position:relative}
+  .discord-avatar-wrap{position:relative;width:80px;height:80px;margin-top:-40px;margin-bottom:12px}
+  .discord-avatar{width:80px;height:80px;border-radius:50%;border:6px solid #111214;object-fit:cover;background:#1e1f22;display:block}
+  .discord-status-dot{position:absolute;bottom:3px;right:3px;width:20px;height:20px;background:#23a55a;border:4px solid #111214;border-radius:50%}
+  .discord-info{margin-bottom:14px}
+  .discord-name-row{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+  .discord-display-name{font-size:22px;font-weight:700;color:#f2f3f5;font-family:'Inter',sans-serif}
+  .discord-handle{font-size:14px;color:#949ba4;font-weight:500}
+  .discord-bio{font-size:13.5px;color:#dbdee1;line-height:1.5;margin-top:10px;background:#1e1f22;padding:12px 14px;border-radius:10px;border:1px solid #2b2d31}
+  .discord-actions{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+  .discord-action-btn{flex:1;min-width:150px;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 16px;font-size:14px;font-weight:600;border-radius:8px;border:none;cursor:pointer;transition:all .15s ease;text-decoration:none}
+  .discord-copy-btn{background:#2b2d31;color:#f2f3f5}
+  .discord-copy-btn:hover{background:#383a40}
+  .discord-dm-btn{background:#5865f2;color:#fff}
+  .discord-dm-btn:hover{background:#4752c4}
 
   .bar{position:fixed;left:0;right:0;bottom:0;background:rgba(9,8,12,.92);backdrop-filter:blur(8px);border-top:1px solid var(--line);padding:14px 0;z-index:20}
   .bar .inner{max-width:760px;margin:0 auto;padding:0 20px;display:flex;align-items:center;justify-content:space-between;gap:16px}
@@ -139,10 +158,41 @@
     <div class="step"><span class="n">3</span><h2>How do you want to pay?</h2></div>
     <div class="methods">
       <div class="method active" id="mCrypto" onclick="setMethod('crypto')"><b>Litecoin (LTC)</b><span>Key unlocks automatically upon confirmation</span></div>
-      <div class="method" id="mItems" onclick="setMethod('items')"><b>Discord Support</b><span>Assisted through our Discord server</span></div>
+      <div class="method" id="mDm" onclick="setMethod('dm')"><b>DM</b><span>Message @waurk. on Discord</span></div>
     </div>
     <div id="cryptoPanel"><p class="pay-note">We'll show you an address and the exact LTC amount to send. Once verified on the blockchain, your key appears right here.</p></div>
-    <div class="items-panel" id="itemsPanel"><p class="pay-note">Have questions or prefer assistance? Open a ticket on our Discord server and staff will assist you with unlocking your key directly.</p></div>
+    <div class="dm-panel" id="dmPanel">
+      <p class="pay-note">Want to pay with Cash App, PayPal, Apple Pay, Crypto, or Robux? Message me directly on Discord to get your key instantly.</p>
+      
+      <div class="discord-card">
+        <div class="discord-banner"></div>
+        <div class="discord-body">
+          <div class="discord-avatar-wrap">
+            <img src="/waurk_pfp.png" alt="waurk" class="discord-avatar">
+            <span class="discord-status-dot" title="Online"></span>
+          </div>
+          <div class="discord-info">
+            <div class="discord-name-row">
+              <span class="discord-display-name">waurk</span>
+              <span class="discord-handle">waurk.</span>
+            </div>
+            <div class="discord-bio">
+              DM me on Discord to buy a recorder key directly. Accepted: Cash App, PayPal, Apple Pay, Crypto, Robux, Gift Cards. Instant key delivery.
+            </div>
+          </div>
+          <div class="discord-actions">
+            <button class="discord-action-btn discord-dm-btn" type="button" onclick="openDiscordDm()">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M20.3 4.4A19.8 19.8 0 0 0 15.4 3l-.2.5a18 18 0 0 1 4.3 1.4 16.4 16.4 0 0 0-14.9-.1A18 18 0 0 1 8.8 3.5L8.6 3a19.8 19.8 0 0 0-4.9 1.4C.9 8.5 0 12.6.5 16.6a19.9 19.9 0 0 0 6 3.1l.5-.9a13 13 0 0 1-2-1l.5-.4a14.2 14.2 0 0 0 12 0l.5.4c-.6.4-1.3.7-2 1l.5.9a19.8 19.8 0 0 0 6-3.1c.6-4.7-.8-8.8-2.7-12.2ZM8.3 14.2c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2Zm7.4 0c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2Z"/></svg>
+              Open Discord
+            </button>
+            <button class="discord-action-btn discord-copy-btn" type="button" onclick="copyDiscordUser()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+              Copy Username (waurk.)
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </main>
 
@@ -273,11 +323,26 @@
 
   function setMethod(m) {
     paymentMethod = m;
-    document.getElementById('mCrypto').classList.toggle('active', m === 'crypto');
-    document.getElementById('mItems').classList.toggle('active', m === 'items');
-    document.getElementById('cryptoPanel').style.display = m === 'crypto' ? 'block' : 'none';
-    document.getElementById('itemsPanel').classList.toggle('show', m === 'items');
+    const isCrypto = m === 'crypto';
+    document.getElementById('mCrypto').classList.toggle('active', isCrypto);
+    document.getElementById('mDm').classList.toggle('active', !isCrypto);
+    document.getElementById('cryptoPanel').style.display = isCrypto ? 'block' : 'none';
+    document.getElementById('dmPanel').classList.toggle('show', !isCrypto);
     refreshBar();
+  }
+
+  function copyDiscordUser() {
+    navigator.clipboard.writeText('waurk.').then(() => {
+      notify('Copied Discord username: waurk.', 'ok');
+    }).catch(() => {
+      notify('Username: waurk.');
+    });
+  }
+
+  function openDiscordDm() {
+    copyDiscordUser();
+    // Discord app link or web link
+    window.open('https://discord.com/app', '_blank');
   }
 
   function selectPlan(el) {
@@ -298,12 +363,20 @@
 
     if (selectedPlan) {
       amtEl.textContent = '$' + selectedPlan.amt;
-      lblEl.textContent = selectedPlan.label + ' · ' + (paymentMethod === 'crypto' ? 'Litecoin' : 'In-game items');
+      lblEl.textContent = selectedPlan.label + ' · ' + (paymentMethod === 'crypto' ? 'Litecoin' : 'Discord DM');
     } else {
       amtEl.textContent = '$-';
       lblEl.textContent = 'Pick a plan';
     }
 
+    if (paymentMethod === 'dm') {
+      btn.disabled = false;
+      btn.textContent = 'DM @waurk. on Discord';
+      btn.onclick = () => openDiscordDm();
+      return;
+    }
+
+    btn.onclick = () => handleCheckout();
     if (!currentUser) {
       btn.disabled = true;
       btn.textContent = 'Sign in first';
@@ -312,7 +385,7 @@
       btn.textContent = 'Pick a plan';
     } else {
       btn.disabled = false;
-      btn.textContent = paymentMethod === 'crypto' ? `Pay $${selectedPlan.amt} with LTC` : `Get a trade ticket`;
+      btn.textContent = `Pay $${selectedPlan.amt} with LTC`;
     }
   }
 
