@@ -799,6 +799,421 @@
   }
   #wkToast.show { display: block; }
   #wkToast.err { border-color: rgba(255,84,112,.5); color: #ff8597; }
+
+  /* Top Nav Chat Button */
+  .btn-chat-nav {
+    background: rgba(139, 92, 246, 0.12);
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    color: #c4b5fd;
+    padding: 5px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: 8px;
+    transition: all .15s ease;
+  }
+  .btn-chat-nav:hover {
+    background: rgba(139, 92, 246, 0.25);
+    border-color: #a78bfa;
+    color: #fff;
+  }
+  .nav-chat-badge {
+    background: #ff3b5c;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 1px 6px;
+    border-radius: 999px;
+    line-height: 1.2;
+  }
+
+  /* Floating Chat Widget Trigger */
+  .floating-chat-trigger {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 990;
+    background: #130d22;
+    border: 1.5px solid rgba(139, 92, 246, 0.35);
+    border-radius: 999px;
+    padding: 7px 16px 7px 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6), 0 0 25px rgba(139, 92, 246, 0.2);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .floating-chat-trigger:hover {
+    transform: translateY(-2px);
+    border-color: #8b5cf6;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7), 0 0 35px rgba(139, 92, 246, 0.35);
+  }
+  .floating-pfp-wrap {
+    position: relative;
+    width: 34px;
+    height: 34px;
+    flex: none;
+  }
+  .floating-pfp {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1.5px solid rgba(255,255,255,0.15);
+    background: #000;
+  }
+  .online-indicator {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #2ed573;
+    border: 2px solid #130d22;
+  }
+  .floating-info {
+    display: flex;
+    flex-direction: column;
+    text-align: left;
+  }
+  .floating-name {
+    font-size: 13px;
+    font-weight: 800;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .floating-sub {
+    font-size: 11px;
+    color: #a78bfa;
+    font-weight: 500;
+  }
+  .floating-badge {
+    background: #ff3b5c;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 800;
+    padding: 2px 7px;
+    border-radius: 999px;
+    margin-left: 2px;
+  }
+
+  /* Chat Drawer Modal */
+  .chat-drawer {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    width: 380px;
+    max-width: calc(100vw - 32px);
+    height: 540px;
+    max-height: calc(100vh - 48px);
+    background: #0f0a19;
+    border: 1.5px solid rgba(139, 92, 246, 0.3);
+    border-radius: 22px;
+    box-shadow: 0 28px 70px rgba(0, 0, 0, 0.85), 0 0 45px rgba(139, 92, 246, 0.2);
+    display: none;
+    flex-direction: column;
+    z-index: 995;
+    overflow: hidden;
+    backdrop-filter: blur(20px);
+    animation: drawerSlideUp 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  @keyframes drawerSlideUp {
+    from { opacity: 0; transform: translateY(18px) scale(0.97); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .chat-drawer.open {
+    display: flex;
+  }
+  .chat-header {
+    padding: 14px 16px;
+    background: rgba(255, 255, 255, 0.03);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .chat-header-user {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .chat-header-name {
+    font-size: 15px;
+    font-weight: 800;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    letter-spacing: -0.2px;
+  }
+  .chat-header-status {
+    font-size: 11px;
+    color: #948baf;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 1px;
+  }
+  .dot-green {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #2ed573;
+    display: inline-block;
+  }
+  .chat-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .chat-btn-icon {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #948baf;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all .15s;
+  }
+  .chat-btn-icon:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+  }
+
+  /* Messages List */
+  .chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    scroll-behavior: smooth;
+  }
+  .chat-messages::-webkit-scrollbar {
+    width: 5px;
+  }
+  .chat-messages::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 999px;
+  }
+
+  /* Message Bubbles */
+  .chat-bubble {
+    display: flex;
+    flex-direction: column;
+    max-width: 84%;
+    animation: fadeInMsg 0.18s ease;
+  }
+  @keyframes fadeInMsg {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .chat-bubble.user {
+    align-self: flex-end;
+  }
+  .chat-bubble.admin {
+    align-self: flex-start;
+  }
+  .bubble-content {
+    padding: 10px 14px;
+    border-radius: 16px;
+    font-size: 13px;
+    line-height: 1.5;
+    word-break: break-word;
+  }
+  .chat-bubble.user .bubble-content {
+    background: linear-gradient(135deg, #7c3aed, #6d28d9);
+    color: #fff;
+    border-bottom-right-radius: 4px;
+    box-shadow: 0 4px 14px rgba(124, 58, 237, 0.3);
+  }
+  .chat-bubble.admin .bubble-content {
+    background: #171025;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #f1f5f9;
+    border-bottom-left-radius: 4px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+  }
+  .bubble-meta {
+    font-size: 10px;
+    color: #645b77;
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .chat-bubble.user .bubble-meta {
+    justify-content: flex-end;
+  }
+  .admin-tag {
+    background: rgba(139, 92, 246, 0.2);
+    color: #c4b5fd;
+    font-size: 9px;
+    font-weight: 800;
+    padding: 1px 5px;
+    border-radius: 4px;
+    letter-spacing: 0.5px;
+  }
+
+  /* Pre-record Video Card Inside Chat */
+  .prerecord-card {
+    margin-top: 8px;
+    background: #090510;
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+  }
+  .prerecord-card-top {
+    padding: 8px 12px;
+    background: rgba(139, 92, 246, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  }
+  .prerecord-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #ff5470;
+    background: rgba(255, 84, 112, 0.12);
+    border: 1px solid rgba(255, 84, 112, 0.25);
+    padding: 2px 7px;
+    border-radius: 6px;
+  }
+  .prerecord-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .prerecord-video {
+    width: 100%;
+    max-height: 220px;
+    background: #000;
+    display: block;
+    outline: none;
+  }
+  .prerecord-actions {
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.02);
+  }
+  .prerecord-specs {
+    font-size: 11px;
+    font-family: ui-monospace, Consolas, monospace;
+    color: #948baf;
+  }
+  .btn-prerecord-dl {
+    background: rgba(139, 92, 246, 0.18);
+    border: 1px solid rgba(139, 92, 246, 0.4);
+    color: #c4b5fd;
+    padding: 4px 10px;
+    border-radius: 7px;
+    font-size: 11px;
+    font-weight: 700;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: all .15s;
+  }
+  .btn-prerecord-dl:hover {
+    background: #7c3aed;
+    color: #fff;
+    border-color: #8b5cf6;
+  }
+
+  /* Chat Input Form */
+  .chat-input-bar {
+    padding: 10px 12px;
+    background: #120b1f;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .chat-text-input {
+    flex: 1;
+    background: #0a0512;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+    padding: 10px 14px;
+    color: #fff;
+    font-size: 13px;
+    outline: none;
+    transition: border-color .15s;
+  }
+  .chat-text-input:focus {
+    border-color: #8b5cf6;
+  }
+  .chat-text-input::placeholder {
+    color: #584f6d;
+  }
+  .chat-send-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #7c3aed, #ff3b5c);
+    color: #fff;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex: none;
+    transition: transform .1s, opacity .15s;
+  }
+  .chat-send-btn:hover {
+    transform: scale(1.05);
+  }
+  .chat-send-btn:active {
+    transform: scale(0.96);
+  }
+  .chat-welcome-notice {
+    padding: 16px;
+    text-align: center;
+    background: rgba(139, 92, 246, 0.06);
+    border: 1px dashed rgba(139, 92, 246, 0.2);
+    border-radius: 14px;
+    margin: 8px 0;
+  }
+  .chat-welcome-notice h4 {
+    margin: 0 0 6px;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .chat-welcome-notice p {
+    margin: 0;
+    color: #948baf;
+    font-size: 12px;
+    line-height: 1.4;
+  }
 </style>
 </head>
 <body class="pending">
@@ -827,6 +1242,11 @@
     </div>
     <div class="header-status">
       <span id="headerRecStatus">Not recording</span> · <a href="/admin" id="adminLink" style="display:none;color:var(--purple);text-decoration:underline;margin-left:6px">Admin</a>
+      <button class="btn-chat-nav" onclick="toggleChat(true)" id="navChatBtn" type="button">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+        <span>Chat</span>
+        <span class="nav-chat-badge" id="navChatBadge" style="display:none">0</span>
+      </button>
       <a href="/checkout" style="color:var(--muted);text-decoration:none;margin-left:8px" id="userMenuName">Sign in</a>
     </div>
   </header>
@@ -1510,6 +1930,238 @@
     player.onerror = null;
     modal.classList.remove('open');
   }
+
+  // -------------------------------------------------------------
+  // USER CHAT & PRE-RECORDS LOGIC
+  // -------------------------------------------------------------
+  let chatOpen = false;
+  let chatPollTimer = null;
+  let lastMessageCount = 0;
+
+  function toggleChat(forceState) {
+    chatOpen = typeof forceState === 'boolean' ? forceState : !chatOpen;
+    const drawer = document.getElementById('chatDrawer');
+    const trigger = document.getElementById('floatingChatTrigger');
+    
+    if (chatOpen) {
+      drawer.classList.add('open');
+      trigger.style.display = 'none';
+      loadChatMessages(true);
+      if (!chatPollTimer) {
+        chatPollTimer = setInterval(() => loadChatMessages(false), 3000);
+      }
+      setTimeout(() => {
+        const inp = document.getElementById('chatInputText');
+        if (inp) inp.focus();
+      }, 100);
+    } else {
+      drawer.classList.remove('open');
+      trigger.style.display = 'flex';
+      if (chatPollTimer) {
+        clearInterval(chatPollTimer);
+        chatPollTimer = null;
+      }
+    }
+  }
+
+  function formatTime(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function formatChatFileSize(bytes) {
+    if (!bytes) return 'MP4';
+    const units = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${units[i]}`;
+  }
+
+  function formatChatDur(sec) {
+    if (!sec) return '';
+    const m = Math.floor(sec / 60), s = Math.floor(sec % 60);
+    return `${m}:${String(s).padStart(2, '0')}`;
+  }
+
+  async function loadChatMessages(scrollBottom = false) {
+    try {
+      const res = await fetch('/api/v1/chat/messages');
+      if (!res.ok) return;
+      const data = await res.json();
+      const messages = data.messages || [];
+
+      // Update badge
+      updateChatBadges(0);
+
+      const container = document.getElementById('chatMessages');
+      if (!container) return;
+
+      if (!messages.length) {
+        container.innerHTML = `
+          <div class="chat-welcome-notice">
+            <h4>👋 Chat with waurk</h4>
+            <p>Need pre-records, special stream captures, or assistance? Send a message below and we'll reply right here.</p>
+          </div>
+        `;
+        return;
+      }
+
+      if (messages.length !== lastMessageCount) {
+        lastMessageCount = messages.length;
+        scrollBottom = true;
+      }
+
+      container.innerHTML = messages.map(m => {
+        const isAdmin = m.sender_type === 'admin';
+        const hasVideo = (m.attachment_type === 'video' || (m.attachment_url && m.attachment_url.endsWith('.mp4')));
+
+        return `
+          <div class="chat-bubble ${isAdmin ? 'admin' : 'user'}">
+            <div class="bubble-content">
+              ${m.message ? `<div>${escapeHtml(m.message)}</div>` : ''}
+              ${hasVideo ? `
+                <div class="prerecord-card">
+                  <div class="prerecord-card-top">
+                    <span class="prerecord-pill">🎬 Pre-record</span>
+                    <span class="prerecord-title">${escapeHtml(m.attachment_name || 'Live Pre-record MP4')}</span>
+                  </div>
+                  <video controls preload="metadata" playsinline class="prerecord-video" src="${m.attachment_url}"></video>
+                  <div class="prerecord-actions">
+                    <span class="prerecord-specs">
+                      ${m.attachment_duration ? formatChatDur(m.attachment_duration) + ' • ' : ''}
+                      ${formatChatFileSize(m.attachment_size)}
+                    </span>
+                    <a href="${m.attachment_url}" download="${escapeHtml(m.attachment_name || 'prerecord.mp4')}" class="btn-prerecord-dl">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                      Download
+                    </a>
+                  </div>
+                </div>
+              ` : ''}
+            </div>
+            <div class="bubble-meta">
+              ${isAdmin ? '<span class="admin-tag">WAURK</span>' : ''}
+              <span>${formatTime(m.created_at)}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      if (scrollBottom) {
+        container.scrollTop = container.scrollHeight;
+      }
+    } catch (e) {
+      console.warn('Chat load error:', e);
+    }
+  }
+
+  async function checkUnreadChat() {
+    if (chatOpen) return;
+    try {
+      const res = await fetch('/api/v1/chat/unread');
+      if (!res.ok) return;
+      const data = await res.json();
+      updateChatBadges(data.unread || 0);
+    } catch (e) {}
+  }
+
+  function updateChatBadges(count) {
+    const fBadge = document.getElementById('floatingChatBadge');
+    const nBadge = document.getElementById('navChatBadge');
+    if (count > 0) {
+      if (fBadge) { fBadge.textContent = count; fBadge.style.display = 'inline-block'; }
+      if (nBadge) { nBadge.textContent = count; nBadge.style.display = 'inline-block'; }
+    } else {
+      if (fBadge) fBadge.style.display = 'none';
+      if (nBadge) nBadge.style.display = 'none';
+    }
+  }
+
+  async function sendUserMessage(e) {
+    if (e) e.preventDefault();
+    const input = document.getElementById('chatInputText');
+    const text = input.value.trim();
+    if (!text) return;
+
+    input.value = '';
+    const btn = document.getElementById('chatSendBtn');
+    btn.disabled = true;
+
+    try {
+      const res = await fetch('/api/v1/chat/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: text })
+      });
+      if (res.ok) {
+        await loadChatMessages(true);
+      } else {
+        const err = await res.json();
+        showToast(err.error || 'Failed to send message', true);
+      }
+    } catch (e) {
+      showToast('Network error sending message', true);
+    } finally {
+      btn.disabled = false;
+      input.focus();
+    }
+  }
+
+  // Poll for unread messages periodically
+  setInterval(checkUnreadChat, 12000);
+  setTimeout(checkUnreadChat, 2000);
 </script>
+
+<!-- Floating Chat Trigger -->
+<div class="floating-chat-trigger" id="floatingChatTrigger" onclick="toggleChat()">
+  <div class="floating-pfp-wrap">
+    <img src="/waurk_pfp.png" class="floating-pfp" alt="waurk">
+    <span class="online-indicator"></span>
+  </div>
+  <div class="floating-info">
+    <div class="floating-name">
+      waurk 
+      <svg class="verified-icon" viewBox="0 0 24 24" width="13" height="13"><circle cx="12" cy="12" r="10" fill="#8b5cf6"/><path d="M9 12l2 2 4-4" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <div class="floating-sub">Pre-records & chat</div>
+  </div>
+  <span class="floating-badge" id="floatingChatBadge" style="display:none">0</span>
+</div>
+
+<!-- Chat Drawer -->
+<div class="chat-drawer" id="chatDrawer">
+  <div class="chat-header">
+    <div class="chat-header-user">
+      <div class="floating-pfp-wrap">
+        <img src="/waurk_pfp.png" class="floating-pfp" alt="waurk">
+        <span class="online-indicator"></span>
+      </div>
+      <div>
+        <div class="chat-header-name">
+          waurk
+          <svg class="verified-icon" viewBox="0 0 24 24" width="14" height="14"><circle cx="12" cy="12" r="10" fill="#8b5cf6"/><path d="M9 12l2 2 4-4" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="chat-header-status"><span class="dot-green"></span> Online · Pre-records & Support</div>
+      </div>
+    </div>
+    <div class="chat-header-actions">
+      <button class="chat-btn-icon" onclick="loadChatMessages(true)" title="Refresh messages" type="button">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+      </button>
+      <button class="chat-btn-icon" onclick="toggleChat(false)" title="Close chat" type="button">&times;</button>
+    </div>
+  </div>
+
+  <div class="chat-messages" id="chatMessages">
+    <!-- Messages loaded dynamically -->
+  </div>
+
+  <form class="chat-input-bar" id="chatForm" onsubmit="sendUserMessage(event)">
+    <input type="text" id="chatInputText" class="chat-text-input" placeholder="Type a message or ask for pre-records..." autocomplete="off">
+    <button type="submit" class="chat-send-btn" id="chatSendBtn" title="Send message">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+    </button>
+  </form>
+</div>
 </body>
 </html>

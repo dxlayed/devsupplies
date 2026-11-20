@@ -92,6 +92,28 @@ db.serialize(() => {
     )
   `);
 
+  // Chat messages between users and admin/waurk
+  db.run(`
+    CREATE TABLE IF NOT EXISTS chat_messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      sender_type TEXT NOT NULL CHECK(sender_type IN ('user', 'admin')),
+      sender_id INTEGER,
+      sender_name TEXT,
+      sender_avatar TEXT,
+      message TEXT,
+      attachment_type TEXT,
+      attachment_url TEXT,
+      attachment_name TEXT,
+      attachment_size INTEGER DEFAULT 0,
+      attachment_duration INTEGER DEFAULT 0,
+      read_by_user INTEGER DEFAULT 0,
+      read_by_admin INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(user_id) REFERENCES users(id)
+    )
+  `);
+
   // Site settings table
   db.run(`
     CREATE TABLE IF NOT EXISTS site_settings (

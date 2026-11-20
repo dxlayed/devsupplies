@@ -504,44 +504,100 @@ class LiveRecorderService {
       watchdogTimer: null
     };
 
-    // If direct stream URL is found, stream directly over HTTP into the raw file
+    // If direct stream URL is found, stream directly over HTTP into the raw file with full redirect handling
     if (job.streamUrl) {
       try {
         const fileStream = fs.createWriteStream(rawPath);
         job.fileStream = fileStream;
 
-        const client = job.streamUrl.startsWith('https') ? https : http;
-        const req = client.get(job.streamUrl, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-            'Referer': `https://www.tiktok.com/@${user}/live`
+        const connectStream = (streamUrl, redirectHops = 0) => {
+          if (redirectHops > 6) {
+            console.error(`[liveRecorderService] Too many redirects for @${user}`);
+            if (this.activeJobs.has(jobId)) this.finishJob(jobId);
+            return;
           }
-        }, res => {
-          res.on('data', chunk => {
-            job.bytesWritten += chunk.length;
-            job.lastDataTime = Date.now();
-          });
-          res.pipe(fileStream);
+          const client = streamUrl.startsWith('https') ? https : http;
+          let parsedUrl;
+          try {
+            parsedUrl = new URL(streamUrl);
+          } catch (e) {
+            console.error(`[liveRecorderService] Invalid stream URL: ${streamUrl}`);
+            if (this.activeJobs.has(jobId)) this.finishJob(jobId);
+            return;
+          }
 
-          res.on('end', () => {
-            if (this.activeJobs.has(jobId)) {
-              console.log(`[liveRecorderService] Stream ended for @${user}, finishing capture.`);
-              this.finishJob(jobId);
+          const req = client.get(streamUrl, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+              'Referer': `https://www.tiktok.com/@${user}/live`,
+              'Accept': '*/*',
+              'Host': parsedUrl.host,
+              'Connection': 'keep-alive'
             }
+          }, res => {
+            // Handle HTTP 301, 302, 303, 307, 308 redirects automatically
+            if ([301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location) {
+              const nextUrl = new URL(res.headers.location, streamUrl).href;
+              console.log(`[liveRecorderService] Following stream redirect (${res.statusCode}) for @${user} -> ${nextUrl.slice(0, 80)}...`);
+              res.resume();
+              return connectStream(nextUrl, redirectHops + 1);
+            }
+
+            if (res.statusCode < 200 || res.statusCode >= 300) {
+              console.warn(`[liveRecorderService] Stream HTTP error: ${res.statusCode} for @${user}`);
+              res.resume();
+              if (job.bytesWritten < 50000 && statusInfo.landscape_stream_url && statusInfo.landscape_stream_url !== streamUrl) {
+                console.log(`[liveRecorderService] Trying fallback landscape stream for @${user}...`);
+                return connectStream(statusInfo.landscape_stream_url, redirectHops + 1);
+              }
+              if (this.activeJobs.has(jobId)) this.finishJob(jobId);
+              return;
+            }
+
+            res.on('data', chunk => {
+              job.bytesWritten += chunk.length;
+              job.lastDataTime = Date.now();
+            });
+            res.pipe(fileStream, { end: false });
+
+            res.on('end', () => {
+              // If ended with virtually no data (<50KB) and stream just started (<8s), retry once
+              if (job.bytesWritten < 50000 && (Date.now() - job.startTime) < 8000 && redirectHops < 2) {
+                console.log(`[liveRecorderService] Stream ended early (<50KB), retrying connection in 1.5s...`);
+                setTimeout(() => {
+                  if (this.activeJobs.has(jobId) && job.status === 'recording') {
+                    connectStream(streamUrl, redirectHops + 1);
+                  }
+                }, 1500);
+                return;
+              }
+
+              if (this.activeJobs.has(jobId)) {
+                console.log(`[liveRecorderService] Stream ended for @${user}, finishing capture.`);
+                if (job.fileStream) job.fileStream.end();
+                this.finishJob(jobId);
+              }
+            });
+
+            res.on('error', err => {
+              job.error = err.message;
+              console.warn(`[liveRecorderService] Stream socket error:`, err.message);
+              if (this.activeJobs.has(jobId)) {
+                if (job.fileStream) job.fileStream.end();
+                this.finishJob(jobId);
+              }
+            });
           });
-          res.on('error', err => {
+
+          req.on('error', err => {
             job.error = err.message;
-            if (this.activeJobs.has(jobId)) {
-              this.finishJob(jobId);
-            }
+            console.warn(`[liveRecorderService] Request error:`, err.message);
           });
-        });
 
-        req.on('error', err => {
-          job.error = err.message;
-        });
+          job.httpReq = req;
+        };
 
-        job.httpReq = req;
+        connectStream(job.streamUrl, 0);
       } catch (e) {
         console.error('Error starting HTTP stream capture:', e);
       }
@@ -562,31 +618,32 @@ class LiveRecorderService {
     }
 
     // Live Stream End Watchdog: continuously monitors if the live ended so recording auto-saves
+    let consecutiveOfflineCount = 0;
     job.watchdogTimer = setInterval(async () => {
       if (!this.activeJobs.has(jobId) || job.status !== 'recording') {
         if (job.watchdogTimer) clearInterval(job.watchdogTimer);
         return;
       }
       try {
-        // 1. Data stall check (no bytes received for 12 seconds after stream started)
-        const idleMs = Date.now() - (job.lastDataTime || job.startTime);
-        if (idleMs > 12000) {
-          const st = await this.checkStatus(user);
-          if (!st.is_live) {
-            console.log(`[Watchdog] Stream for @${user} ended by creator. Finalizing and saving MP4...`);
-            if (job.watchdogTimer) clearInterval(job.watchdogTimer);
-            await this.stopRecording(jobId);
-            return;
-          }
-        }
-        // 2. Periodic check (every 14s) to detect streamer ending live
         const elapsed = Date.now() - job.startTime;
-        if (elapsed > 14000) {
+        const idleMs = Date.now() - (job.lastDataTime || job.startTime);
+
+        // Allow at least 25 seconds of continuous buffering before checking offline
+        if (elapsed < 25000) return;
+
+        // Check if stream has been completely idle (no chunks received for 18 seconds)
+        if (idleMs > 18000) {
           const st = await this.checkStatus(user);
           if (!st.is_live) {
-            console.log(`[Watchdog] Creator @${user} is no longer live. Finalizing and saving MP4...`);
-            if (job.watchdogTimer) clearInterval(job.watchdogTimer);
-            await this.stopRecording(jobId);
+            consecutiveOfflineCount++;
+            if (consecutiveOfflineCount >= 2) {
+              console.log(`[Watchdog] Stream for @${user} ended by creator. Finalizing and saving MP4...`);
+              if (job.watchdogTimer) clearInterval(job.watchdogTimer);
+              await this.stopRecording(jobId);
+              return;
+            }
+          } else {
+            consecutiveOfflineCount = 0;
           }
         }
       } catch (e) {}

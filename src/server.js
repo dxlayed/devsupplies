@@ -436,6 +436,195 @@ app.delete('/api/v1/creators/saved/:id', authMiddleware, async (req, res) => {
 });
 
 // -------------------------------------------------------------
+// CHAT & PRE-RECORDS API (User & Admin)
+// -------------------------------------------------------------
+function formatChatSize(bytes) {
+  if (!bytes) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${units[i]}`;
+}
+function formatChatDuration(sec) {
+  if (!sec) return '0:00';
+  const m = Math.floor(sec / 60), s = Math.floor(sec % 60);
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+app.get('/api/v1/chat/messages', authMiddleware, async (req, res) => {
+  try {
+    const messages = await db.all(
+      `SELECT * FROM chat_messages WHERE user_id = ? ORDER BY id ASC`,
+      [req.user.id]
+    );
+    // Mark admin messages as read
+    await db.run(
+      `UPDATE chat_messages SET read_by_user = 1 WHERE user_id = ? AND sender_type = 'admin' AND read_by_user = 0`,
+      [req.user.id]
+    ).catch(() => {});
+    res.json({ messages });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/v1/chat/unread', authMiddleware, async (req, res) => {
+  try {
+    const row = await db.get(
+      `SELECT COUNT(*) as unread FROM chat_messages WHERE user_id = ? AND sender_type = 'admin' AND read_by_user = 0`,
+      [req.user.id]
+    );
+    res.json({ unread: row ? row.unread : 0 });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/v1/chat/send', authMiddleware, async (req, res) => {
+  try {
+    const { message, attachmentUrl, attachmentName, attachmentType } = req.body;
+    if (!message && !attachmentUrl) {
+      return res.status(400).json({ error: 'Message or attachment required' });
+    }
+    const cleanMsg = String(message || '').trim();
+    const result = await db.run(
+      `INSERT INTO chat_messages (user_id, sender_type, sender_id, sender_name, sender_avatar, message, attachment_type, attachment_url, attachment_name, read_by_user, read_by_admin)
+       VALUES (?, 'user', ?, ?, ?, ?, ?, ?, ?, 1, 0)`,
+      [
+        req.user.id,
+        req.user.id,
+        req.user.username,
+        req.user.avatar || null,
+        cleanMsg,
+        attachmentType || null,
+        attachmentUrl || null,
+        attachmentName || null
+      ]
+    );
+    const saved = await db.get(`SELECT * FROM chat_messages WHERE id = ?`, [result.lastID]);
+    res.json({ success: true, message: saved });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/v1/admin/chat/threads', adminAuthMiddleware, async (req, res) => {
+  try {
+    const users = await db.all(
+      `SELECT u.id, u.username, u.avatar, u.discord_id,
+        (SELECT message FROM chat_messages WHERE user_id = u.id ORDER BY id DESC LIMIT 1) as last_message,
+        (SELECT attachment_type FROM chat_messages WHERE user_id = u.id ORDER BY id DESC LIMIT 1) as last_attachment_type,
+        (SELECT created_at FROM chat_messages WHERE user_id = u.id ORDER BY id DESC LIMIT 1) as last_at,
+        (SELECT COUNT(*) FROM chat_messages WHERE user_id = u.id AND sender_type = 'user' AND read_by_admin = 0) as unread_count,
+        (SELECT COUNT(*) FROM chat_messages WHERE user_id = u.id) as total_messages
+       FROM users u
+       ORDER BY (CASE WHEN unread_count > 0 THEN 1 ELSE 0 END) DESC, last_at DESC, u.id DESC`
+    );
+    res.json({ threads: users });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/v1/admin/chat/messages', adminAuthMiddleware, async (req, res) => {
+  try {
+    const userId = Number(req.query.userId);
+    if (!userId) return res.status(400).json({ error: 'Valid userId required' });
+    const targetUser = await db.get(`SELECT id, username, avatar, discord_id FROM users WHERE id = ?`, [userId]);
+    if (!targetUser) return res.status(404).json({ error: 'User not found' });
+
+    const messages = await db.all(
+      `SELECT * FROM chat_messages WHERE user_id = ? ORDER BY id ASC`,
+      [userId]
+    );
+    await db.run(
+      `UPDATE chat_messages SET read_by_admin = 1 WHERE user_id = ? AND sender_type = 'user' AND read_by_admin = 0`,
+      [userId]
+    ).catch(() => {});
+
+    res.json({ user: targetUser, messages });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/v1/admin/chat/send', adminAuthMiddleware, async (req, res) => {
+  try {
+    const { userId, message, attachmentUrl, attachmentName, attachmentType, attachmentSize, attachmentDuration } = req.body;
+    if (!userId) return res.status(400).json({ error: 'userId is required' });
+    if (!message && !attachmentUrl) return res.status(400).json({ error: 'Message or attachment required' });
+
+    const cleanMsg = String(message || '').trim();
+    const result = await db.run(
+      `INSERT INTO chat_messages (user_id, sender_type, sender_id, sender_name, sender_avatar, message, attachment_type, attachment_url, attachment_name, attachment_size, attachment_duration, read_by_user, read_by_admin)
+       VALUES (?, 'admin', ?, 'waurk', '/waurk_pfp.png', ?, ?, ?, ?, ?, ?, 0, 1)`,
+      [
+        userId,
+        req.user?.id || 0,
+        cleanMsg,
+        attachmentType || (attachmentUrl ? 'video' : null),
+        attachmentUrl || null,
+        attachmentName || null,
+        attachmentSize || 0,
+        attachmentDuration || 0
+      ]
+    );
+    const saved = await db.get(`SELECT * FROM chat_messages WHERE id = ?`, [result.lastID]);
+    res.json({ success: true, message: saved });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/v1/admin/chat/prerecords', adminAuthMiddleware, async (req, res) => {
+  try {
+    const rows = await db.all(
+      `SELECT id, username, title, filename, file_size_bytes, duration_seconds, thumbnail_url, created_at
+       FROM recordings
+       ORDER BY id DESC LIMIT 100`
+    );
+    const recordings = rows.map(r => ({
+      ...r,
+      url: `/recordings/${r.filename}`,
+      durationFormatted: formatChatDuration(r.duration_seconds),
+      fileSizeFormatted: formatChatSize(r.file_size_bytes)
+    }));
+    res.json({ recordings });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/v1/admin/chat/upload-prerecord', adminAuthMiddleware, async (req, res) => {
+  try {
+    const { filename, fileBase64, title } = req.body;
+    if (!filename || !fileBase64) {
+      return res.status(400).json({ error: 'Filename and fileBase64 required' });
+    }
+    const safeName = `prerecord_${Date.now()}_` + filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const recDir = path.join(__dirname, '..', 'public', 'recordings');
+    fs.mkdirSync(recDir, { recursive: true });
+    const fullPath = path.join(recDir, safeName);
+    const buffer = Buffer.from(fileBase64, 'base64');
+    fs.writeFileSync(fullPath, buffer);
+
+    await db.run(
+      `INSERT INTO recordings (user_id, username, title, filename, file_path, file_size_bytes, duration_seconds, user_deleted)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 0)`,
+      [req.user?.id || 0, 'admin', title || filename, safeName, fullPath, buffer.length, 0]
+    );
+
+    res.json({
+      success: true,
+      url: `/recordings/${safeName}`,
+      filename: safeName,
+      size: buffer.length
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// -------------------------------------------------------------
 // ORDERS & PAYMENTS
 // -------------------------------------------------------------
 app.post('/api/v1/orders/create', authMiddleware, async (req, res) => {
