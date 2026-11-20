@@ -127,8 +127,8 @@ function addressAt(index) {
   }
 }
 
-async function getJson(url) {
-  const r = await fetch(url, { headers: { 'User-Agent': 'waurks-payments' }, signal: AbortSignal.timeout(15000) });
+async function getJson(url, timeoutMs = 5000) {
+  const r = await fetch(url, { headers: { 'User-Agent': 'waurks-payments' }, signal: AbortSignal.timeout(timeoutMs) });
   if (!r.ok) throw new Error(`${new URL(url).host} answered ${r.status}`);
   return r.json();
 }
@@ -177,8 +177,18 @@ function nextAddress() {
     for (let i = 0; i <= limit; i++) {
       if (busy.has(i)) continue;
       const address = addressAt(i);
-      const info = await getJson(`${EXPLORER}/address/${address}`);
-      const used = info.chain_stats.tx_count + info.mempool_stats.tx_count > 0;
+      let used = false;
+      try {
+        const bc = await getJson(`https://api.blockcypher.com/v1/ltc/main/addrs/${address}`, 4000);
+        used = ((bc.final_n_tx || bc.n_tx || 0) > 0) || ((bc.final_balance || 0) > 0);
+      } catch (err) {
+        try {
+          const info = await getJson(`${EXPLORER}/address/${address}`, 4000);
+          used = info.chain_stats.tx_count + info.mempool_stats.tx_count > 0;
+        } catch (e2) {
+          used = false;
+        }
+      }
       if (!used) return { index: i, address };
       busy.add(i);
     }
@@ -225,9 +235,30 @@ async function checkPayments(completeOrder) {
     );
     if (open.length === 0) { state.lastCheck = new Date().toISOString(); state.lastError = null; return; }
 
-    const tip = await getJson(`${EXPLORER}/blocks/tip/height`);
+    let tip = 0;
+    try {
+      tip = await getJson(`${EXPLORER}/blocks/tip/height`);
+    } catch (e) {
+      try {
+        const bc = await getJson(`https://api.blockcypher.com/v1/ltc/main`);
+        tip = bc.height || 0;
+      } catch (e2) {}
+    }
+
     for (const order of open) {
-      const txs = await getJson(`${EXPLORER}/address/${order.crypto_address}/txs`);
+      let txs = [];
+      try {
+        txs = await getJson(`${EXPLORER}/address/${order.crypto_address}/txs`);
+      } catch (e) {
+        try {
+          const bc = await getJson(`https://api.blockcypher.com/v1/ltc/main/addrs/${order.crypto_address}`);
+          txs = (bc.txrefs || []).concat(bc.unconfirmed_txrefs || []).map(t => ({
+            txid: t.tx_hash,
+            status: { confirmed: t.confirmations > 0, block_height: tip - t.confirmations + 1, block_time: t.confirmed ? Math.floor(new Date(t.confirmed).getTime() / 1000) : Math.floor(Date.now() / 1000) },
+            vout: [{ scriptpubkey_address: order.crypto_address, value: t.value }]
+          }));
+        } catch (e2) {}
+      }
       const created = new Date(order.created_at.replace(' ', 'T') + 'Z').getTime();
       const deadline = new Date(order.ltc_expires_at.replace(' ', 'T') + 'Z').getTime();
       let received = 0, minConfs = Infinity, firstTx = null;
