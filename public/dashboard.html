@@ -410,6 +410,28 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
+  a.stream-handle-link {
+    color: #fff;
+    text-decoration: none;
+    transition: color 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  a.stream-handle-link:hover {
+    color: #c4b5fd;
+    text-decoration: underline;
+  }
+  a.avatar-link {
+    display: inline-block;
+    text-decoration: none;
+    border-radius: 50%;
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  a.avatar-link:hover {
+    transform: scale(1.06);
+    box-shadow: 0 0 14px rgba(139, 92, 246, 0.4);
+  }
   .stream-meta {
     font-size: 12px;
     color: #94a3b8;
@@ -952,21 +974,23 @@
         lastCheckedUsername = String(data.username || raw).toLowerCase();
       }
       const tikleapLink = `https://www.tikleap.com/profile/${encodeURIComponent(data.username || raw)}`;
+      const liveUrl = `https://www.tiktok.com/@${encodeURIComponent(data.username || raw)}/live`;
 
       if (data.is_live) {
         alert.className = 'status-alert live';
         alert.innerHTML = `
           <div class="status-alert-top">
-            ${data.avatar ? `<img src="${data.avatar}" class="status-alert-avatar" alt="${data.username}">` : ''}
+            ${data.avatar ? `<a href="${liveUrl}" target="_blank" class="avatar-link" title="Open @${data.username}'s live"><img src="${data.avatar}" class="status-alert-avatar" alt="${data.username}"></a>` : ''}
             <div style="flex:1;min-width:0">
               <div style="font-weight:700;font-size:15px;color:#fff">
-                @${data.username} <span class="badge-live-tag">LIVE</span>
+                <a href="${liveUrl}" target="_blank" class="stream-handle-link" title="Open @${data.username}'s live">@${data.username} <span class="badge-live-tag">LIVE ↗</span></a>
               </div>
               <div style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
                 ${data.title || 'Live Stream'}
               </div>
             </div>
-            <div style="display:flex;align-items:center;gap:8px">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <a href="${liveUrl}" target="_blank" class="btn-tikleap" style="background:rgba(255,59,92,.18);border-color:rgba(255,59,92,.4);color:#ff5470">Watch Live ↗</a>
               <a href="${tikleapLink}" target="_blank" class="btn-tikleap">Check on TikLeap ↗</a>
               <button class="btn-save-creator" onclick="saveCreatorFromAlert('${data.username}')">Save Creator</button>
             </div>
@@ -976,14 +1000,15 @@
         alert.className = 'status-alert';
         alert.innerHTML = `
           <div class="status-alert-top">
-            ${data.avatar ? `<img src="${data.avatar}" class="status-alert-avatar" alt="${data.username}">` : ''}
+            ${data.avatar ? `<a href="${liveUrl}" target="_blank" class="avatar-link" title="Open @${data.username}'s profile"><img src="${data.avatar}" class="status-alert-avatar" alt="${data.username}"></a>` : ''}
             <div style="flex:1;min-width:0">
               <div style="font-weight:700;font-size:15px;color:#fff">
-                @${data.username} <span class="badge-off-tag">Offline</span>
+                <a href="${liveUrl}" target="_blank" class="stream-handle-link" title="Open @${data.username}'s profile">@${data.username} <span class="badge-off-tag">Offline</span></a>
               </div>
               <div style="font-size:12px;color:var(--muted)">Creator is currently offline</div>
             </div>
-            <div style="display:flex;align-items:center;gap:8px">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <a href="${liveUrl}" target="_blank" class="btn-tikleap">Profile ↗</a>
               <a href="${tikleapLink}" target="_blank" class="btn-tikleap">Check on TikLeap ↗</a>
               <button class="btn-save-creator" onclick="saveCreatorFromAlert('${data.username}')">Save Creator</button>
             </div>
@@ -1238,15 +1263,23 @@
         avatarUrl = lastCheckedAvatar;
       }
 
+      const recLiveUrl = `https://www.tiktok.com/@${encodeURIComponent(activeJobData.username)}/live`;
+
       rowsHtml += `
         <div class="stream-row is-recording">
           <div class="stream-avatar-wrap">
-            ${avatarUrl 
-              ? `<img src="${avatarUrl}" class="stream-avatar" alt="${activeJobData.username}" onerror="this.outerHTML='<div class=\\'stream-avatar rec-gradient\\'>${uInitial}</div>'">`
-              : `<div class="stream-avatar rec-gradient">${uInitial}</div>`}
+            <a href="${recLiveUrl}" target="_blank" class="avatar-link" title="Watch @${activeJobData.username} live on TikTok">
+              ${avatarUrl 
+                ? `<img src="${avatarUrl}" class="stream-avatar" alt="${activeJobData.username}" onerror="this.outerHTML='<div class=\\'stream-avatar rec-gradient\\'>${uInitial}</div>'">`
+                : `<div class="stream-avatar rec-gradient">${uInitial}</div>`}
+            </a>
           </div>
           <div class="stream-info">
-            <div class="stream-handle">@${activeJobData.username}</div>
+            <div class="stream-handle">
+              <a href="${recLiveUrl}" target="_blank" class="stream-handle-link" title="Watch @${activeJobData.username} live on TikTok">
+                @${activeJobData.username} <span style="font-size:11px;color:#ff4766;font-weight:700">LIVE ↗</span>
+              </a>
+            </div>
             <div class="stream-meta">1080p 60fps · ${activeJobData.fileSizeFormatted || '0 B'} · <span id="activeRecElapsed">${elapsedStr}</span></div>
           </div>
           <div class="stream-badges">
@@ -1268,17 +1301,24 @@
         const uInitial = getInitial(c.username);
         const gradClass = avatarGradients[(idx + 2) % avatarGradients.length];
         const tikleapUrl = `https://www.tikleap.com/profile/${encodeURIComponent(c.username)}`;
+        const creatorLiveUrl = `https://www.tiktok.com/@${encodeURIComponent(c.username)}/live`;
         const isRecDisabled = !!activeJobId;
 
         rowsHtml += `
           <div class="stream-row" id="creator-card-${c.id}">
             <div class="stream-avatar-wrap">
-              ${c.avatarUrl 
-                ? `<img src="${c.avatarUrl}" class="stream-avatar" alt="${c.username}" onerror="this.outerHTML='<div class=\\'stream-avatar ${gradClass}\\'>${uInitial}</div>'">` 
-                : `<div class="stream-avatar ${gradClass}">${uInitial}</div>`}
+              <a href="${creatorLiveUrl}" target="_blank" class="avatar-link" title="Open @${c.username}'s live stream on TikTok">
+                ${c.avatarUrl 
+                  ? `<img src="${c.avatarUrl}" class="stream-avatar" alt="${c.username}" onerror="this.outerHTML='<div class=\\'stream-avatar ${gradClass}\\'>${uInitial}</div>'">` 
+                  : `<div class="stream-avatar ${gradClass}">${uInitial}</div>`}
+              </a>
             </div>
             <div class="stream-info">
-              <div class="stream-handle">@${c.username}</div>
+              <div class="stream-handle">
+                <a href="${creatorLiveUrl}" target="_blank" class="stream-handle-link" title="Open @${c.username}'s live stream on TikTok">
+                  @${c.username} <span style="font-size:11px;color:var(--muted);font-weight:600">↗</span>
+                </a>
+              </div>
               <div class="stream-meta">${c.isLive ? 'Live now · Ready to capture' : 'Creator offline'} · <a href="${tikleapUrl}" target="_blank" class="btn-tikleap" style="padding:1px 6px;font-size:10px">TikLeap ↗</a></div>
             </div>
             <div class="stream-badges">
@@ -1318,6 +1358,7 @@
     savedRecordings.forEach((rec) => {
       const title = rec.title || 'Live Stream';
       const meta = `${rec.durationFormatted || '0:00'} · ${rec.fileSizeFormatted || '0 B'} · ${rec.dateFormatted || ''}`;
+      const recCreatorUrl = `https://www.tiktok.com/@${encodeURIComponent(rec.username)}/live`;
 
       html += `
         <div class="recording-card" id="rec-card-${rec.id}">
@@ -1327,7 +1368,11 @@
               : `<div class="recording-thumb-placeholder">1080p<br>MP4</div>`}
           </div>
           <div class="recording-main">
-            <div class="recording-username">@${rec.username}</div>
+            <div class="recording-username">
+              <a href="${recCreatorUrl}" target="_blank" class="stream-handle-link" title="Open @${rec.username}'s TikTok live">
+                @${rec.username} <span style="font-size:11px;color:var(--muted)">↗</span>
+              </a>
+            </div>
             <div class="recording-title">${title}</div>
             <div class="recording-meta">${meta}</div>
           </div>
