@@ -499,6 +499,158 @@
     border: 1px dashed rgba(255,255,255,.06);
   }
 
+  /* -------------------------------------------------------------
+     RECORDINGS SECTION (Upright rounded boxes)
+     ------------------------------------------------------------- */
+  .recordings-section {
+    margin-top: 36px;
+  }
+  .recordings-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding: 0 4px;
+  }
+  .recordings-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 20px;
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: -0.4px;
+  }
+  .recordings-badge {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--muted);
+  }
+  .recordings-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .recording-card {
+    background: #110b1a;
+    border: 1px solid #221535;
+    border-radius: 18px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4);
+    transition: all 0.15s ease;
+  }
+  .recording-card:hover {
+    border-color: rgba(139, 92, 246, 0.35);
+    background: #140d20;
+  }
+  .recording-thumb-wrap {
+    flex: none;
+    width: 64px;
+    height: 94px;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #000;
+    border: 1.5px solid #2a1c3d;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  }
+  .recording-thumb {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .recording-thumb-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #1f1433, #0d0717);
+    color: #8b5cf6;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .recording-main {
+    flex: 1;
+    min-width: 0;
+  }
+  .recording-username {
+    font-size: 16px;
+    font-weight: 800;
+    color: #fff;
+    margin-bottom: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .recording-title {
+    font-size: 13px;
+    color: #c4b5fd;
+    margin-bottom: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .recording-meta {
+    font-size: 12px;
+    color: #948baf;
+    font-family: ui-monospace, Consolas, monospace;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .recording-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: none;
+  }
+  .btn-rec-action {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    color: #e2e8f0;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 7px 14px;
+    border-radius: 9px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .btn-rec-action:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    border-color: #fff;
+  }
+  .btn-rec-action.primary {
+    background: rgba(139, 92, 246, 0.15);
+    border-color: rgba(139, 92, 246, 0.4);
+    color: #c4b5fd;
+  }
+  .btn-rec-action.primary:hover {
+    background: rgba(139, 92, 246, 0.3);
+    color: #fff;
+    border-color: #a78bfa;
+  }
+  .btn-rec-action.danger {
+    color: #ff5470;
+    border-color: rgba(255, 84, 112, 0.3);
+  }
+  .btn-rec-action.danger:hover {
+    background: rgba(255, 84, 112, 0.15);
+    border-color: #ff5470;
+  }
+
   /* Video Modal */
   .modal-overlay {
     position: fixed;
@@ -677,8 +829,22 @@
 
       <div class="monitor-list" id="monitorList">
         <div class="empty-monitor" id="emptyMonitor">
-          No active streams or recordings. Enter a username above to start.
+          No saved creators. Enter a username above to check or record.
         </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Recordings Section (Upright rounded boxes) -->
+  <section class="recordings-section" id="recordingsSection">
+    <div class="recordings-header">
+      <div class="recordings-title">Recordings</div>
+      <div class="recordings-badge" id="recordingsCountBadge">0 saved</div>
+    </div>
+
+    <div class="recordings-list" id="recordingsList">
+      <div class="empty-monitor">
+        No recordings yet. Recorded streams will appear here ready to watch or download.
       </div>
     </div>
   </section>
@@ -702,6 +868,8 @@
   let user = null;
   let savedRecordings = [];
   let savedCreators = [];
+  let lastCheckedAvatar = null;
+  let lastCheckedUsername = null;
 
   function notify(msg, isErr = false) {
     const t = document.getElementById('wkToast');
@@ -779,6 +947,10 @@
     try {
       const r = await fetch(`/api/v1/recorder/status?user=${encodeURIComponent(raw)}`);
       const data = await r.json();
+      if (data.avatar) {
+        lastCheckedAvatar = data.avatar;
+        lastCheckedUsername = String(data.username || raw).toLowerCase();
+      }
       const tikleapLink = `https://www.tikleap.com/profile/${encodeURIComponent(data.username || raw)}`;
 
       if (data.is_live) {
@@ -836,6 +1008,9 @@
 
   // Start recording
   async function startRecord() {
+    if (activeJobId) {
+      return notify('A recording is already in progress. Please stop it before starting another.', true);
+    }
     const raw = document.getElementById('usernameInput').value.trim();
     if (!raw) return notify('Please enter a TikTok @username', true);
     const btn = document.getElementById('btnRecord');
@@ -853,6 +1028,9 @@
       if (data.success && data.job) {
         activeJobId = data.job.jobId;
         activeJobData = data.job;
+        if (!activeJobData.avatarUrl && lastCheckedAvatar && lastCheckedUsername === raw.toLowerCase()) {
+          activeJobData.avatarUrl = lastCheckedAvatar;
+        }
         activeStartTime = data.job.startTime || Date.now();
         updateMonitorUI();
         notify(`Recording started for @${data.job.username}!`);
@@ -915,6 +1093,8 @@
         clearInterval(timerInterval);
         document.getElementById('headerRecStatus').textContent = 'Not recording';
         document.getElementById('headerRecDot').classList.remove('active');
+        notify('Live stream ended. Recording saved to MP4!');
+        updateMonitorUI();
         await loadRecordings();
       }
     } catch (e) {}
@@ -926,7 +1106,7 @@
       const r = await fetch('/api/v1/recorder/list');
       const data = await r.json();
       savedRecordings = data.recordings || [];
-      renderMonitor();
+      renderRecordings();
     } catch (e) {}
   }
 
@@ -1038,8 +1218,9 @@
     if (!listEl) return;
 
     let rowsHtml = '';
+    const recordingUser = activeJobData ? String(activeJobData.username).toLowerCase() : null;
 
-    // 1. Active Recording Row (if recording)
+    // 1. Active Recording Row (if recording) - Rendered at top of monitor
     if (activeJobData) {
       const uInitial = getInitial(activeJobData.username);
       const sec = Math.max(0, Math.floor((Date.now() - activeStartTime) / 1000));
@@ -1047,10 +1228,22 @@
       const s = sec % 60;
       const elapsedStr = `${m}m ${String(s).padStart(2, '0')}s elapsed`;
 
+      // Find real profile photo
+      let avatarUrl = activeJobData.avatarUrl;
+      if (!avatarUrl && savedCreators) {
+        const match = savedCreators.find(c => c.username.toLowerCase() === recordingUser);
+        if (match && match.avatarUrl) avatarUrl = match.avatarUrl;
+      }
+      if (!avatarUrl && lastCheckedAvatar && lastCheckedUsername === recordingUser) {
+        avatarUrl = lastCheckedAvatar;
+      }
+
       rowsHtml += `
         <div class="stream-row is-recording">
           <div class="stream-avatar-wrap">
-            <div class="stream-avatar rec-gradient">${uInitial}</div>
+            ${avatarUrl 
+              ? `<img src="${avatarUrl}" class="stream-avatar" alt="${activeJobData.username}" onerror="this.outerHTML='<div class=\\'stream-avatar rec-gradient\\'>${uInitial}</div>'">`
+              : `<div class="stream-avatar rec-gradient">${uInitial}</div>`}
           </div>
           <div class="stream-info">
             <div class="stream-handle">@${activeJobData.username}</div>
@@ -1064,43 +1257,25 @@
       `;
     }
 
-    // 2. Saved Recordings Rows
-    if (savedRecordings && savedRecordings.length > 0) {
-      savedRecordings.forEach((rec, idx) => {
-        const uInitial = getInitial(rec.username);
-        const gradClass = avatarGradients[(idx + 1) % avatarGradients.length];
-
-        rowsHtml += `
-          <div class="stream-row is-saved" id="rec-card-${rec.id}">
-            <div class="stream-avatar-wrap">
-              ${rec.thumbnailUrl ? `<img src="${rec.thumbnailUrl}" class="stream-avatar" alt="cover" onerror="this.style.display='none'">` : `<div class="stream-avatar ${gradClass}">${uInitial}</div>`}
-            </div>
-            <div class="stream-info">
-              <div class="stream-handle">@${rec.username}</div>
-              <div class="stream-meta">1080p MP4 · ${rec.fileSizeFormatted || '0 B'} · ${rec.durationFormatted || '0:00'} · ${rec.dateFormatted || ''}</div>
-            </div>
-            <div class="stream-badges">
-              <span class="pill-status saved">SAVED</span>
-              <button class="btn-row-action" onclick="playVideo('${rec.downloadUrl}', '@${rec.username}')">Play</button>
-              <a class="btn-row-action" href="${rec.downloadUrl}" download="${rec.filename}">Download</a>
-              <button class="btn-row-action danger" onclick="deleteVideo(${rec.id})">Delete</button>
-            </div>
-          </div>
-        `;
-      });
-    }
-
-    // 3. Monitored / Saved Creators Rows
+    // 2. Monitored / Saved Creators Rows
+    // EXCLUDE the creator currently being recorded to avoid duplicate rows!
     if (savedCreators && savedCreators.length > 0) {
       savedCreators.forEach((c, idx) => {
+        if (recordingUser && c.username.toLowerCase() === recordingUser) {
+          return; // Already shown as active recording above!
+        }
+
         const uInitial = getInitial(c.username);
         const gradClass = avatarGradients[(idx + 2) % avatarGradients.length];
         const tikleapUrl = `https://www.tikleap.com/profile/${encodeURIComponent(c.username)}`;
+        const isRecDisabled = !!activeJobId;
 
         rowsHtml += `
           <div class="stream-row" id="creator-card-${c.id}">
             <div class="stream-avatar-wrap">
-              ${c.avatarUrl ? `<img src="${c.avatarUrl}" class="stream-avatar" alt="${c.username}" onerror="this.style.display='none'">` : `<div class="stream-avatar ${gradClass}">${uInitial}</div>`}
+              ${c.avatarUrl 
+                ? `<img src="${c.avatarUrl}" class="stream-avatar" alt="${c.username}" onerror="this.outerHTML='<div class=\\'stream-avatar ${gradClass}\\'>${uInitial}</div>'">` 
+                : `<div class="stream-avatar ${gradClass}">${uInitial}</div>`}
             </div>
             <div class="stream-info">
               <div class="stream-handle">@${c.username}</div>
@@ -1108,7 +1283,7 @@
             </div>
             <div class="stream-badges">
               <span class="pill-status ${c.isLive ? 'rec' : 'standby'}">${c.isLive ? 'LIVE' : 'STANDBY'}</span>
-              <button class="btn-row-action" style="${c.isLive ? 'background:rgba(255,59,92,.2);border-color:#ff3b5c;color:#ff5470;' : ''}" onclick="quickRecord('${c.username}')">Record</button>
+              <button class="btn-row-action" style="${c.isLive ? 'background:rgba(255,59,92,.2);border-color:#ff3b5c;color:#ff5470;' : ''}" ${isRecDisabled ? 'disabled title="A recording is already active"' : ''} onclick="quickRecord('${c.username}')">Record</button>
               <button class="btn-row-action danger" title="Remove creator" onclick="deleteSavedCreator(${c.id})">✕</button>
             </div>
           </div>
@@ -1117,10 +1292,55 @@
     }
 
     if (!rowsHtml) {
-      listEl.innerHTML = '<div class="empty-monitor">No active streams or saved recordings. Enter a username above to start.</div>';
+      listEl.innerHTML = '<div class="empty-monitor">No saved creators. Enter a username above to check or record.</div>';
     } else {
       listEl.innerHTML = rowsHtml;
     }
+  }
+
+  // -------------------------------------------------------------
+  // RENDER RECORDINGS (Upright rounded boxes)
+  // -------------------------------------------------------------
+  function renderRecordings() {
+    const listEl = document.getElementById('recordingsList');
+    const badgeEl = document.getElementById('recordingsCountBadge');
+    if (badgeEl) {
+      badgeEl.textContent = `${savedRecordings.length} ${savedRecordings.length === 1 ? 'recording' : 'recordings'}`;
+    }
+    if (!listEl) return;
+
+    if (!savedRecordings || savedRecordings.length === 0) {
+      listEl.innerHTML = '<div class="empty-monitor">No recordings yet. Recorded streams will appear here ready to watch or download.</div>';
+      return;
+    }
+
+    let html = '';
+    savedRecordings.forEach((rec) => {
+      const title = rec.title || 'Live Stream';
+      const meta = `${rec.durationFormatted || '0:00'} · ${rec.fileSizeFormatted || '0 B'} · ${rec.dateFormatted || ''}`;
+
+      html += `
+        <div class="recording-card" id="rec-card-${rec.id}">
+          <div class="recording-thumb-wrap">
+            ${rec.thumbnailUrl 
+              ? `<img src="${rec.thumbnailUrl}" class="recording-thumb" alt="cover" onerror="this.outerHTML='<div class=\\'recording-thumb-placeholder\\'>1080p<br>MP4</div>'">` 
+              : `<div class="recording-thumb-placeholder">1080p<br>MP4</div>`}
+          </div>
+          <div class="recording-main">
+            <div class="recording-username">@${rec.username}</div>
+            <div class="recording-title">${title}</div>
+            <div class="recording-meta">${meta}</div>
+          </div>
+          <div class="recording-actions">
+            <button class="btn-rec-action primary" onclick="playVideo('${rec.downloadUrl}', '@${rec.username}')">Play</button>
+            <a class="btn-rec-action" href="${rec.downloadUrl}" download="${rec.filename}">Download</a>
+            <button class="btn-rec-action danger" onclick="deleteVideo(${rec.id})">Delete</button>
+          </div>
+        </div>
+      `;
+    });
+
+    listEl.innerHTML = html;
   }
 
   // -------------------------------------------------------------

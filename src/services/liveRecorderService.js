@@ -437,6 +437,18 @@ class LiveRecorderService {
     const user = cleanUsername(username);
     if (!user) throw new Error('Valid username required');
 
+    // Enforce 1 active recording at a time per user
+    if (userId) {
+      for (const [id, j] of this.activeJobs.entries()) {
+        if (j.userId === userId && j.status === 'recording') {
+          if (j.username.toLowerCase() === user.toLowerCase()) {
+            return this.formatJob(j);
+          }
+          throw new Error(`A recording for @${j.username} is already in progress. Please stop it before starting another.`);
+        }
+      }
+    }
+
     // Check if job already active for this username
     for (const [id, j] of this.activeJobs.entries()) {
       if (j.username.toLowerCase() === user.toLowerCase() && j.status === 'recording') {
@@ -465,6 +477,7 @@ class LiveRecorderService {
       jobId,
       userId: userId || null,
       username: user,
+      avatarUrl: statusInfo.avatar || null,
       orientation: orientation || 'portrait',
       title: statusInfo.title || `Live Stream (@${user})`,
       filename,
@@ -472,11 +485,13 @@ class LiveRecorderService {
       rawPath,
       streamUrl: targetStreamUrl,
       startTime: Date.now(),
+      lastDataTime: Date.now(),
       bytesWritten: 0,
       status: 'recording',
       error: null,
       httpReq: null,
-      fileStream: null
+      fileStream: null,
+      watchdogTimer: null
     };
 
     // If direct stream URL is found, stream directly over HTTP into the raw file
@@ -494,11 +509,13 @@ class LiveRecorderService {
         }, res => {
           res.on('data', chunk => {
             job.bytesWritten += chunk.length;
+            job.lastDataTime = Date.now();
           });
           res.pipe(fileStream);
 
           res.on('end', () => {
             if (this.activeJobs.has(jobId)) {
+              console.log(`[liveRecorderService] Stream ended for @${user}, finishing capture.`);
               this.finishJob(jobId);
             }
           });
@@ -534,6 +551,37 @@ class LiveRecorderService {
       }
     }
 
+    // Live Stream End Watchdog: continuously monitors if the live ended so recording auto-saves
+    job.watchdogTimer = setInterval(async () => {
+      if (!this.activeJobs.has(jobId) || job.status !== 'recording') {
+        if (job.watchdogTimer) clearInterval(job.watchdogTimer);
+        return;
+      }
+      try {
+        // 1. Data stall check (no bytes received for 12 seconds after stream started)
+        const idleMs = Date.now() - (job.lastDataTime || job.startTime);
+        if (idleMs > 12000) {
+          const st = await this.checkStatus(user);
+          if (!st.is_live) {
+            console.log(`[Watchdog] Stream for @${user} ended by creator. Finalizing and saving MP4...`);
+            if (job.watchdogTimer) clearInterval(job.watchdogTimer);
+            await this.stopRecording(jobId);
+            return;
+          }
+        }
+        // 2. Periodic check (every 14s) to detect streamer ending live
+        const elapsed = Date.now() - job.startTime;
+        if (elapsed > 14000) {
+          const st = await this.checkStatus(user);
+          if (!st.is_live) {
+            console.log(`[Watchdog] Creator @${user} is no longer live. Finalizing and saving MP4...`);
+            if (job.watchdogTimer) clearInterval(job.watchdogTimer);
+            await this.stopRecording(jobId);
+          }
+        }
+      } catch (e) {}
+    }, 10000);
+
     this.activeJobs.set(jobId, job);
     return this.formatJob(job);
   }
@@ -541,6 +589,11 @@ class LiveRecorderService {
   async stopRecording(jobId) {
     const job = this.activeJobs.get(jobId);
     if (!job) throw new Error('Recording job not found');
+
+    if (job.watchdogTimer) {
+      clearInterval(job.watchdogTimer);
+      job.watchdogTimer = null;
+    }
 
     if (job.httpReq) {
       try {
@@ -571,6 +624,11 @@ class LiveRecorderService {
   async finishJob(jobId) {
     const job = this.activeJobs.get(jobId);
     if (!job) return null;
+
+    if (job.watchdogTimer) {
+      clearInterval(job.watchdogTimer);
+      job.watchdogTimer = null;
+    }
 
     job.status = 'finished';
     this.activeJobs.delete(jobId);
@@ -659,6 +717,7 @@ class LiveRecorderService {
     return {
       jobId: job.jobId,
       username: job.username,
+      avatarUrl: job.avatarUrl || null,
       title: job.title,
       filename: job.filename,
       startTime: job.startTime,
