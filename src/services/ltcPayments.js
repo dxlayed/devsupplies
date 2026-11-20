@@ -37,33 +37,53 @@ db.run(`ALTER TABLE orders ADD COLUMN ltc_index INTEGER`).catch(() => {});
 db.run(`ALTER TABLE orders ADD COLUMN ltc_received_sats INTEGER DEFAULT 0`).catch(() => {});
 db.run(`ALTER TABLE orders ADD COLUMN ltc_confirmations INTEGER DEFAULT 0`).catch(() => {});
 
-const state = { lastCheck: null, lastError: null, lastRate: null, lastRateAt: 0 };
+const state = { lastCheck: null, lastError: null, lastRate: null, lastRateAt: 0, configError: null };
 
 // ---------- Address generation from the zpub / static address ----------
 let receiveChain = null;
 let staticAddress = null;
 
-try {
-  if (RAW_KEY) {
-    // Check if user set a direct Litecoin address (starts with ltc1, L, or M)
-    if (/^(ltc1|[LM3])[a-km-zA-HJ-NP-Z1-9]{25,62}$/i.test(RAW_KEY)) {
-      staticAddress = RAW_KEY;
-      console.log(`[ltc] Configured with static LTC address: ${staticAddress}`);
-    } else {
-      // zpub = native SegWit (ltc1...) keys, the Electrum-LTC default
-      const versions = RAW_KEY.startsWith('zpub') ? { private: 0x04b2430c, public: 0x04b24746 }
-        : RAW_KEY.startsWith('Ltub') ? { private: 0x019d9cfe, public: 0x019da462 }
-        : { private: 0x0488ade4, public: 0x0488b21e };
-      receiveChain = HDKey.fromExtendedKey(RAW_KEY, versions).deriveChild(0); // Electrum receiving chain
-      console.log(`[ltc] Configured with HD wallet xpub, first address: ${addressAt(0)}`);
-    }
+function configure(key) {
+  state.configError = null;
+  const k = (key || '').trim();
+  if (!k) {
+    receiveChain = null;
+    staticAddress = null;
+    return false;
   }
-} catch (e) {
-  console.error('[ltc] LTC_XPUB/LTC_ADDRESS is invalid:', e.message);
-  console.error('[ltc] Note: If your zpub checksum failed, you can paste your standard Litecoin wallet receiving address (e.g. ltc1... or L...) directly into LTC_XPUB or LTC_ADDRESS.');
-  receiveChain = null;
-  staticAddress = null;
+  try {
+    if (/^(ltc1|[LM3])[a-km-zA-HJ-NP-Z1-9]{25,62}$/i.test(k)) {
+      staticAddress = k;
+      receiveChain = null;
+      console.log(`[ltc] Configured with static LTC address: ${staticAddress}`);
+      return true;
+    } else {
+      const versions = k.startsWith('zpub') ? { private: 0x04b2430c, public: 0x04b24746 }
+        : k.startsWith('Ltub') ? { private: 0x019d9cfe, public: 0x019da462 }
+        : { private: 0x0488ade4, public: 0x0488b21e };
+      receiveChain = HDKey.fromExtendedKey(k, versions).deriveChild(0);
+      staticAddress = null;
+      console.log(`[ltc] Configured with HD wallet xpub, first address: ${addressAt(0)}`);
+      return true;
+    }
+  } catch (e) {
+    console.error('[ltc] LTC key is invalid:', e.message);
+    state.configError = `Invalid key: ${e.message}. Tip: Enter your standard Litecoin receiving address (starts with ltc1 or L).`;
+    receiveChain = null;
+    staticAddress = null;
+    return false;
+  }
 }
+
+// Initialize with environment key first
+configure(RAW_KEY);
+
+// Also check database site_settings on startup
+db.get(`SELECT value FROM site_settings WHERE key = 'ltc_address'`).then(row => {
+  if (row?.value && !isConfigured()) {
+    configure(row.value);
+  }
+}).catch(() => {});
 
 function isConfigured() {
   return !!receiveChain || !!staticAddress;
@@ -140,7 +160,9 @@ function nextAddress() {
  * Price + address for a new order.
  */
 async function quote(usd) {
-  if (!isConfigured()) throw new Error('Crypto payments are not set up yet. Please try again later.');
+  if (!isConfigured()) {
+    throw new Error(state.configError || 'Litecoin checkout is not configured yet. Please paste your LTC address in the Admin panel or in Railway variables.');
+  }
   const rate = await getLtcUsd();
   const sats = Math.ceil((usd / rate) * SATS / 1000) * 1000; // round up to 0.00001 LTC
   const { index, address } = await nextAddress();
@@ -228,8 +250,11 @@ function start(completeOrder, seconds = 30) {
 
 function status() {
   return {
+    enabled: isConfigured(),
     configured: isConfigured(),
+    address: isConfigured() ? addressAt(0) : null,
     firstAddress: isConfigured() ? addressAt(0) : null,
+    configError: state.configError,
     confirmationsRequired: REQUIRED_CONFS,
     quoteMinutes: QUOTE_MINUTES,
     lastCheck: state.lastCheck,
@@ -238,4 +263,4 @@ function status() {
   };
 }
 
-module.exports = { quote, start, status, checkPayments, satsToLtc, isConfigured, addressAt, REQUIRED_CONFS };
+module.exports = { quote, start, status, configure, checkPayments, satsToLtc, isConfigured, addressAt, REQUIRED_CONFS };

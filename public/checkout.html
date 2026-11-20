@@ -104,6 +104,11 @@
   window.alert = msg => notify(msg);
 </script>
 
+<div id="impersonationBanner" style="display:none;background:linear-gradient(90deg,#7c3aed,#4f46e5);color:#fff;padding:8px 16px;text-align:center;font-size:13px;font-weight:600;z-index:99999;position:sticky;top:0;box-shadow:0 4px 12px rgba(0,0,0,0.3)">
+  Viewing site as <b id="impUserLabel">user</b> (Admin Impersonation)
+  <button onclick="exitImpersonation()" style="margin-left:12px;background:#fff;color:#4f46e5;border:none;border-radius:6px;padding:3px 10px;font-size:12px;font-weight:700;cursor:pointer">Exit to Admin</button>
+</div>
+
 <div class="wrap">
   <header class="topbar">
     <a href="/" class="logo"><span class="logo-mark">w</span>waurk</a>
@@ -244,7 +249,7 @@
 </div>
 
 <script>
-  let currentUser = JSON.parse(localStorage.getItem('waurks_user') || 'null');
+  let currentUser = null;
   let selectedPlan = null;
   let paymentMethod = 'crypto';
   let pollTimer = null, countdownTimer = null;
@@ -255,6 +260,10 @@
     // The server's session cookie decides who is logged in, not localStorage.
     try {
       const s = await (await fetch('/api/v1/auth/status')).json();
+      if (s.impersonating) {
+        document.getElementById('impersonationBanner').style.display = 'block';
+        document.getElementById('impUserLabel').textContent = '@' + s.user.username;
+      }
       currentUser = s.loggedIn ? s.user : null;
       if (currentUser) localStorage.setItem('waurks_user', JSON.stringify(currentUser));
       else localStorage.removeItem('waurks_user');
@@ -319,6 +328,15 @@
     currentUser = null;
     localStorage.removeItem('waurks_user');
     updateAuthDisplay();
+  }
+
+  async function exitImpersonation() {
+    try {
+      await fetch('/api/v1/admin/impersonate/exit', { method: 'POST' });
+      window.location.href = '/admin';
+    } catch (e) {
+      window.location.reload();
+    }
   }
 
   function setMethod(m) {

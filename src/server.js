@@ -249,7 +249,25 @@ app.use(async (req, res, next) => {
 
 app.post('/api/v1/auth/logout', (req, res) => {
   setCookie(res, SESSION_COOKIE, '', 0);
+  setCookie(res, 'waurks_impersonate', '', 0);
+  setCookie(res, 'waurks_viewas', '', 0);
   res.json({ success: true });
+});
+
+// Returns the creator / maker profile (waurk)
+app.get('/api/v1/creator-profile', async (req, res) => {
+  try {
+    const user = await db.get(
+      `SELECT username, avatar, discord_id FROM users WHERE discord_id = '1094670363071361147' OR username = 'waurk' ORDER BY id ASC LIMIT 1`
+    );
+    res.json({
+      username: user?.username || 'waurk',
+      tag: 'waurk.',
+      avatar: user?.avatar || '/waurk_pfp.png'
+    });
+  } catch (e) {
+    res.json({ username: 'waurk', tag: 'waurk.', avatar: '/waurk_pfp.png' });
+  }
 });
 
 // One-click fake login — only when ALLOW_DEV_LOGIN=true (local testing)
@@ -289,6 +307,8 @@ app.get('/api/v1/auth/discord/callback', async (req, res) => {
   try {
     const user = await discordAuth.loginWithCode(String(code));
     startSession(res, user.id);
+    setCookie(res, 'waurks_impersonate', '', 0);
+    setCookie(res, 'waurks_viewas', '', 0);
     const next = parseCookies(req).waurks_next;
     setCookie(res, 'waurks_next', '', 0);
     if (next && /^\/[a-zA-Z0-9_\-\/?=&.]*$/.test(next) && !next.startsWith('//')) return res.redirect(next);
@@ -958,7 +978,27 @@ app.post('/api/v1/admin/users/:id/impersonate', adminAuthMiddleware, async (req,
     if (!targetUser) return res.status(404).json({ error: 'User not found' });
     setCookie(res, 'waurks_impersonate', `${targetId}.${sign('imp_' + targetId)}`, 86400);
     await logAdmin(req, 'IMPERSONATE', `started viewing site as ${targetUser.username} (${targetUser.discord_id})`);
-    res.json({ success: true, redirect: '/requests' });
+    res.json({ success: true, redirect: '/dashboard' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Admin action: configure LTC receiving address directly
+app.post('/api/v1/admin/ltc-address', adminAuthMiddleware, async (req, res) => {
+  try {
+    const address = String(req.body?.address || '').trim();
+    if (!address) return res.status(400).json({ error: 'Address is required' });
+    const ok = ltcPayments.configure(address);
+    if (!ok) {
+      return res.status(400).json({ error: ltcPayments.status().configError || 'Invalid address or key' });
+    }
+    await db.run(
+      `INSERT INTO site_settings (key, value) VALUES ('ltc_address', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+      [address]
+    );
+    await logAdmin(req, 'UPDATE_LTC_ADDRESS', `Updated LTC receiving address to ${address}`);
+    res.json({ success: true, ltc: ltcPayments.status() });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

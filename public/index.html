@@ -320,12 +320,19 @@
 
 <div class="wrap">
   <footer class="footer">
-    <span class="madeby"><span class="logo-mark" style="width:24px;height:24px;display:inline-grid;place-items:center;background:var(--purple);border-radius:6px;color:#fff;font-size:13px;font-weight:700">w</span><span>waurk</span></span>
+    <span class="madeby"><img src="/waurk_pfp.png" id="footerCreatorAvatar" alt="waurk."><span>made by <b id="footerCreatorName">waurk.</b></span></span>
     <span>devsupplies.cc · <a href="/privacy" style="color:var(--muted);text-decoration:underline">Privacy Policy</a> · Not affiliated with TikTok or ByteDance.</span>
   </footer>
 </div>
 
 <script>
+  fetch('/api/v1/creator-profile').then(r => r.json()).then(data => {
+    if (data && data.avatar) {
+      const img = document.getElementById('footerCreatorAvatar');
+      if (img) img.src = data.avatar;
+    }
+  }).catch(() => {});
+
   fetch('/api/v1/auth/status').then(r => r.json()).then(s => {
     if (s.isAdmin) {
       const a = document.getElementById('adminNavLink');

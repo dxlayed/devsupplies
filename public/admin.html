@@ -141,6 +141,10 @@
 
       <div class="sec-title" style="margin-top:28px"><span>Litecoin payments</span><span id="ltcBadge" class="badge-admin">—</span></div>
       <div id="ltcInfo" style="font-size:13px;color:var(--muted);line-height:1.8"></div>
+      <div style="margin-top:12px;display:flex;gap:8px;max-width:540px">
+        <input id="ltcAddressInput" class="input-field" placeholder="Paste your LTC address (e.g. ltc1q... or L...)">
+        <button class="btn btn-outline" id="btnSaveLtc" style="flex:none;padding:8px 16px">Save Address</button>
+      </div>
     </div>
 
     <!-- Activity Log Pane -->
@@ -235,12 +239,24 @@
     $('mtMessage').value = d.maintenanceMessage || '';
 
     const l = d.ltc || {};
-    $('ltcBadge').textContent = l.enabled ? 'ACTIVE' : 'DISABLED';
-    $('ltcBadge').style.color = l.enabled ? 'var(--pass)' : 'var(--muted)';
-    $('ltcInfo').innerHTML = l.enabled
-      ? `Wallet connected. Keys issue after <b style="color:var(--text)">${+l.confirmationsRequired}</b> confirmation(s). Prices lock for ${+l.quoteMinutes} mins.<br>
+    const isLtcOn = !!(l.enabled || l.configured);
+    $('ltcBadge').textContent = isLtcOn ? 'ACTIVE' : 'DISABLED';
+    $('ltcBadge').style.color = isLtcOn ? 'var(--pass)' : 'var(--muted)';
+    if (l.address) $('ltcAddressInput').value = l.address;
+    $('ltcInfo').innerHTML = isLtcOn
+      ? `Wallet connected (${esc(l.address || l.firstAddress)}). Keys issue after <b style="color:var(--text)">${+l.confirmationsRequired}</b> confirmation(s). Prices lock for ${+l.quoteMinutes} mins.<br>
          Last check: ${l.lastCheck ? when(l.lastCheck) : 'not yet'}${l.lastRateUsd ? ' · LTC price $' + (+l.lastRateUsd).toFixed(2) : ''}`
-      : 'Add LTC_XPUB to your environment variables to enable cryptocurrency checkout.';
+      : `${l.configError ? `<span style="color:var(--block);font-weight:600">${esc(l.configError)}</span><br>` : ''}Paste your standard Litecoin receiving address below or add LTC_XPUB/LTC_ADDRESS in Railway variables.`;
+  });
+
+  $('btnSaveLtc').onclick = safe(async () => {
+    const addr = $('ltcAddressInput').value.trim();
+    if (!addr) return toast('Please enter a Litecoin address', true);
+    const r = await post('/ltc-address', { address: addr });
+    if (r.success) {
+      toast('Litecoin payments updated successfully!');
+      load();
+    }
   });
 
   $('mtBtn').onclick = safe(async () => {
@@ -274,7 +290,7 @@
         <td>$${(+u.spent_usd).toFixed(2)}</td>
         <td>${day(u.created_at)}</td>
         <td class="nowrap">
-          <button class="btn btn-ghost" data-act="view-site" data-id="${+u.id}" title="Browse site logged in as this user">View site</button>
+          <button class="btn btn-ghost" data-act="view-site" data-id="${+u.id}" title="Preview the dashboard as this user">View as user</button>
           <select class="input-field" id="tier${+u.id}"><option value="weekly">7 days ($5)</option><option value="monthly">30 days ($10)</option><option value="yearly">Lifetime ($15)</option></select>
           <button class="btn btn-approve" data-act="grant" data-id="${+u.id}">Give key</button>
           ${u.banned ? `<button class="btn btn-ghost" data-act="unban" data-id="${+u.id}">Unban</button>` : `<button class="btn btn-danger" data-act="ban" data-id="${+u.id}">Ban</button>`}

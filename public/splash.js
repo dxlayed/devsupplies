@@ -43,6 +43,18 @@
     // Auto-dismiss after full animation plays (~2.6s)
     setTimeout(dismiss, 2600);
 
+    // Dynamically load profile from creator user in database
+    fetch('/api/v1/creator-profile').then(r => r.json()).then(data => {
+      if (data) {
+        const avEl = splash.querySelector('.splash-avatar');
+        const nameEl = splash.querySelector('.splash-name');
+        const handleEl = splash.querySelector('.splash-handle');
+        if (avEl && data.avatar) avEl.src = data.avatar;
+        if (nameEl && data.username) nameEl.textContent = data.username;
+        if (handleEl && data.tag) handleEl.textContent = data.tag;
+      }
+    }).catch(() => {});
+
     if (document.body) {
       document.body.prepend(splash);
     } else {

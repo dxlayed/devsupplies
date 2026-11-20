@@ -814,6 +814,11 @@
   </div>
 </div>
 
+<div id="impersonationBanner" style="display:none;background:linear-gradient(90deg,#7c3aed,#4f46e5);color:#fff;padding:8px 16px;text-align:center;font-size:13px;font-weight:600;z-index:99999;position:sticky;top:0;box-shadow:0 4px 12px rgba(0,0,0,0.3)">
+  Viewing site as <b id="impUserLabel">user</b> (Admin Impersonation)
+  <button onclick="exitImpersonation()" style="margin-left:12px;background:#fff;color:#4f46e5;border:none;border-radius:6px;padding:3px 10px;font-size:12px;font-weight:700;cursor:pointer">Exit to Admin</button>
+</div>
+
 <div class="wrap app-body">
   <header class="top-header">
     <div class="brand-group">
@@ -942,6 +947,10 @@
   window.addEventListener('DOMContentLoaded', async () => {
     try {
       const s = await (await fetch('/api/v1/auth/status')).json();
+      if (s.impersonating) {
+        document.getElementById('impersonationBanner').style.display = 'block';
+        document.getElementById('impUserLabel').textContent = '@' + s.user.username;
+      }
       if (s.loggedIn && s.user) {
         user = s.user;
         document.getElementById('userMenuName').textContent = user.username;
@@ -981,6 +990,15 @@
       }
     } catch (e) {
       document.body.classList.add('locked');
+    }
+  }
+
+  async function exitImpersonation() {
+    try {
+      await fetch('/api/v1/admin/impersonate/exit', { method: 'POST' });
+      window.location.href = '/admin';
+    } catch (e) {
+      window.location.reload();
     }
   }
 
