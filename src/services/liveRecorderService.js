@@ -223,18 +223,28 @@ function generateThumbnail(videoPath, thumbPath) {
   return new Promise((resolve) => {
     const ffmpegBin = getFfmpegBinary();
     if (!ffmpegBin || !fs.existsSync(videoPath)) return resolve(null);
-    const args = ['-y', '-ss', '00:00:00.200', '-i', videoPath, '-frames:v', '1', '-q:v', '2', thumbPath];
+    // Method 1: grab first available frame at video start without seeking
+    const args = ['-y', '-i', videoPath, '-frames:v', '1', '-q:v', '2', thumbPath];
     const proc = spawn(ffmpegBin, args, { stdio: ['ignore', 'ignore', 'ignore'] });
     const timer = setTimeout(() => {
       try { proc.kill('SIGKILL'); } catch (e) {}
-    }, 6000);
+    }, 8000);
     proc.on('close', (code) => {
       clearTimeout(timer);
       if (code === 0 && fs.existsSync(thumbPath) && fs.statSync(thumbPath).size > 0) {
-        resolve(thumbPath);
-      } else {
-        resolve(null);
+        return resolve(thumbPath);
       }
+      // Method 2: fallback to 1s in
+      const fbArgs = ['-y', '-ss', '1', '-i', videoPath, '-frames:v', '1', '-q:v', '2', thumbPath];
+      const fbProc = spawn(ffmpegBin, fbArgs, { stdio: ['ignore', 'ignore', 'ignore'] });
+      fbProc.on('close', (c) => {
+        if (c === 0 && fs.existsSync(thumbPath) && fs.statSync(thumbPath).size > 0) {
+          resolve(thumbPath);
+        } else {
+          resolve(null);
+        }
+      });
+      fbProc.on('error', () => resolve(null));
     });
     proc.on('error', () => {
       clearTimeout(timer);
@@ -748,6 +758,15 @@ class LiveRecorderService {
     return rows.map(r => {
       const thumbFile = r.filename ? r.filename.replace('.mp4', '_thumb.jpg') : null;
       const thumbExists = thumbFile && fs.existsSync(path.join(RECORDINGS_DIR, thumbFile));
+      if (!thumbExists && thumbFile && r.filename) {
+        const vPath = path.join(RECORDINGS_DIR, r.filename);
+        const tPath = path.join(RECORDINGS_DIR, thumbFile);
+        if (fs.existsSync(vPath)) {
+          generateThumbnail(vPath, tPath).then((ok) => {
+            if (ok) db.run(`UPDATE recordings SET thumbnail_url = ? WHERE id = ?`, [`/recordings/${thumbFile}`, r.id]).catch(() => {});
+          }).catch(() => {});
+        }
+      }
       return {
         id: r.id,
         userId: r.user_id,

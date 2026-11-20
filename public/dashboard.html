@@ -564,11 +564,15 @@
     align-items: center;
     gap: 16px;
     box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4);
-    transition: all 0.15s ease;
+    transition: all 0.18s ease;
+    cursor: pointer;
+    position: relative;
   }
   .recording-card:hover {
-    border-color: rgba(139, 92, 246, 0.35);
-    background: #140d20;
+    border-color: rgba(139, 92, 246, 0.45);
+    background: #140d24;
+    transform: translateY(-2px);
+    box-shadow: 0 14px 34px rgba(139, 92, 246, 0.16);
   }
   .recording-thumb-wrap {
     flex: none;
@@ -582,11 +586,37 @@
     align-items: center;
     justify-content: center;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    position: relative;
+  }
+  .recording-card:hover .recording-thumb-wrap {
+    border-color: rgba(139, 92, 246, 0.6);
   }
   .recording-thumb {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    display: block;
+    background: #0d0717;
+  }
+  .recording-thumb-play {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.35);
+    opacity: 0;
+    transition: opacity 0.18s ease;
+    pointer-events: none;
+  }
+  .recording-card:hover .recording-thumb-play {
+    opacity: 1;
+  }
+  .recording-thumb-play svg {
+    width: 26px;
+    height: 26px;
+    fill: #fff;
+    filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.8));
   }
   .recording-thumb-placeholder {
     width: 100%;
@@ -1359,28 +1389,26 @@
     savedRecordings.forEach((rec) => {
       const title = rec.title || 'Live Stream';
       const meta = `${rec.durationFormatted || '0:00'} · ${rec.fileSizeFormatted || '0 B'} · ${rec.dateFormatted || ''}`;
-      const recCreatorUrl = `https://www.tiktok.com/@${encodeURIComponent(rec.username)}/live`;
 
       html += `
-        <div class="recording-card" id="rec-card-${rec.id}">
+        <div class="recording-card" id="rec-card-${rec.id}" onclick="playVideo('${rec.downloadUrl}', '@${rec.username}')" title="Click to play recording">
           <div class="recording-thumb-wrap">
             ${rec.thumbnailUrl 
-              ? `<img src="${rec.thumbnailUrl}" class="recording-thumb" alt="cover" onerror="this.outerHTML='<div class=\\'recording-thumb-placeholder\\'>1080p<br>MP4</div>'">` 
-              : `<div class="recording-thumb-placeholder">1080p<br>MP4</div>`}
+              ? `<img src="${rec.thumbnailUrl}" class="recording-thumb" alt="cover" onerror="this.style.display='none'; if (this.nextElementSibling) this.nextElementSibling.style.display='block';">
+                 <video src="${rec.downloadUrl}#t=0.5" class="recording-thumb" style="display:none" preload="metadata" muted playsinline></video>` 
+              : `<video src="${rec.downloadUrl}#t=0.5" class="recording-thumb" preload="metadata" muted playsinline></video>`}
+            <div class="recording-thumb-play">
+              <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            </div>
           </div>
           <div class="recording-main">
-            <div class="recording-username">
-              <a href="${recCreatorUrl}" target="_blank" class="stream-handle-link" title="Open @${rec.username}'s TikTok live">
-                @${rec.username} <span style="font-size:11px;color:var(--muted)">↗</span>
-              </a>
-            </div>
+            <div class="recording-username">@${rec.username}</div>
             <div class="recording-title">${title}</div>
             <div class="recording-meta">${meta}</div>
           </div>
-          <div class="recording-actions">
-            <button class="btn-rec-action primary" onclick="playVideo('${rec.downloadUrl}', '@${rec.username}')">Play</button>
-            <a class="btn-rec-action" href="${rec.downloadUrl}" download="${rec.filename}">Download</a>
-            <button class="btn-rec-action danger" onclick="deleteVideo(${rec.id})">Delete</button>
+          <div class="recording-actions" onclick="event.stopPropagation()">
+            <a class="btn-rec-action" href="${rec.downloadUrl}" download="${rec.filename}" onclick="event.stopPropagation()">Download</a>
+            <button class="btn-rec-action danger" onclick="event.stopPropagation(); deleteVideo(${rec.id})">Delete</button>
           </div>
         </div>
       `;
