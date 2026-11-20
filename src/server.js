@@ -650,7 +650,7 @@ app.post('/api/v1/admin/chat/send', adminAuthMiddleware, async (req, res) => {
        VALUES (?, 'admin', ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1)`,
       [
         userId,
-        req.user?.id || 0,
+        req.adminUser?.id || req.user?.id || 0,
         adminName,
         adminAvatar,
         cleanMsg,

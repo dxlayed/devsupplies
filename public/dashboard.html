@@ -1955,6 +1955,12 @@
     }
   }
 
+  function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+  }
+
   function formatTime(iso) {
     if (!iso) return '';
     const d = new Date(iso);
@@ -2113,11 +2119,11 @@
       if (res.ok) {
         await loadChatMessages(true);
       } else {
-        const err = await res.json();
-        showToast(err.error || 'Failed to send message', true);
+        const err = await res.json().catch(() => ({}));
+        notify(err.error || 'Failed to send message', true);
       }
     } catch (e) {
-      showToast('Network error sending message', true);
+      notify('Network error sending message', true);
     } finally {
       btn.disabled = false;
       input.focus();
