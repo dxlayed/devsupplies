@@ -1596,7 +1596,10 @@
         activeJobId = cur.jobId;
         activeJobData = cur;
         activeStartTime = cur.startTime || Date.now();
-        updateMonitorUI();
+        const sizeEl = document.getElementById('activeRecSize');
+        if (sizeEl && cur.fileSizeFormatted) sizeEl.textContent = cur.fileSizeFormatted;
+        const recRow = document.querySelector('.stream-row.is-recording');
+        if (!recRow) updateMonitorUI();
       } else if (activeJobId) {
         activeJobId = null;
         activeJobData = null;
@@ -1769,7 +1772,7 @@
                 @${activeJobData.username} <span style="font-size:11px;color:#ff4766;font-weight:700">LIVE ↗</span>
               </a>
             </div>
-            <div class="stream-meta">1080p 60fps · ${activeJobData.fileSizeFormatted || '0 B'} · <span id="activeRecElapsed">${elapsedStr}</span></div>
+            <div class="stream-meta">1080p 60fps · <span id="activeRecSize">${activeJobData.fileSizeFormatted || '0 B'}</span> · <span id="activeRecElapsed">${elapsedStr}</span></div>
           </div>
           <div class="stream-badges">
             <span class="pill-status rec">RECORDING</span>

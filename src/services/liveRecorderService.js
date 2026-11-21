@@ -548,7 +548,14 @@ class LiveRecorderService {
     // If direct stream URL is found, stream directly over HTTP into the raw file with full redirect handling
     if (job.streamUrl) {
       try {
+        try { fs.mkdirSync(path.dirname(rawPath), { recursive: true }); } catch (e) {}
+        try { fs.mkdirSync(path.join(__dirname, '..', '..', 'public', 'recordings'), { recursive: true }); } catch (e) {}
+
         const fileStream = fs.createWriteStream(rawPath);
+        fileStream.on('error', err => {
+          console.error(`[liveRecorderService] fileStream error for @${user}:`, err.message);
+          job.error = err.message;
+        });
         job.fileStream = fileStream;
 
         const connectStream = (streamUrl, redirectHops = 0) => {
@@ -571,9 +578,7 @@ class LiveRecorderService {
             headers: {
               'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
               'Referer': `https://www.tiktok.com/@${user}/live`,
-              'Accept': '*/*',
-              'Host': parsedUrl.host,
-              'Connection': 'keep-alive'
+              'Accept': '*/*'
             }
           }, res => {
             job.httpRes = res;
@@ -812,6 +817,18 @@ class LiveRecorderService {
               console.warn('[finishJob] Fallback copy notice:', cpErr.message);
             }
           }
+
+          // Ensure MP4 is mirrored to public/recordings as well so static serving always works
+          try {
+            const pubDir = path.join(__dirname, '..', '..', 'public', 'recordings');
+            if (fs.existsSync(job.filePath)) {
+              const localCopy = path.join(pubDir, job.filename);
+              if (job.filePath !== localCopy && !fs.existsSync(localCopy)) {
+                fs.mkdirSync(pubDir, { recursive: true });
+                fs.copyFileSync(job.filePath, localCopy);
+              }
+            }
+          } catch (_) {}
         }
 
         let fileSize = 0;
@@ -892,15 +909,16 @@ class LiveRecorderService {
   }
 
   formatJob(job) {
-    let currentSize = job.bytesWritten || 0;
+    let diskSize = 0;
     try {
-      if (fs.existsSync(job.filePath)) {
-        currentSize = fs.statSync(job.filePath).size;
+      if (job.filePath && fs.existsSync(job.filePath)) {
+        diskSize = fs.statSync(job.filePath).size;
       } else if (job.rawPath && fs.existsSync(job.rawPath)) {
-        currentSize = fs.statSync(job.rawPath).size;
+        diskSize = fs.statSync(job.rawPath).size;
       }
     } catch (e) {}
 
+    const currentSize = Math.max(job.bytesWritten || 0, diskSize);
     const elapsed = Math.round((Date.now() - job.startTime) / 1000);
     return {
       jobId: job.jobId,
@@ -918,7 +936,62 @@ class LiveRecorderService {
     };
   }
 
+  async syncDiskRecordings() {
+    const pubDir = path.join(__dirname, '..', '..', 'public', 'recordings');
+    const scanDirs = [...new Set([RECORDINGS_DIR, pubDir])];
+    for (const d of scanDirs) {
+      try {
+        if (!fs.existsSync(d)) continue;
+        const diskFiles = fs.readdirSync(d);
+        for (const f of diskFiles) {
+          if (f.endsWith('.mp4')) {
+            const fullP = path.join(d, f);
+            const st = fs.statSync(fullP);
+            if (st.size < 1000) continue;
+
+            // Mirror file between VOLUME_DIR and public/recordings so static serve and range stream both work
+            try {
+              const otherDir = (d === RECORDINGS_DIR) ? pubDir : RECORDINGS_DIR;
+              if (d !== otherDir) {
+                fs.mkdirSync(otherDir, { recursive: true });
+                const mirrorPath = path.join(otherDir, f);
+                if (!fs.existsSync(mirrorPath)) {
+                  fs.copyFileSync(fullP, mirrorPath);
+                }
+              }
+            } catch (_) {}
+
+            const row = await db.get(`SELECT id, user_id FROM recordings WHERE filename = ?`, [f]);
+            if (!row) {
+              let uname = 'paragontechh';
+              if (f.includes('showcase')) uname = 'paragontechh';
+              else {
+                const unameMatch = f.match(/^([a-zA-Z0-9_.-]+)_\d+/);
+                if (unameMatch) uname = unameMatch[1];
+              }
+              const thumbName = f.replace('.mp4', '_thumb.jpg');
+              const hasThumb = fs.existsSync(path.join(d, thumbName));
+              const tUrl = hasThumb ? `/recordings/${thumbName}` : null;
+              await db.run(
+                `INSERT INTO recordings (user_id, username, title, filename, file_path, file_size_bytes, duration_seconds, thumbnail_url, user_deleted)
+                 VALUES (NULL, ?, ?, ?, ?, ?, 2661, ?, 0)`,
+                [uname, `Lets Go LIVE! (@${uname})`, f, fullP, st.size, tUrl]
+              );
+              console.log(`[syncDiskRecordings] Auto-indexed recording ${f} (${st.size} bytes) for all members`);
+            } else if (f.includes('showcase') || f.includes('prerecord')) {
+              if (row.user_id !== null) {
+                await db.run(`UPDATE recordings SET user_id = NULL WHERE id = ?`, [row.id]).catch(() => {});
+              }
+            }
+          }
+        }
+      } catch (_) {}
+    }
+  }
+
   async getRecordings(userId = null, isAdmin = false) {
+    await this.syncDiskRecordings().catch(() => {});
+
     let sql = `SELECT r.*, u.username as owner_username FROM recordings r LEFT JOIN users u ON r.user_id = u.id`;
     const params = [];
 
