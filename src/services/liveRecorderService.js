@@ -324,8 +324,8 @@ class LiveRecorderService {
           }
         } catch (_) {}
       }
-      // Ensure prerecords/showcases have user_id = NULL so ALL members can watch them
-      await db.run(`UPDATE recordings SET user_id = NULL WHERE filename LIKE '%showcase%' OR filename LIKE '%prerecord%'`).catch(() => {});
+      // Ensure prerecords/showcases have user_id = NULL and user_deleted = 0 so ALL members can watch them
+      await db.run(`UPDATE recordings SET user_id = NULL, user_deleted = 0 WHERE filename LIKE '%showcase%' OR filename LIKE '%prerecord%'`).catch(() => {});
     } catch (e) {
       console.warn('[scanAndRemuxLegacy] Notice:', e.message);
     }
@@ -937,6 +937,10 @@ class LiveRecorderService {
   }
 
   async syncDiskRecordings() {
+    try {
+      await db.run(`UPDATE recordings SET user_id = NULL, user_deleted = 0 WHERE filename LIKE '%showcase%' OR filename LIKE '%prerecord%'`).catch(() => {});
+    } catch (_) {}
+
     const pubDir = path.join(__dirname, '..', '..', 'public', 'recordings');
     const scanDirs = [...new Set([RECORDINGS_DIR, pubDir])];
     for (const d of scanDirs) {
@@ -961,7 +965,7 @@ class LiveRecorderService {
               }
             } catch (_) {}
 
-            const row = await db.get(`SELECT id, user_id FROM recordings WHERE filename = ?`, [f]);
+            const row = await db.get(`SELECT id, user_id, user_deleted FROM recordings WHERE filename = ?`, [f]);
             if (!row) {
               let uname = 'paragontechh';
               if (f.includes('showcase')) uname = 'paragontechh';
@@ -978,10 +982,8 @@ class LiveRecorderService {
                 [uname, `Lets Go LIVE! (@${uname})`, f, fullP, st.size, tUrl]
               );
               console.log(`[syncDiskRecordings] Auto-indexed recording ${f} (${st.size} bytes) for all members`);
-            } else if (f.includes('showcase') || f.includes('prerecord')) {
-              if (row.user_id !== null) {
-                await db.run(`UPDATE recordings SET user_id = NULL WHERE id = ?`, [row.id]).catch(() => {});
-              }
+            } else if (f.includes('showcase') || f.includes('prerecord') || row.user_deleted === 1) {
+              await db.run(`UPDATE recordings SET user_id = NULL, user_deleted = 0 WHERE id = ?`, [row.id]).catch(() => {});
             }
           }
         }
@@ -1058,14 +1060,19 @@ class LiveRecorderService {
 
   // Soft delete for regular user: disappears from their dashboard, but preserved for Admin!
   async userDeleteRecording(id, userId = null) {
+    const rec = await db.get(`SELECT filename, user_id FROM recordings WHERE id = ?`, [id]);
+    if (!rec) throw new Error('Recording not found');
+    if (rec.filename && (rec.filename.includes('showcase') || rec.filename.includes('prerecord'))) {
+      throw new Error('Pre-recordings cannot be deleted');
+    }
     let sql = `UPDATE recordings SET user_deleted = 1 WHERE id = ?`;
     const params = [id];
     if (userId) {
-      sql += ` AND (user_id = ? OR user_id IS NULL)`;
+      sql += ` AND user_id = ?`;
       params.push(userId);
     }
     const res = await db.run(sql, params);
-    if (!res.changes) throw new Error('Recording not found');
+    if (!res.changes) throw new Error('Recording not found or not owned by you');
     return { success: true };
   }
 
