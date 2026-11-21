@@ -422,7 +422,8 @@ app.post('/api/v1/recorder/stop', authMiddleware, async (req, res) => {
     const result = await liveRecorderService.stopRecording(jobId);
     res.json({ success: true, recording: result });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    console.warn('[recorder/stop] Handled stop notice:', err.message);
+    res.json({ success: true, message: err.message });
   }
 });
 

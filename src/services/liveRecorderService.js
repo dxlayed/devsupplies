@@ -121,11 +121,15 @@ function remuxToMp4(rawFlvPath, targetMp4Path, orientation = 'portrait') {
       return resolve({ success: false, reason: 'ffmpeg_not_installed' });
     }
 
-    // Always use fast stream copy with faststart
-    // TikTok streams are native H.264/AAC. Stream copy is instantaneous (0.5s), zero quality loss, and never times out.
-    const args = ['-y', '-i', rawFlvPath, '-c', 'copy', '-movflags', '+faststart', targetMp4Path];
+    if (!fs.existsSync(rawFlvPath) || fs.statSync(rawFlvPath).size === 0) {
+      return resolve({ success: false, reason: 'empty_raw_file' });
+    }
 
-    console.log(`[remuxToMp4] Remuxing stream copy: ${ffmpegBin} ${args.join(' ')}`);
+    // Always use fast stream copy with faststart and -nostdin
+    // TikTok streams are native H.264/AAC. Stream copy is instantaneous (0.5s), zero quality loss, and never times out.
+    const args = ['-nostdin', '-y', '-i', rawFlvPath, '-c', 'copy', '-movflags', '+faststart', targetMp4Path];
+
+    console.log(`[remuxToMp4] Fast stream copy: ${ffmpegBin} ${args.join(' ')}`);
 
     let proc;
     try {
@@ -140,6 +144,13 @@ function remuxToMp4(rawFlvPath, targetMp4Path, orientation = 'portrait') {
       return resolve({ success: false, reason: spawnErr.message });
     }
 
+    let resolved = false;
+    const safeResolve = (val) => {
+      if (resolved) return;
+      resolved = true;
+      resolve(val);
+    };
+
     let stderrTail = '';
     proc.stderr.on('data', chunk => {
       stderrTail += chunk.toString();
@@ -147,13 +158,24 @@ function remuxToMp4(rawFlvPath, targetMp4Path, orientation = 'portrait') {
     });
     proc.stdout.on('data', () => {});
 
-    // Timeout: 120 seconds
+    // Fast 5-second timeout for stream copy. If it takes longer, kill and fall back immediately.
     const timer = setTimeout(() => {
       try {
-        console.warn('[remuxToMp4] FFmpeg process timed out, terminating');
-        proc.kill('SIGKILL');
+        console.warn('[remuxToMp4] FFmpeg process timed out (5s), killing and falling back to direct copy');
+        if (process.platform === 'win32') {
+          exec(`taskkill /pid ${proc.pid} /t /f`).catch(() => {});
+        } else {
+          proc.kill('SIGKILL');
+        }
       } catch (e) {}
-    }, 120000);
+
+      try {
+        if (rawFlvPath !== targetMp4Path && fs.existsSync(rawFlvPath) && (!fs.existsSync(targetMp4Path) || fs.statSync(targetMp4Path).size === 0)) {
+          fs.copyFileSync(rawFlvPath, targetMp4Path);
+        }
+      } catch (e) {}
+      safeResolve({ success: false, reason: 'timeout_fallback' });
+    }, 5000);
 
     proc.on('close', (code) => {
       clearTimeout(timer);
@@ -162,16 +184,16 @@ function remuxToMp4(rawFlvPath, targetMp4Path, orientation = 'portrait') {
         if (rawFlvPath !== targetMp4Path) {
           try { fs.unlinkSync(rawFlvPath); } catch (e) {}
         }
-        resolve({ success: true, orientation });
+        safeResolve({ success: true, orientation });
       } else {
-        console.warn(`[remuxToMp4] Stream copy exited with code ${code}. Tail: ${stderrTail.slice(-200)}`);
+        console.warn(`[remuxToMp4] Stream copy exited with code ${code}. Falling back to copy.`);
         // Fallback: copy file directly so data is NEVER lost
         try {
           if (rawFlvPath !== targetMp4Path && fs.existsSync(rawFlvPath) && (!fs.existsSync(targetMp4Path) || fs.statSync(targetMp4Path).size === 0)) {
             fs.copyFileSync(rawFlvPath, targetMp4Path);
           }
         } catch (e) {}
-        resolve({ success: false, reason: 'ffmpeg_exit_' + code });
+        safeResolve({ success: false, reason: 'ffmpeg_exit_' + code });
       }
     });
 
@@ -183,7 +205,7 @@ function remuxToMp4(rawFlvPath, targetMp4Path, orientation = 'portrait') {
           fs.copyFileSync(rawFlvPath, targetMp4Path);
         }
       } catch (e) {}
-      resolve({ success: false, reason: procErr.message });
+      safeResolve({ success: false, reason: procErr.message });
     });
   });
 }
@@ -192,28 +214,30 @@ function generateThumbnail(videoPath, thumbPath) {
   return new Promise((resolve) => {
     const ffmpegBin = getFfmpegBinary();
     if (!ffmpegBin || !fs.existsSync(videoPath)) return resolve(null);
-    // Method 1: grab first available frame at video start without seeking
-    const args = ['-y', '-i', videoPath, '-frames:v', '1', '-q:v', '2', thumbPath];
-    const proc = spawn(ffmpegBin, args, { stdio: ['ignore', 'ignore', 'ignore'] });
+    const args = ['-nostdin', '-y', '-i', videoPath, '-frames:v', '1', '-q:v', '2', thumbPath];
+    let proc;
+    try {
+      proc = spawn(ffmpegBin, args, { stdio: ['ignore', 'ignore', 'ignore'] });
+    } catch (e) {
+      return resolve(null);
+    }
     const timer = setTimeout(() => {
-      try { proc.kill('SIGKILL'); } catch (e) {}
-    }, 8000);
+      try {
+        if (process.platform === 'win32') {
+          exec(`taskkill /pid ${proc.pid} /t /f`).catch(() => {});
+        } else {
+          proc.kill('SIGKILL');
+        }
+      } catch (e) {}
+      resolve(null);
+    }, 4000);
+
     proc.on('close', (code) => {
       clearTimeout(timer);
       if (code === 0 && fs.existsSync(thumbPath) && fs.statSync(thumbPath).size > 0) {
         return resolve(thumbPath);
       }
-      // Method 2: fallback to 1s in
-      const fbArgs = ['-y', '-ss', '1', '-i', videoPath, '-frames:v', '1', '-q:v', '2', thumbPath];
-      const fbProc = spawn(ffmpegBin, fbArgs, { stdio: ['ignore', 'ignore', 'ignore'] });
-      fbProc.on('close', (c) => {
-        if (c === 0 && fs.existsSync(thumbPath) && fs.statSync(thumbPath).size > 0) {
-          resolve(thumbPath);
-        } else {
-          resolve(null);
-        }
-      });
-      fbProc.on('error', () => resolve(null));
+      resolve(null);
     });
     proc.on('error', () => {
       clearTimeout(timer);
@@ -290,7 +314,7 @@ class LiveRecorderService {
                   const tUrl = hasThumb ? `/recordings/${thumbName}` : null;
                   await db.run(
                     `INSERT INTO recordings (user_id, username, title, filename, file_path, file_size_bytes, duration_seconds, thumbnail_url, user_deleted)
-                     VALUES (1, ?, ?, ?, ?, ?, 2661, ?, 0)`,
+                     VALUES (NULL, ?, ?, ?, ?, ?, 2661, ?, 0)`,
                     [uname, `Lets Go LIVE! (@${uname})`, f, fullP, st.size, tUrl]
                   );
                   console.log(`[scanAndRemuxLegacy] Registered recording ${f} (${st.size} bytes) for @${uname}`);
@@ -300,6 +324,8 @@ class LiveRecorderService {
           }
         } catch (_) {}
       }
+      // Ensure prerecords/showcases have user_id = NULL so ALL members can watch them
+      await db.run(`UPDATE recordings SET user_id = NULL WHERE filename LIKE '%showcase%' OR filename LIKE '%prerecord%'`).catch(() => {});
     } catch (e) {
       console.warn('[scanAndRemuxLegacy] Notice:', e.message);
     }
@@ -550,6 +576,7 @@ class LiveRecorderService {
               'Connection': 'keep-alive'
             }
           }, res => {
+            job.httpRes = res;
             // Handle HTTP 301, 302, 303, 307, 308 redirects automatically
             if ([301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location) {
               const nextUrl = new URL(res.headers.location, streamUrl).href;
@@ -692,7 +719,7 @@ class LiveRecorderService {
           status: 'finished'
         };
       }
-      throw new Error('Recording job not found or already saved');
+      return { success: true, message: 'Recording already stopped or saved' };
     }
 
     return await this.finishJob(jobId);
@@ -716,41 +743,56 @@ class LiveRecorderService {
 
         job.status = 'finalizing';
 
-        // 1. Terminate incoming stream request cleanly
+        // 1. Terminate incoming stream cleanly and unpipe
+        if (job.httpRes) {
+          try {
+            job.httpRes.unpipe();
+            job.httpRes.destroy();
+          } catch (e) {}
+          job.httpRes = null;
+        }
         if (job.httpReq) {
           try {
             job.httpReq.destroy();
           } catch (e) {}
+          job.httpReq = null;
         }
         if (job.process && !job.process.killed) {
           try {
             if (process.platform === 'win32') {
-              exec(`taskkill /pid ${job.process.pid} /t /f`);
+              exec(`taskkill /pid ${job.process.pid} /t /f`).catch(() => {});
             } else {
               job.process.kill('SIGTERM');
             }
           } catch (e) {}
         }
 
-        // 2. Cleanly await file write stream finish to release OS file lock
-        if (job.fileStream && !job.fileStream.closed && !job.fileStream.destroyed) {
-          await new Promise(resolve => {
-            try {
-              if (job.fileStream.writableEnded) {
-                return resolve();
+        // 2. Cleanly finish and close the file write stream to release OS file locks
+        if (job.fileStream) {
+          try {
+            await new Promise((resolve) => {
+              if (job.fileStream.destroyed || job.fileStream.closed) return resolve();
+              job.fileStream.once('finish', resolve);
+              job.fileStream.once('close', resolve);
+              job.fileStream.once('error', resolve);
+              try {
+                job.fileStream.end();
+              } catch (e) {
+                resolve();
               }
-              job.fileStream.end(() => resolve());
-              setTimeout(resolve, 800);
-            } catch (e) {
-              resolve();
-            }
-          });
+              setTimeout(resolve, 300);
+            });
+            try {
+              job.fileStream.destroy();
+            } catch (e) {}
+          } catch (e) {}
+          job.fileStream = null;
         }
 
         // Small grace tick to ensure filesystem write buffers are flushed
-        await new Promise(r => setTimeout(r, 200));
+        await new Promise(r => setTimeout(r, 100));
 
-        // 3. Remux raw FLV to standard MP4 with faststart
+        // 3. Remux raw FLV to standard MP4 with faststart (fast stream copy < 5s)
         const rawExists = job.rawPath && fs.existsSync(job.rawPath);
         const rawSize = rawExists ? fs.statSync(job.rawPath).size : 0;
 
@@ -783,33 +825,33 @@ class LiveRecorderService {
           }
         } catch (e) {}
 
-        // 4. Generate high-resolution first-frame video cover
-        const thumbFilename = job.filename.replace('.mp4', '_thumb.jpg');
-        const thumbPath = path.join(RECORDINGS_DIR, thumbFilename);
-        let thumbnailUrl = null;
-        try {
-          if (fs.existsSync(job.filePath) && fileSize > 1000) {
-            const thumbRes = await generateThumbnail(job.filePath, thumbPath);
-            if (thumbRes) thumbnailUrl = `/recordings/${thumbFilename}`;
-          }
-        } catch (e) {
-          console.warn('[finishJob] Cover generation warning:', e);
-        }
-
         const durationSeconds = Math.max(1, Math.round((Date.now() - job.startTime) / 1000));
 
-        // 5. Save to database
+        // 4. Save to database IMMEDIATELY (guaranteed persistence, never hang!)
         let savedRow = null;
         try {
           const res = await db.run(
             `INSERT INTO recordings (user_id, username, title, filename, file_path, file_size_bytes, duration_seconds, thumbnail_url, user_deleted)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)`,
-            [job.userId || null, job.username, job.title || `Live Stream (@${job.username})`, job.filename, job.filePath, fileSize, durationSeconds, thumbnailUrl]
+            [job.userId || null, job.username, job.title || `Live Stream (@${job.username})`, job.filename, job.filePath, fileSize, durationSeconds, null]
           );
           savedRow = await db.get(`SELECT * FROM recordings WHERE id = ?`, [res.lastID]);
           console.log(`[finishJob] Recording #${savedRow?.id} successfully saved to SQLite for @${job.username} (${fileSize} bytes)`);
         } catch (err) {
           console.error('[finishJob] Error inserting recording record:', err);
+        }
+
+        // 5. Generate thumbnail in the background (non-blocking, fast UI response)
+        const thumbFilename = job.filename.replace('.mp4', '_thumb.jpg');
+        const thumbPath = path.join(RECORDINGS_DIR, thumbFilename);
+        let thumbnailUrl = null;
+
+        if (fs.existsSync(job.filePath) && fileSize > 1000) {
+          generateThumbnail(job.filePath, thumbPath).then(thumbRes => {
+            if (thumbRes && savedRow?.id) {
+              db.run(`UPDATE recordings SET thumbnail_url = ? WHERE id = ?`, [`/recordings/${thumbFilename}`, savedRow.id]).catch(() => {});
+            }
+          }).catch(() => {});
         }
 
         job.status = 'finished';

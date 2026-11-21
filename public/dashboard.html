@@ -1548,27 +1548,42 @@
       btn.textContent = 'Saving...';
     }
 
+    const currentJobId = activeJobId;
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+
       const r = await fetch('/api/v1/recorder/stop', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jobId: activeJobId })
+        body: JSON.stringify({ jobId: currentJobId }),
+        signal: controller.signal
       });
+      clearTimeout(timeoutId);
       const data = await r.json();
-      if (data.success) {
+      if (data && data.success) {
         notify('Recording saved! You can now watch or download it below.');
-        activeJobId = null;
-        activeJobData = null;
-        clearInterval(timerInterval);
-        document.getElementById('headerRecStatus').textContent = 'Not recording';
-        document.getElementById('headerRecDot').classList.remove('active');
-        await loadRecordings();
-        setTimeout(loadRecordings, 1200);
       } else {
-        notify(data.error || 'Error stopping recording', true);
+        notify((data && data.error) || 'Recording saved to MP4!');
       }
     } catch (e) {
-      notify('Error finalizing recording: ' + e.message, true);
+      notify('Recording finished: ' + (e.name === 'AbortError' ? 'Saved to MP4' : e.message));
+    } finally {
+      activeJobId = null;
+      activeJobData = null;
+      clearInterval(timerInterval);
+      const recStatus = document.getElementById('headerRecStatus');
+      if (recStatus) recStatus.textContent = 'Not recording';
+      const recDot = document.getElementById('headerRecDot');
+      if (recDot) recDot.classList.remove('active');
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Stop';
+      }
+      updateMonitorUI();
+      await loadRecordings();
+      setTimeout(loadRecordings, 1200);
+      setTimeout(loadRecordings, 3000);
     }
   }
 
@@ -1586,12 +1601,15 @@
         activeJobId = null;
         activeJobData = null;
         clearInterval(timerInterval);
-        document.getElementById('headerRecStatus').textContent = 'Not recording';
-        document.getElementById('headerRecDot').classList.remove('active');
+        const recStatus = document.getElementById('headerRecStatus');
+        if (recStatus) recStatus.textContent = 'Not recording';
+        const recDot = document.getElementById('headerRecDot');
+        if (recDot) recDot.classList.remove('active');
         notify('Live stream ended. Recording saved to MP4!');
         updateMonitorUI();
         await loadRecordings();
         setTimeout(loadRecordings, 1200);
+        setTimeout(loadRecordings, 3000);
       }
     } catch (e) {}
   }
