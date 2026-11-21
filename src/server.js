@@ -230,6 +230,7 @@ app.get('/recordings/:filename', (req, res) => {
   }
 });
 
+app.use('/recordings', express.static(liveRecorderService.RECORDINGS_DIR));
 app.use('/recordings', express.static(path.join(__dirname, '..', 'public', 'recordings')));
 app.use(express.static(path.join(__dirname, '..', 'public'), { extensions: ['html'] }));
 
@@ -433,7 +434,8 @@ app.get('/api/v1/recorder/active', async (req, res) => {
 app.get('/api/v1/recorder/list', async (req, res) => {
   try {
     const user = await getSessionUser(req);
-    const recordings = await liveRecorderService.getRecordings(user?.id);
+    const isAdmin = isAdminUser(user);
+    const recordings = await liveRecorderService.getRecordings(user?.id, isAdmin);
     res.json({ recordings });
   } catch (err) {
     res.status(500).json({ error: err.message });

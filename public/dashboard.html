@@ -1563,6 +1563,7 @@
         document.getElementById('headerRecStatus').textContent = 'Not recording';
         document.getElementById('headerRecDot').classList.remove('active');
         await loadRecordings();
+        setTimeout(loadRecordings, 1200);
       } else {
         notify(data.error || 'Error stopping recording', true);
       }
@@ -1590,6 +1591,7 @@
         notify('Live stream ended. Recording saved to MP4!');
         updateMonitorUI();
         await loadRecordings();
+        setTimeout(loadRecordings, 1200);
       }
     } catch (e) {}
   }
@@ -1827,9 +1829,10 @@
     savedRecordings.forEach((rec) => {
       const title = rec.title || 'Live Stream';
       const meta = `${rec.durationFormatted || '0:00'} · ${rec.fileSizeFormatted || '0 B'} · ${rec.dateFormatted || ''}`;
+      const videoUrl = rec.downloadUrl || rec.url || ('/recordings/' + rec.filename);
 
       html += `
-        <div class="recording-card" id="rec-card-${rec.id}" onclick="playVideo('${rec.downloadUrl}', '@${rec.username}')" title="Click to play recording">
+        <div class="recording-card" id="rec-card-${rec.id}" onclick="playVideo('${videoUrl}', '@${rec.username}')" title="Click to play recording">
           <div class="recording-thumb-wrap">
             ${rec.thumbnailUrl 
               ? `<img src="${rec.thumbnailUrl}" class="recording-thumb" alt="cover" onerror="this.style.display='none'; if (this.nextElementSibling) this.nextElementSibling.style.display='flex';">
@@ -1845,7 +1848,7 @@
             <div class="recording-meta">${meta}</div>
           </div>
           <div class="recording-actions" onclick="event.stopPropagation()">
-            <a class="btn-rec-action" href="${rec.downloadUrl}" download="${rec.filename}" onclick="event.stopPropagation()">Download</a>
+            <a class="btn-rec-action" href="${videoUrl}" download="${rec.filename}" onclick="event.stopPropagation()">Download</a>
             <button class="btn-rec-action danger" onclick="event.stopPropagation(); deleteVideo(${rec.id})">Delete</button>
           </div>
         </div>

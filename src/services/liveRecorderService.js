@@ -225,6 +225,7 @@ function generateThumbnail(videoPath, thumbPath) {
 class LiveRecorderService {
   constructor() {
     this.activeJobs = new Map(); // jobId -> job details
+    this.finishingJobs = new Map(); // jobId -> Promise<recording>
     this.scanAndRemuxLegacy().catch(() => {});
   }
 
@@ -553,7 +554,6 @@ class LiveRecorderService {
 
               if (this.activeJobs.has(jobId)) {
                 console.log(`[liveRecorderService] Stream ended for @${user}, finishing capture.`);
-                if (job.fileStream) job.fileStream.end();
                 this.finishJob(jobId);
               }
             });
@@ -562,7 +562,6 @@ class LiveRecorderService {
               job.error = err.message;
               console.warn(`[liveRecorderService] Stream socket error:`, err.message);
               if (this.activeJobs.has(jobId)) {
-                if (job.fileStream) job.fileStream.end();
                 this.finishJob(jobId);
               }
             });
@@ -633,110 +632,176 @@ class LiveRecorderService {
   }
 
   async stopRecording(jobId) {
+    if (!jobId) throw new Error('Job ID required');
+    if (this.finishingJobs.has(jobId)) {
+      return await this.finishingJobs.get(jobId);
+    }
     const job = this.activeJobs.get(jobId);
-    if (!job) throw new Error('Recording job not found');
-
-    if (job.watchdogTimer) {
-      clearInterval(job.watchdogTimer);
-      job.watchdogTimer = null;
+    if (!job) {
+      // Check if it already finished and was saved to SQLite
+      const existing = await db.get(`SELECT * FROM recordings WHERE filename LIKE ? ORDER BY id DESC LIMIT 1`, [`%${jobId}%`]);
+      if (existing) {
+        return {
+          jobId,
+          id: existing.id,
+          username: existing.username,
+          title: existing.title,
+          filename: existing.filename,
+          url: `/recordings/${existing.filename}`,
+          downloadUrl: `/recordings/${existing.filename}`,
+          thumbnailUrl: existing.thumbnail_url,
+          fileSize: existing.file_size_bytes,
+          fileSizeFormatted: formatSize(existing.file_size_bytes),
+          durationSeconds: existing.duration_seconds,
+          durationFormatted: formatDuration(existing.duration_seconds),
+          status: 'finished'
+        };
+      }
+      throw new Error('Recording job not found or already saved');
     }
-
-    if (job.httpReq) {
-      try {
-        job.httpReq.destroy();
-      } catch (e) {}
-    }
-    if (job.fileStream) {
-      try {
-        job.fileStream.end();
-      } catch (e) {}
-    }
-    if (job.process && !job.process.killed) {
-      try {
-        if (process.platform === 'win32') {
-          exec(`taskkill /pid ${job.process.pid} /t /f`);
-        } else {
-          job.process.kill('SIGTERM');
-        }
-      } catch (e) {}
-    }
-
-    // Wait brief tick for file write stream to flush
-    await new Promise(r => setTimeout(r, 600));
 
     return await this.finishJob(jobId);
   }
 
   async finishJob(jobId) {
+    if (!jobId) return null;
+    if (this.finishingJobs.has(jobId)) {
+      return await this.finishingJobs.get(jobId);
+    }
+
     const job = this.activeJobs.get(jobId);
     if (!job) return null;
 
-    if (job.watchdogTimer) {
-      clearInterval(job.watchdogTimer);
-      job.watchdogTimer = null;
-    }
-
-    job.status = 'finished';
-    this.activeJobs.delete(jobId);
-
-    // Convert raw FLV stream to genuine MP4 in requested orientation
-    if (job.rawPath && fs.existsSync(job.rawPath)) {
+    const finishPromise = (async () => {
       try {
-        await remuxToMp4(job.rawPath, job.filePath, job.orientation || 'portrait');
-      } catch (err) {
-        console.error('Error during remuxToMp4:', err);
+        if (job.watchdogTimer) {
+          clearInterval(job.watchdogTimer);
+          job.watchdogTimer = null;
+        }
+
+        job.status = 'finalizing';
+
+        // 1. Terminate incoming stream request cleanly
+        if (job.httpReq) {
+          try {
+            job.httpReq.destroy();
+          } catch (e) {}
+        }
+        if (job.process && !job.process.killed) {
+          try {
+            if (process.platform === 'win32') {
+              exec(`taskkill /pid ${job.process.pid} /t /f`);
+            } else {
+              job.process.kill('SIGTERM');
+            }
+          } catch (e) {}
+        }
+
+        // 2. Cleanly await file write stream finish to release OS file lock
+        if (job.fileStream && !job.fileStream.closed && !job.fileStream.destroyed) {
+          await new Promise(resolve => {
+            try {
+              if (job.fileStream.writableEnded) {
+                return resolve();
+              }
+              job.fileStream.end(() => resolve());
+              setTimeout(resolve, 800);
+            } catch (e) {
+              resolve();
+            }
+          });
+        }
+
+        // Small grace tick to ensure filesystem write buffers are flushed
+        await new Promise(r => setTimeout(r, 200));
+
+        // 3. Remux raw FLV to standard MP4 with faststart
+        const rawExists = job.rawPath && fs.existsSync(job.rawPath);
+        const rawSize = rawExists ? fs.statSync(job.rawPath).size : 0;
+
+        if (rawExists && rawSize > 0) {
+          try {
+            console.log(`[finishJob] Remuxing recording for @${job.username} (${rawSize} bytes)...`);
+            await remuxToMp4(job.rawPath, job.filePath, job.orientation || 'portrait');
+          } catch (err) {
+            console.error('[finishJob] Remux error:', err);
+          }
+
+          // If remux failed or file missing, copy raw file directly so data is NEVER lost
+          if (!fs.existsSync(job.filePath) || fs.statSync(job.filePath).size === 0) {
+            try {
+              fs.copyFileSync(job.rawPath, job.filePath);
+            } catch (cpErr) {
+              console.warn('[finishJob] Fallback copy notice:', cpErr.message);
+            }
+          }
+        }
+
+        let fileSize = 0;
+        try {
+          if (fs.existsSync(job.filePath)) {
+            fileSize = fs.statSync(job.filePath).size;
+          } else if (rawExists) {
+            fileSize = rawSize;
+          } else {
+            fileSize = job.bytesWritten || 0;
+          }
+        } catch (e) {}
+
+        // 4. Generate high-resolution first-frame video cover
+        const thumbFilename = job.filename.replace('.mp4', '_thumb.jpg');
+        const thumbPath = path.join(RECORDINGS_DIR, thumbFilename);
+        let thumbnailUrl = null;
+        try {
+          if (fs.existsSync(job.filePath) && fileSize > 1000) {
+            const thumbRes = await generateThumbnail(job.filePath, thumbPath);
+            if (thumbRes) thumbnailUrl = `/recordings/${thumbFilename}`;
+          }
+        } catch (e) {
+          console.warn('[finishJob] Cover generation warning:', e);
+        }
+
+        const durationSeconds = Math.max(1, Math.round((Date.now() - job.startTime) / 1000));
+
+        // 5. Save to database
+        let savedRow = null;
+        try {
+          const res = await db.run(
+            `INSERT INTO recordings (user_id, username, title, filename, file_path, file_size_bytes, duration_seconds, thumbnail_url, user_deleted)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+            [job.userId || null, job.username, job.title || `Live Stream (@${job.username})`, job.filename, job.filePath, fileSize, durationSeconds, thumbnailUrl]
+          );
+          savedRow = await db.get(`SELECT * FROM recordings WHERE id = ?`, [res.lastID]);
+          console.log(`[finishJob] Recording #${savedRow?.id} successfully saved to SQLite for @${job.username} (${fileSize} bytes)`);
+        } catch (err) {
+          console.error('[finishJob] Error inserting recording record:', err);
+        }
+
+        job.status = 'finished';
+
+        return {
+          jobId: job.jobId,
+          id: savedRow ? savedRow.id : null,
+          username: job.username,
+          title: job.title,
+          filename: job.filename,
+          url: `/recordings/${job.filename}`,
+          downloadUrl: `/recordings/${job.filename}`,
+          thumbnailUrl: thumbnailUrl,
+          fileSize,
+          fileSizeFormatted: formatSize(fileSize),
+          durationSeconds,
+          durationFormatted: formatDuration(durationSeconds),
+          status: 'finished'
+        };
+      } finally {
+        this.activeJobs.delete(jobId);
+        this.finishingJobs.delete(jobId);
       }
-    }
+    })();
 
-    let fileSize = job.bytesWritten || 0;
-    try {
-      if (fs.existsSync(job.filePath)) {
-        fileSize = fs.statSync(job.filePath).size;
-      }
-    } catch (e) {}
-
-    // Generate high-resolution first-frame video cover
-    const thumbFilename = job.filename.replace('.mp4', '_thumb.jpg');
-    const thumbPath = path.join(RECORDINGS_DIR, thumbFilename);
-    let thumbnailUrl = null;
-    try {
-      if (fs.existsSync(job.filePath)) {
-        const thumbRes = await generateThumbnail(job.filePath, thumbPath);
-        if (thumbRes) thumbnailUrl = `/recordings/${thumbFilename}`;
-      }
-    } catch (e) {
-      console.warn('Cover generation warning:', e);
-    }
-
-    const durationSeconds = Math.max(1, Math.round((Date.now() - job.startTime) / 1000));
-
-    // Save to database
-    let savedRow = null;
-    try {
-      const res = await db.run(
-        `INSERT INTO recordings (user_id, username, title, filename, file_path, file_size_bytes, duration_seconds, thumbnail_url, user_deleted)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)`,
-        [job.userId, job.username, job.title || `Live Stream (@${job.username})`, job.filename, job.filePath, fileSize, durationSeconds, thumbnailUrl]
-      );
-      savedRow = await db.get(`SELECT * FROM recordings WHERE id = ?`, [res.lastID]);
-    } catch (err) {
-      console.error('Error inserting recording record:', err);
-    }
-
-    return {
-      jobId: job.jobId,
-      id: savedRow ? savedRow.id : null,
-      username: job.username,
-      title: job.title,
-      filename: job.filename,
-      downloadUrl: `/recordings/${job.filename}`,
-      thumbnailUrl: thumbnailUrl,
-      fileSize,
-      fileSizeFormatted: formatSize(fileSize),
-      durationSeconds,
-      durationFormatted: formatDuration(durationSeconds),
-      status: 'finished'
-    };
+    this.finishingJobs.set(jobId, finishPromise);
+    return await finishPromise;
   }
 
   getActiveJobs(userId = null) {
@@ -781,12 +846,14 @@ class LiveRecorderService {
     const params = [];
 
     if (!isAdmin) {
-      // Normal user only sees non-deleted recordings (or their own)
+      // Normal user sees non-deleted recordings (or their own)
       sql += ` WHERE (r.user_deleted = 0 OR r.user_deleted IS NULL)`;
       if (userId) {
         sql += ` AND (r.user_id = ? OR r.user_id IS NULL)`;
         params.push(userId);
       }
+    } else {
+      sql += ` WHERE (r.user_deleted = 0 OR r.user_deleted IS NULL)`;
     }
     sql += ` ORDER BY r.id DESC LIMIT 200`;
 
@@ -803,6 +870,21 @@ class LiveRecorderService {
           }).catch(() => {});
         }
       }
+
+      let dateFormatted = '';
+      try {
+        const cStr = String(r.created_at || '').replace(' ', 'T') + (String(r.created_at || '').includes('Z') ? '' : 'Z');
+        const dt = new Date(cStr);
+        dateFormatted = isNaN(dt.getTime()) ? String(r.created_at || '') : dt.toLocaleDateString('en-US', {
+          day: 'numeric',
+          month: 'short',
+          hour: 'numeric',
+          minute: '2-digit'
+        });
+      } catch (e) {
+        dateFormatted = String(r.created_at || '');
+      }
+
       return {
         id: r.id,
         userId: r.user_id,
@@ -810,6 +892,7 @@ class LiveRecorderService {
         username: r.username,
         title: r.title || `Live Stream`,
         filename: r.filename,
+        url: `/recordings/${r.filename}`,
         downloadUrl: `/recordings/${r.filename}`,
         thumbnailUrl: r.thumbnail_url || (thumbExists ? `/recordings/${thumbFile}` : null),
         fileSizeBytes: r.file_size_bytes,
@@ -818,12 +901,7 @@ class LiveRecorderService {
         durationFormatted: formatDuration(r.duration_seconds),
         userDeleted: !!r.user_deleted,
         createdAt: r.created_at,
-        dateFormatted: new Date(r.created_at).toLocaleDateString('en-US', {
-          day: 'numeric',
-          month: 'short',
-          hour: 'numeric',
-          minute: '2-digit'
-        })
+        dateFormatted
       };
     });
   }
