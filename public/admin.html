@@ -197,7 +197,10 @@
     <div class="pane section" id="p-recordings">
       <div class="sec-title">
         <span>Recorded Live Streams</span>
-        <button class="btn btn-ghost" onclick="loadRecordings()">Refresh List</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-ghost" onclick="cleanDisk()" style="color:#d7c2ff;border-color:rgba(139,92,246,.4)">Clean Disk & Free Space</button>
+          <button class="btn btn-ghost" onclick="loadRecordings()">Refresh List</button>
+        </div>
       </div>
       <div style="overflow-x:auto"><table><thead><tr><th>Cover</th><th>ID</th><th>Owner</th><th>Creator</th><th>Duration</th><th>File Size</th><th>User Status</th><th>Captured</th><th>Actions</th></tr></thead><tbody id="tRecordings"></tbody></table></div>
     </div>
@@ -518,6 +521,13 @@
     if (!confirmTwice(b, 'Click again to delete')) return;
     await del('/recordings/' + b.dataset.id);
     toast('Recording deleted');
+    loadRecordings(); loadStats();
+  });
+
+  window.cleanDisk = safe(async () => {
+    toast('Cleaning up disk space and purging obsolete FLVs...');
+    const r = await post('/clean-disk');
+    toast(`Disk cleanup complete! Freed ${r.freedFormatted || '0 B'}`);
     loadRecordings(); loadStats();
   });
 

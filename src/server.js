@@ -1443,6 +1443,16 @@ app.delete('/api/v1/admin/recordings/:id', adminAuthMiddleware, async (req, res)
   }
 });
 
+app.post('/api/v1/admin/clean-disk', adminAuthMiddleware, async (req, res) => {
+  try {
+    const freed = await liveRecorderService.cleanUpDiskSpace();
+    await logAdmin(req, 'CLEAN_DISK', `freed ${freed} bytes of disk space`);
+    res.json({ success: true, freedBytes: freed, freedFormatted: liveRecorderService.formatSize(freed) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/v1/admin/orders', adminAuthMiddleware, async (req, res) => {
   try {
     const orders = await db.all(

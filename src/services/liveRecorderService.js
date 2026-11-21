@@ -250,7 +250,9 @@ class LiveRecorderService {
   constructor() {
     this.activeJobs = new Map(); // jobId -> job details
     this.finishingJobs = new Map(); // jobId -> Promise<recording>
+    this.cleanUpDiskSpace().catch(() => {});
     this.scanAndRemuxLegacy().catch(() => {});
+    setInterval(() => this.cleanUpDiskSpace().catch(() => {}), 15 * 60 * 1000);
   }
 
   async scanAndRemuxLegacy() {
@@ -272,6 +274,14 @@ class LiveRecorderService {
             if (!fs.existsSync(targetPath) || fs.statSync(targetPath).size < 1000) {
               try { fs.copyFileSync(sourcePath, targetPath); } catch (_) {}
             }
+          }
+
+          // If target MP4 is healthy, immediately delete the leftover raw FLV to reclaim precious disk space!
+          if (fs.existsSync(targetPath) && fs.statSync(targetPath).size > 1000) {
+            try {
+              fs.unlinkSync(sourcePath);
+              console.log(`[scanAndRemuxLegacy] Cleaned up obsolete FLV ${file} to free disk space`);
+            } catch (_) {}
           }
         }
       }
@@ -858,6 +868,14 @@ class LiveRecorderService {
           console.error('[finishJob] Error inserting recording record:', err);
         }
 
+        // Clean up the temporary raw FLV file to free up volume disk space immediately
+        if (job.rawPath && fs.existsSync(job.rawPath) && fs.existsSync(job.filePath) && fs.statSync(job.filePath).size > 1000) {
+          try {
+            fs.unlinkSync(job.rawPath);
+            console.log(`[finishJob] Reclaimed disk space by unlinking raw FLV ${path.basename(job.rawPath)}`);
+          } catch (_) {}
+        }
+
         // 5. Generate thumbnail in the background (non-blocking, fast UI response)
         const thumbFilename = job.filename.replace('.mp4', '_thumb.jpg');
         const thumbPath = path.join(RECORDINGS_DIR, thumbFilename);
@@ -936,7 +954,55 @@ class LiveRecorderService {
     };
   }
 
+  async cleanUpDiskSpace() {
+    let freedBytes = 0;
+    const pubDir = path.join(__dirname, '..', '..', 'public', 'recordings');
+    const scanDirs = [...new Set([RECORDINGS_DIR, pubDir])];
+    for (const d of scanDirs) {
+      try {
+        if (!fs.existsSync(d)) continue;
+        const files = fs.readdirSync(d);
+        for (const file of files) {
+          const fp = path.join(d, file);
+          try {
+            const st = fs.statSync(fp);
+
+            // 1. Delete 0-byte or corrupted files (< 100 bytes) older than 3 minutes
+            if (st.size < 100 && (Date.now() - st.mtimeMs > 180000)) {
+              fs.unlinkSync(fp);
+              freedBytes += st.size;
+              console.log(`[cleanUpDiskSpace] Removed tiny/broken file: ${file}`);
+              continue;
+            }
+
+            // 2. Delete leftover raw FLVs where MP4 already exists or if older than 20 minutes
+            if (file.endsWith('_raw.flv') || file.endsWith('_temp.flv')) {
+              const mp4Name = file.replace(/_raw\.flv$|_temp\.flv$/, '.mp4');
+              const mp4Path = path.join(d, mp4Name);
+              const isOld = (Date.now() - st.mtimeMs > 1200000); // 20 mins
+              const mp4Exists = fs.existsSync(mp4Path) && fs.statSync(mp4Path).size > 1000;
+
+              if (mp4Exists || isOld) {
+                fs.unlinkSync(fp);
+                freedBytes += st.size;
+                console.log(`[cleanUpDiskSpace] Removed obsolete raw FLV: ${file} (${formatSize(st.size)} freed)`);
+              }
+            }
+          } catch (_) {}
+        }
+      } catch (_) {}
+    }
+
+    // Shrink SQLite database file with VACUUM
+    try {
+      await db.run('VACUUM').catch(() => {});
+    } catch (_) {}
+
+    return freedBytes;
+  }
+
   async syncDiskRecordings() {
+    await this.cleanUpDiskSpace().catch(() => {});
     try {
       await db.run(`UPDATE recordings SET user_id = NULL, user_deleted = 0 WHERE filename LIKE '%showcase%' OR filename LIKE '%prerecord%'`).catch(() => {});
     } catch (_) {}
@@ -1150,4 +1216,5 @@ class LiveRecorderService {
 
 const service = new LiveRecorderService();
 service.RECORDINGS_DIR = RECORDINGS_DIR;
+service.formatSize = formatSize;
 module.exports = service;
