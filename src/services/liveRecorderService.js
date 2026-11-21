@@ -5,7 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const db = require('../database');
 
-const VOLUME_DIR = process.env.DB_PATH ? path.dirname(process.env.DB_PATH) : null;
+const VOLUME_DIR = (process.env.DB_PATH && path.isAbsolute(process.env.DB_PATH)) ? path.dirname(process.env.DB_PATH) : null;
 const RECORDINGS_DIR = VOLUME_DIR ? path.join(VOLUME_DIR, 'recordings') : path.join(__dirname, '..', '..', 'public', 'recordings');
 try { fs.mkdirSync(RECORDINGS_DIR, { recursive: true }); } catch (e) {}
 // Also ensure public/recordings exists for static fallback
@@ -265,6 +265,41 @@ class LiveRecorderService {
           }
         }
       }
+
+      // Pass 3: Auto-register existing MP4 files on disk into recordings table so pre-records survive redeploy
+      const scanDirs = [...new Set([RECORDINGS_DIR, path.join(__dirname, '..', '..', 'public', 'recordings')])];
+      for (const d of scanDirs) {
+        try {
+          if (!fs.existsSync(d)) continue;
+          const diskFiles = fs.readdirSync(d);
+          for (const f of diskFiles) {
+            if (f.endsWith('.mp4')) {
+              const row = await db.get(`SELECT id FROM recordings WHERE filename = ?`, [f]);
+              if (!row) {
+                const fullP = path.join(d, f);
+                const st = fs.statSync(fullP);
+                if (st.size > 1000) {
+                  let uname = 'paragontechh';
+                  if (f.includes('showcase')) uname = 'paragontechh';
+                  else {
+                    const unameMatch = f.match(/^([a-zA-Z0-9_.-]+)_\d+/);
+                    if (unameMatch) uname = unameMatch[1];
+                  }
+                  const thumbName = f.replace('.mp4', '_thumb.jpg');
+                  const hasThumb = fs.existsSync(path.join(d, thumbName));
+                  const tUrl = hasThumb ? `/recordings/${thumbName}` : null;
+                  await db.run(
+                    `INSERT INTO recordings (user_id, username, title, filename, file_path, file_size_bytes, duration_seconds, thumbnail_url, user_deleted)
+                     VALUES (1, ?, ?, ?, ?, ?, 2661, ?, 0)`,
+                    [uname, `Lets Go LIVE! (@${uname})`, f, fullP, st.size, tUrl]
+                  );
+                  console.log(`[scanAndRemuxLegacy] Registered recording ${f} (${st.size} bytes) for @${uname}`);
+                }
+              }
+            }
+          }
+        } catch (_) {}
+      }
     } catch (e) {
       console.warn('[scanAndRemuxLegacy] Notice:', e.message);
     }
@@ -448,7 +483,7 @@ class LiveRecorderService {
 
     // Check live status to get stream info
     const statusInfo = await this.checkStatus(user);
-    if (!statusInfo.is_live && !statusInfo.stream_url) {
+    if (!statusInfo.is_live || !statusInfo.stream_url) {
       throw new Error(`@${user} is currently offline. The streamer must be live to start recording.`);
     }
 
