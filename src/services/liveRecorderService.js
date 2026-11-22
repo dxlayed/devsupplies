@@ -1106,12 +1106,14 @@ class LiveRecorderService {
       }
 
       const isShowcase = (r.filename && (r.filename.includes('showcase') || r.filename.includes('prerecord')));
+      const isWaurk = (r.owner_username && r.owner_username.toLowerCase() === 'waurk') || isShowcase;
       const isOwner = userId ? (r.user_id === userId) : (!r.user_id && !isShowcase);
 
       return {
         id: r.id,
         userId: r.user_id,
         isOwner: !!isOwner,
+        isWaurk: !!isWaurk,
         isShowcase: !!isShowcase,
         ownerUsername: isShowcase ? 'waurks Official' : (r.owner_username || 'Community Member'),
         ownerDiscordId: r.owner_discord_id || null,
@@ -1133,22 +1135,33 @@ class LiveRecorderService {
     });
   }
 
-  // Robust delete: deletes database record and unlinks files across disk locations
+  // Robust delete: deletes database record and unlinks files across ALL disk locations
   async userDeleteRecording(id, userId = null, isAdmin = false) {
     const record = await db.get(`SELECT * FROM recordings WHERE id = ?`, [id]);
     if (!record) throw new Error('Recording not found');
-    if (record.filename && (record.filename.includes('showcase') || record.filename.includes('prerecord'))) {
+    if (record.filename && (record.filename.includes('showcase') || record.filename.includes('prerecord')) && !isAdmin) {
       throw new Error('Showcase pre-recordings cannot be deleted');
     }
-    // Only allow if admin, or user is owner, or recording was unassigned/guest
+    // Only allow if admin, or user is owner
     if (!isAdmin && userId && record.user_id && record.user_id !== userId) {
-      throw new Error('You can only delete your own recordings');
+      throw new Error('You can only delete your own recordings. Other users\' recordings can only be deleted by admin.');
     }
+    if (!isAdmin && !userId && record.user_id) {
+      throw new Error('Login required to delete recordings');
+    }
+
+    return this.adminDeleteRecording(id);
+  }
+
+  // Hard delete for Admin: permanently removes file, thumbnail and database entry across ALL disk folders
+  async adminDeleteRecording(id) {
+    const record = await db.get(`SELECT * FROM recordings WHERE id = ?`, [id]);
+    if (!record) throw new Error('Recording not found');
 
     // 1. Delete from SQLite database
     await db.run(`DELETE FROM recordings WHERE id = ?`, [id]);
 
-    // 2. Delete physical files from disk so it never resurrects and frees volume disk space
+    // 2. Delete physical files from all disk locations (both RECORDINGS_DIR and public/recordings)
     const pubDir = path.join(__dirname, '..', '..', 'public', 'recordings');
     const deleteLocations = [...new Set([RECORDINGS_DIR, pubDir])];
     for (const d of deleteLocations) {
@@ -1173,27 +1186,7 @@ class LiveRecorderService {
       try { fs.unlinkSync(record.file_path); } catch (_) {}
     }
 
-    return { success: true };
-  }
-
-  // Hard delete for Admin: permanently removes file, thumbnail and database entry
-  async adminDeleteRecording(id) {
-    const record = await db.get(`SELECT * FROM recordings WHERE id = ?`, [id]);
-    if (!record) throw new Error('Recording not found');
-
-    if (record.file_path && fs.existsSync(record.file_path)) {
-      try { fs.unlinkSync(record.file_path); } catch (e) {}
-    }
-    const rawLeftover = record.file_path?.replace('.mp4', '_raw.flv');
-    if (rawLeftover && fs.existsSync(rawLeftover)) {
-      try { fs.unlinkSync(rawLeftover); } catch (e) {}
-    }
-    const thumbLeftover = record.file_path?.replace('.mp4', '_thumb.jpg');
-    if (thumbLeftover && fs.existsSync(thumbLeftover)) {
-      try { fs.unlinkSync(thumbLeftover); } catch (e) {}
-    }
-
-    await db.run(`DELETE FROM recordings WHERE id = ?`, [id]);
+    console.log(`[adminDeleteRecording] Successfully permanently purged recording #${id} (${record.filename}) from disk and DB`);
     return { success: true };
   }
 

@@ -550,69 +550,93 @@
     background: rgba(255, 255, 255, 0.05);
     color: var(--muted);
   }
-  .recordings-controls {
+  .recordings-view-tabs {
+    display: flex;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 3px;
+    gap: 4px;
+  }
+  .rec-tab-btn {
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+    padding: 7px 14px;
+    border-radius: 9px;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .rec-tab-btn:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.05);
+  }
+  .rec-tab-btn.active {
+    background: linear-gradient(135deg, #7c4dff, #6366f1);
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(124, 77, 255, 0.35);
+  }
+  .user-recordings-group {
+    background: rgba(255, 255, 255, 0.015);
+    border: 1px solid #221535;
+    border-radius: 18px;
+    padding: 16px;
+    margin-bottom: 20px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  }
+  .user-group-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+  .user-group-info {
     display: flex;
     align-items: center;
     gap: 12px;
   }
-  .toggle-switch-label {
-    display: inline-flex;
-    align-items: center;
-    gap: 9px;
-    cursor: pointer;
-    user-select: none;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    padding: 6px 13px;
-    border-radius: 20px;
-    transition: all 0.2s ease;
-  }
-  .toggle-switch-label:hover {
-    background: rgba(139, 92, 246, 0.08);
-    border-color: rgba(139, 92, 246, 0.35);
-  }
-  .toggle-switch-label input {
-    position: absolute;
-    opacity: 0;
-    pointer-events: none;
-    width: 0;
-    height: 0;
-  }
-  .toggle-switch-track {
-    width: 32px;
-    height: 18px;
-    background: #180f26;
-    border: 1.5px solid #372459;
-    border-radius: 12px;
-    position: relative;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    flex: none;
-  }
-  .toggle-switch-label input:checked + .toggle-switch-track {
-    background: #8b5cf6;
-    border-color: #a78bfa;
-    box-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
-  }
-  .toggle-switch-thumb {
-    width: 12px;
-    height: 12px;
-    background: #fff;
+  .user-group-avatar {
+    width: 36px;
+    height: 36px;
     border-radius: 50%;
-    position: absolute;
-    top: 1.5px;
-    left: 1.5px;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+    background: linear-gradient(135deg, #7c4dff, #a855f7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 14px;
+    color: #fff;
+    overflow: hidden;
+    border: 1.5px solid rgba(255, 255, 255, 0.15);
   }
-  .toggle-switch-label input:checked + .toggle-switch-track .toggle-switch-thumb {
-    transform: translateX(14px);
+  .user-group-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
   }
-  .toggle-switch-text {
-    font-size: 12px;
-    font-weight: 700;
-    color: #c4b5fd;
+  .user-group-name {
+    font-size: 15px;
+    font-weight: 800;
+    color: #fff;
     letter-spacing: -0.2px;
-    white-space: nowrap;
+  }
+  .user-group-count {
+    font-size: 11px;
+    color: #a78bfa;
+    font-weight: 600;
+  }
+  .user-group-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
   }
   .owner-pill {
     font-size: 10px;
@@ -1409,12 +1433,15 @@
         <div class="recordings-title">Recordings</div>
         <div class="recordings-badge" id="recordingsCountBadge">0 saved</div>
       </div>
-      <div class="recordings-controls">
-        <label class="toggle-switch-label" title="Toggle to show or hide recordings from other users">
-          <input type="checkbox" id="toggleOtherUsers" onchange="toggleOtherUsersRecordings(this.checked)">
-          <span class="toggle-switch-track"><span class="toggle-switch-thumb"></span></span>
-          <span class="toggle-switch-text">Show other users' recordings</span>
-        </label>
+      <div class="recordings-view-tabs">
+        <button class="rec-tab-btn active" id="btnTabWaurk" onclick="setRecordingsView('waurk')">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          waurk's records
+        </button>
+        <button class="rec-tab-btn" id="btnTabUsers" onclick="setRecordingsView('users')">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+          Show Users Recordings
+        </button>
       </div>
     </div>
 
@@ -1482,8 +1509,7 @@
     }
     document.body.classList.remove('pending');
 
-    const toggleEl = document.getElementById('toggleOtherUsers');
-    if (toggleEl) toggleEl.checked = showOtherUsers;
+    setRecordingsView(currentRecView);
 
     await loadSavedCreators();
     await loadRecordings();
@@ -1718,24 +1744,33 @@
     } catch (e) {}
   }
 
-  let showOtherUsers = localStorage.getItem('waurks_show_other_users') === 'true';
+  let currentRecView = localStorage.getItem('waurks_rec_view') || 'waurk';
+
+  function setRecordingsView(view) {
+    currentRecView = view;
+    localStorage.setItem('waurks_rec_view', view);
+    const bW = document.getElementById('btnTabWaurk');
+    const bU = document.getElementById('btnTabUsers');
+    if (bW && bU) {
+      if (view === 'waurk') {
+        bW.classList.add('active');
+        bU.classList.remove('active');
+      } else {
+        bU.classList.add('active');
+        bW.classList.remove('active');
+      }
+    }
+    renderRecordings();
+  }
 
   // Load Saved Recordings
   async function loadRecordings() {
     try {
-      const url = showOtherUsers ? '/api/v1/recorder/list?all=true' : '/api/v1/recorder/list';
-      const r = await fetch(url);
+      const r = await fetch('/api/v1/recorder/list?all=true');
       const data = await r.json();
       savedRecordings = data.recordings || [];
       renderRecordings();
     } catch (e) {}
-  }
-
-  function toggleOtherUsersRecordings(checked) {
-    showOtherUsers = !!checked;
-    localStorage.setItem('waurks_show_other_users', showOtherUsers ? 'true' : 'false');
-    notify(showOtherUsers ? "Showing all users' recordings" : "Showing only your recordings");
-    loadRecordings();
   }
 
   // Load Saved Creators
@@ -1947,66 +1982,136 @@
   function renderRecordings() {
     const listEl = document.getElementById('recordingsList');
     const badgeEl = document.getElementById('recordingsCountBadge');
-    if (badgeEl) {
-      badgeEl.textContent = `${savedRecordings.length} ${savedRecordings.length === 1 ? 'recording' : 'recordings'}`;
-    }
     if (!listEl) return;
 
-    if (!savedRecordings || savedRecordings.length === 0) {
-      listEl.innerHTML = showOtherUsers 
-        ? '<div class="empty-monitor">No recordings found on the platform yet.</div>'
-        : '<div class="empty-monitor">No recordings saved for your account yet. Record a live above or turn on "Show other users\' recordings".</div>';
-      return;
-    }
+    const isAdmin = !!(user && user.isAdmin);
 
-    let html = '';
-    savedRecordings.forEach((rec) => {
-      const title = rec.title || 'Live Stream';
-      const meta = `${rec.durationFormatted || '0:00'} · ${rec.fileSizeFormatted || '0 B'} · ${rec.dateFormatted || ''}`;
-      const videoUrl = rec.downloadUrl || rec.url || ('/recordings/' + rec.filename);
-      const isShowcase = !!rec.isShowcase || (rec.filename && (rec.filename.includes('showcase') || rec.filename.includes('prerecord')));
-      const isOwner = !!rec.isOwner;
+    if (currentRecView === 'waurk') {
+      // Show ONLY what waurk recorded + official pre-records
+      const waurkRecs = savedRecordings.filter(r => {
+        return r.isShowcase || r.isWaurk || (r.ownerUsername && r.ownerUsername.toLowerCase() === 'waurk') || (isAdmin && r.isOwner);
+      });
 
-      let ownerBadge = '';
-      if (isShowcase) {
-        ownerBadge = `<span class="owner-pill showcase">OFFICIAL PRE-RECORD</span>`;
-      } else if (isOwner) {
-        ownerBadge = `<span class="owner-pill self">YOUR RECORDING</span>`;
-      } else {
-        ownerBadge = `<span class="owner-pill other"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style="opacity:0.8"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg> Recorded by @${rec.ownerUsername || 'User'}</span>`;
+      if (badgeEl) {
+        badgeEl.textContent = `${waurkRecs.length} ${waurkRecs.length === 1 ? 'recording' : 'recordings'}`;
       }
 
-      const canDelete = !isShowcase && (isOwner || (user && user.isAdmin));
+      if (waurkRecs.length === 0) {
+        listEl.innerHTML = '<div class="empty-monitor">No recordings saved for waurk yet. Record a live above to add one.</div>';
+        return;
+      }
 
-      html += `
-        <div class="recording-card" id="rec-card-${rec.id}" onclick="playVideo('${videoUrl}', '@${rec.username}')" title="Click to play recording">
-          <div class="recording-thumb-wrap">
-            ${rec.thumbnailUrl 
-              ? `<img src="${rec.thumbnailUrl}" class="recording-thumb" alt="cover" onerror="this.style.display='none'; if (this.nextElementSibling) this.nextElementSibling.style.display='flex';">
-                 <div class="recording-thumb-placeholder" style="display:none"><span style="font-size:12px;font-weight:800;color:#c4b5fd">1080p</span><span style="font-size:10px;font-weight:700;color:#8b5cf6">MP4</span></div>` 
-              : `<div class="recording-thumb-placeholder"><span style="font-size:12px;font-weight:800;color:#c4b5fd">1080p</span><span style="font-size:10px;font-weight:700;color:#8b5cf6">MP4</span></div>`}
-            <div class="recording-thumb-play">
-              <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+      let html = '';
+      waurkRecs.forEach(rec => {
+        html += buildRecordingCardHtml(rec, isAdmin);
+      });
+      listEl.innerHTML = html;
+
+    } else {
+      // "Show Users Recordings": Group by user, showing user header and their videos below them!
+      const userRecs = savedRecordings.filter(r => !r.isShowcase);
+
+      if (badgeEl) {
+        badgeEl.textContent = `${userRecs.length} ${userRecs.length === 1 ? 'user recording' : 'user recordings'}`;
+      }
+
+      if (userRecs.length === 0) {
+        listEl.innerHTML = '<div class="empty-monitor">No community recordings found yet. When users record live streams, they will appear here grouped by user.</div>';
+        return;
+      }
+
+      // Group recordings by owner username
+      const groups = {};
+      userRecs.forEach(rec => {
+        const uname = rec.ownerUsername || 'Community Member';
+        if (!groups[uname]) {
+          groups[uname] = {
+            username: uname,
+            avatar: rec.ownerAvatar,
+            recordings: []
+          };
+        }
+        groups[uname].recordings.push(rec);
+      });
+
+      let html = '';
+      Object.values(groups).forEach(g => {
+        const initial = g.username.replace(/^@/, '').charAt(0).toUpperCase() || 'U';
+        html += `
+          <div class="user-recordings-group">
+            <div class="user-group-header">
+              <div class="user-group-info">
+                <div class="user-group-avatar">
+                  ${g.avatar ? `<img src="${g.avatar}" alt="${g.username}">` : `<span>${initial}</span>`}
+                </div>
+                <div>
+                  <div class="user-group-name">@${g.username}</div>
+                  <div class="user-group-count">${g.recordings.length} ${g.recordings.length === 1 ? 'video' : 'videos'} recorded</div>
+                </div>
+              </div>
+            </div>
+            <div class="user-group-cards">
+              ${g.recordings.map(rec => buildRecordingCardHtml(rec, isAdmin)).join('')}
             </div>
           </div>
-          <div class="recording-main">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;flex-wrap:wrap">
-              <div class="recording-username">@${rec.username}</div>
-              ${ownerBadge}
-            </div>
-            <div class="recording-title">${title}</div>
-            <div class="recording-meta">${meta}</div>
-          </div>
-          <div class="recording-actions" onclick="event.stopPropagation()">
-            <a class="btn-rec-action" href="${videoUrl}" download="${rec.filename}" onclick="event.stopPropagation()">Download</a>
-            ${canDelete 
-              ? `<button class="btn-rec-action danger" onclick="event.stopPropagation(); deleteVideo(${rec.id})">Delete</button>`
-              : (isShowcase ? `<span class="pill-status" style="background:rgba(99,102,241,0.15);color:#818cf8;border:1px solid rgba(99,102,241,0.3);font-size:10px;font-weight:700;padding:5px 8px;border-radius:6px;display:inline-flex;align-items:center;">PRE-RECORD</span>` : '')
-            }
+        `;
+      });
+
+      listEl.innerHTML = html;
+    }
+  }
+
+  function buildRecordingCardHtml(rec, isAdmin) {
+    const title = rec.title || 'Live Stream';
+    const meta = `${rec.durationFormatted || '0:00'} · ${rec.fileSizeFormatted || '0 B'} · ${rec.dateFormatted || ''}`;
+    const videoUrl = rec.downloadUrl || rec.url || ('/recordings/' + rec.filename);
+    const isShowcase = !!rec.isShowcase || (rec.filename && (rec.filename.includes('showcase') || rec.filename.includes('prerecord')));
+    const isOwner = !!rec.isOwner;
+
+    let ownerBadge = '';
+    if (isShowcase) {
+      ownerBadge = `<span class="owner-pill showcase">OFFICIAL PRE-RECORD</span>`;
+    } else if (rec.isWaurk || (rec.ownerUsername && rec.ownerUsername.toLowerCase() === 'waurk')) {
+      ownerBadge = `<span class="owner-pill showcase" style="background:rgba(124,77,255,0.2);color:#c4b5fd;border-color:rgba(124,77,255,0.4)">waurk</span>`;
+    } else if (isOwner) {
+      ownerBadge = `<span class="owner-pill self">YOUR RECORDING</span>`;
+    } else {
+      ownerBadge = `<span class="owner-pill other"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style="opacity:0.8"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg> @${rec.ownerUsername || 'User'}</span>`;
+    }
+
+    // Only waurk (admin) can delete other users' recordings!
+    // A regular user can only delete their own recordings.
+    const canDelete = !isShowcase && (isAdmin || isOwner);
+
+    return `
+      <div class="recording-card" id="rec-card-${rec.id}" onclick="playVideo('${videoUrl}', '@${rec.username}')" title="Click to play recording">
+        <div class="recording-thumb-wrap">
+          ${rec.thumbnailUrl 
+            ? `<img src="${rec.thumbnailUrl}" class="recording-thumb" alt="cover" onerror="this.style.display='none'; if (this.nextElementSibling) this.nextElementSibling.style.display='flex';">
+               <div class="recording-thumb-placeholder" style="display:none"><span style="font-size:12px;font-weight:800;color:#c4b5fd">1080p</span><span style="font-size:10px;font-weight:700;color:#8b5cf6">MP4</span></div>` 
+            : `<div class="recording-thumb-placeholder"><span style="font-size:12px;font-weight:800;color:#c4b5fd">1080p</span><span style="font-size:10px;font-weight:700;color:#8b5cf6">MP4</span></div>`}
+          <div class="recording-thumb-play">
+            <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
           </div>
         </div>
-      `;
-    });
+        <div class="recording-main">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;flex-wrap:wrap">
+            <div class="recording-username">@${rec.username}</div>
+            ${ownerBadge}
+          </div>
+          <div class="recording-title">${title}</div>
+          <div class="recording-meta">${meta}</div>
+        </div>
+        <div class="recording-actions" onclick="event.stopPropagation()">
+          <a class="btn-rec-action" href="${videoUrl}" download="${rec.filename}" onclick="event.stopPropagation()">Download</a>
+          ${canDelete 
+            ? `<button class="btn-rec-action danger" onclick="event.stopPropagation(); deleteVideo(${rec.id})">Delete</button>`
+            : (isShowcase ? `<span class="pill-status" style="background:rgba(99,102,241,0.15);color:#818cf8;border:1px solid rgba(99,102,241,0.3);font-size:10px;font-weight:700;padding:5px 8px;border-radius:6px;display:inline-flex;align-items:center;">PRE-RECORD</span>` : '')
+          }
+        </div>
+      </div>
+    `;
+  }
 
     listEl.innerHTML = html;
   }
