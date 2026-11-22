@@ -137,24 +137,13 @@
   </div>
 
   <div class="box">
-    <div class="step"><span class="n">2</span><h2>Pick a plan</h2></div>
-    <div class="plans">
-      <div class="plan" id="planWeekly" data-tier="weekly" data-amt="5" data-label="Weekly" onclick="selectPlan(this)">
-        <div class="len">Weekly</div>
+    <div class="step"><span class="n">2</span><h2>Your plan</h2></div>
+    <div class="plans" style="grid-template-columns:1fr;max-width:520px;margin:0 auto">
+      <div class="plan sel" id="planYearly" data-tier="yearly" data-amt="5" data-label="Lifetime Access" onclick="selectPlan(this)">
+        <span class="flag">LIFETIME ACCESS</span>
+        <div class="len">Lifetime Pre-Recording &amp; Live Access</div>
         <div class="price">$5</div>
-        <div class="note">7 days access</div>
-      </div>
-      <div class="plan" id="planMonthly" data-tier="monthly" data-amt="10" data-label="Monthly" onclick="selectPlan(this)">
-        <span class="flag">Popular</span>
-        <div class="len">Monthly</div>
-        <div class="price">$10</div>
-        <div class="note">30 days access</div>
-      </div>
-      <div class="plan" id="planYearly" data-tier="yearly" data-amt="15" data-label="Lifetime" onclick="selectPlan(this)">
-        <span class="flag">Best value</span>
-        <div class="len">Lifetime</div>
-        <div class="price">$15</div>
-        <div class="note">Pay once, keep it forever</div>
+        <div class="note">Pay once · Keep it forever · Unlimited pre-records &amp; captures</div>
       </div>
     </div>
   </div>
@@ -275,8 +264,8 @@
     if (err === 'discord_login_failed') notify('Discord login failed. Please try again.', 'err');
     updateAuthDisplay();
     const params = new URLSearchParams(window.location.search);
-    const tierParam = params.get('tier') || 'monthly';
-    const planEl = document.querySelector(`.plan[data-tier="${tierParam}"]`);
+    const tierParam = 'yearly';
+    const planEl = document.querySelector(`.plan[data-tier="${tierParam}"]`) || document.querySelector('.plan');
     if (planEl) selectPlan(planEl);
   });
 

@@ -2,6 +2,15 @@ const crypto = require('crypto');
 const db = require('../database');
 
 const TIER_CONFIG = {
+  // Sold as Lifetime access for $5 (no recurring weekly or monthly)
+  yearly: {
+    name: 'Lifetime',
+    price: 5.00,
+    days: 36500,
+    lifetime: true,
+    durationMs: 36500 * 24 * 60 * 60 * 1000,
+    prefix: 'DEV-LIFE'
+  },
   weekly: {
     name: 'Weekly',
     price: 5.00,
@@ -11,19 +20,10 @@ const TIER_CONFIG = {
   },
   monthly: {
     name: 'Monthly',
-    price: 10.00,
+    price: 5.00,
     days: 30,
     durationMs: 30 * 24 * 60 * 60 * 1000,
     prefix: 'DEV-M30'
-  },
-  // Stored as 'yearly' in the database for compatibility, but sold as a Lifetime key (never expires)
-  yearly: {
-    name: 'Lifetime',
-    price: 15.00,
-    days: 36500,
-    lifetime: true,
-    durationMs: 36500 * 24 * 60 * 60 * 1000,
-    prefix: 'DEV-LIFE'
   }
 };
 
@@ -31,7 +31,7 @@ const TIER_CONFIG = {
  * Generates an unguessable 24-character cryptographic key string
  */
 function generateKeyString(tier) {
-  const cfg = TIER_CONFIG[tier] || TIER_CONFIG.weekly;
+  const cfg = TIER_CONFIG[tier] || TIER_CONFIG.yearly;
   const chunk1 = crypto.randomBytes(3).toString('hex').toUpperCase();
   const chunk2 = crypto.randomBytes(3).toString('hex').toUpperCase();
   const chunk3 = crypto.randomBytes(3).toString('hex').toUpperCase();

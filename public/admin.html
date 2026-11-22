@@ -393,7 +393,7 @@
         <td class="nowrap">
           <button class="btn btn-ghost" data-act="chat" data-id="${+u.id}" style="color:#d7c2ff;border-color:rgba(139,92,246,.4)">Chat</button>
           <button class="btn btn-ghost" data-act="view-site" data-id="${+u.id}" title="Preview the dashboard as this user">View as user</button>
-          <select class="input-field" id="tier${+u.id}"><option value="weekly">7 days ($5)</option><option value="monthly">30 days ($10)</option><option value="yearly">Lifetime ($15)</option></select>
+          <select class="input-field" id="tier${+u.id}"><option value="yearly">Lifetime ($5)</option></select>
           <button class="btn btn-approve" data-act="grant" data-id="${+u.id}">Give key</button>
           ${u.banned ? `<button class="btn btn-ghost" data-act="unban" data-id="${+u.id}">Unban</button>` : `<button class="btn btn-danger" data-act="ban" data-id="${+u.id}">Ban</button>`}
         </td>
