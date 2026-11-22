@@ -436,8 +436,9 @@ app.get('/api/v1/recorder/list', async (req, res) => {
   try {
     const user = await getSessionUser(req);
     const isAdmin = isAdminUser(user);
-    const recordings = await liveRecorderService.getRecordings(user?.id, isAdmin);
-    res.json({ recordings });
+    const showAll = req.query.all === 'true' || req.query.all === '1' || isAdmin;
+    const recordings = await liveRecorderService.getRecordings(user?.id, isAdmin, showAll);
+    res.json({ recordings, currentUserId: user?.id || null });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -445,7 +446,8 @@ app.get('/api/v1/recorder/list', async (req, res) => {
 
 app.delete('/api/v1/recorder/:id', authMiddleware, async (req, res) => {
   try {
-    await liveRecorderService.userDeleteRecording(req.params.id, req.user.id);
+    const isAdmin = isAdminUser(req.user);
+    await liveRecorderService.userDeleteRecording(req.params.id, req.user.id, isAdmin);
     res.json({ success: true });
   } catch (err) {
     res.status(400).json({ error: err.message });

@@ -550,6 +550,95 @@
     background: rgba(255, 255, 255, 0.05);
     color: var(--muted);
   }
+  .recordings-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .toggle-switch-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    cursor: pointer;
+    user-select: none;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 6px 13px;
+    border-radius: 20px;
+    transition: all 0.2s ease;
+  }
+  .toggle-switch-label:hover {
+    background: rgba(139, 92, 246, 0.08);
+    border-color: rgba(139, 92, 246, 0.35);
+  }
+  .toggle-switch-label input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+    width: 0;
+    height: 0;
+  }
+  .toggle-switch-track {
+    width: 32px;
+    height: 18px;
+    background: #180f26;
+    border: 1.5px solid #372459;
+    border-radius: 12px;
+    position: relative;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    flex: none;
+  }
+  .toggle-switch-label input:checked + .toggle-switch-track {
+    background: #8b5cf6;
+    border-color: #a78bfa;
+    box-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
+  }
+  .toggle-switch-thumb {
+    width: 12px;
+    height: 12px;
+    background: #fff;
+    border-radius: 50%;
+    position: absolute;
+    top: 1.5px;
+    left: 1.5px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  }
+  .toggle-switch-label input:checked + .toggle-switch-track .toggle-switch-thumb {
+    transform: translateX(14px);
+  }
+  .toggle-switch-text {
+    font-size: 12px;
+    font-weight: 700;
+    color: #c4b5fd;
+    letter-spacing: -0.2px;
+    white-space: nowrap;
+  }
+  .owner-pill {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+  }
+  .owner-pill.self {
+    background: rgba(34, 197, 94, 0.12);
+    color: #4ade80;
+    border: 1px solid rgba(34, 197, 94, 0.28);
+  }
+  .owner-pill.other {
+    background: rgba(168, 85, 247, 0.16);
+    color: #d8b4fe;
+    border: 1px solid rgba(168, 85, 247, 0.35);
+  }
+  .owner-pill.showcase {
+    background: rgba(99, 102, 241, 0.15);
+    color: #818cf8;
+    border: 1px solid rgba(99, 102, 241, 0.3);
+  }
   .recordings-list {
     display: flex;
     flex-direction: column;
@@ -1316,8 +1405,17 @@
   <!-- Recordings Section (Upright rounded boxes) -->
   <section class="recordings-section" id="recordingsSection">
     <div class="recordings-header">
-      <div class="recordings-title">Recordings</div>
-      <div class="recordings-badge" id="recordingsCountBadge">0 saved</div>
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <div class="recordings-title">Recordings</div>
+        <div class="recordings-badge" id="recordingsCountBadge">0 saved</div>
+      </div>
+      <div class="recordings-controls">
+        <label class="toggle-switch-label" title="Toggle to show or hide recordings from other users">
+          <input type="checkbox" id="toggleOtherUsers" onchange="toggleOtherUsersRecordings(this.checked)">
+          <span class="toggle-switch-track"><span class="toggle-switch-thumb"></span></span>
+          <span class="toggle-switch-text">Show other users' recordings</span>
+        </label>
+      </div>
     </div>
 
     <div class="recordings-list" id="recordingsList">
@@ -1383,6 +1481,9 @@
       document.body.classList.add('locked');
     }
     document.body.classList.remove('pending');
+
+    const toggleEl = document.getElementById('toggleOtherUsers');
+    if (toggleEl) toggleEl.checked = showOtherUsers;
 
     await loadSavedCreators();
     await loadRecordings();
@@ -1617,14 +1718,24 @@
     } catch (e) {}
   }
 
+  let showOtherUsers = localStorage.getItem('waurks_show_other_users') === 'true';
+
   // Load Saved Recordings
   async function loadRecordings() {
     try {
-      const r = await fetch('/api/v1/recorder/list');
+      const url = showOtherUsers ? '/api/v1/recorder/list?all=true' : '/api/v1/recorder/list';
+      const r = await fetch(url);
       const data = await r.json();
       savedRecordings = data.recordings || [];
       renderRecordings();
     } catch (e) {}
+  }
+
+  function toggleOtherUsersRecordings(checked) {
+    showOtherUsers = !!checked;
+    localStorage.setItem('waurks_show_other_users', showOtherUsers ? 'true' : 'false');
+    notify(showOtherUsers ? "Showing all users' recordings" : "Showing only your recordings");
+    loadRecordings();
   }
 
   // Load Saved Creators
@@ -1842,7 +1953,9 @@
     if (!listEl) return;
 
     if (!savedRecordings || savedRecordings.length === 0) {
-      listEl.innerHTML = '<div class="empty-monitor">No recordings yet. Recorded streams will appear here ready to watch or download.</div>';
+      listEl.innerHTML = showOtherUsers 
+        ? '<div class="empty-monitor">No recordings found on the platform yet.</div>'
+        : '<div class="empty-monitor">No recordings saved for your account yet. Record a live above or turn on "Show other users\' recordings".</div>';
       return;
     }
 
@@ -1851,7 +1964,19 @@
       const title = rec.title || 'Live Stream';
       const meta = `${rec.durationFormatted || '0:00'} · ${rec.fileSizeFormatted || '0 B'} · ${rec.dateFormatted || ''}`;
       const videoUrl = rec.downloadUrl || rec.url || ('/recordings/' + rec.filename);
-      const isShowcase = (rec.filename && (rec.filename.includes('showcase') || rec.filename.includes('prerecord')));
+      const isShowcase = !!rec.isShowcase || (rec.filename && (rec.filename.includes('showcase') || rec.filename.includes('prerecord')));
+      const isOwner = !!rec.isOwner;
+
+      let ownerBadge = '';
+      if (isShowcase) {
+        ownerBadge = `<span class="owner-pill showcase">OFFICIAL PRE-RECORD</span>`;
+      } else if (isOwner) {
+        ownerBadge = `<span class="owner-pill self">YOUR RECORDING</span>`;
+      } else {
+        ownerBadge = `<span class="owner-pill other"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style="opacity:0.8"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg> Recorded by @${rec.ownerUsername || 'User'}</span>`;
+      }
+
+      const canDelete = !isShowcase && (isOwner || (user && user.isAdmin));
 
       html += `
         <div class="recording-card" id="rec-card-${rec.id}" onclick="playVideo('${videoUrl}', '@${rec.username}')" title="Click to play recording">
@@ -1865,15 +1990,18 @@
             </div>
           </div>
           <div class="recording-main">
-            <div class="recording-username">@${rec.username}</div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;flex-wrap:wrap">
+              <div class="recording-username">@${rec.username}</div>
+              ${ownerBadge}
+            </div>
             <div class="recording-title">${title}</div>
             <div class="recording-meta">${meta}</div>
           </div>
           <div class="recording-actions" onclick="event.stopPropagation()">
             <a class="btn-rec-action" href="${videoUrl}" download="${rec.filename}" onclick="event.stopPropagation()">Download</a>
-            ${isShowcase 
-              ? `<span class="pill-status" style="background:rgba(99,102,241,0.15);color:#818cf8;border:1px solid rgba(99,102,241,0.3);font-size:10px;font-weight:700;padding:5px 8px;border-radius:6px;display:inline-flex;align-items:center;">PRE-RECORD</span>`
-              : `<button class="btn-rec-action danger" onclick="event.stopPropagation(); deleteVideo(${rec.id})">Delete</button>`
+            ${canDelete 
+              ? `<button class="btn-rec-action danger" onclick="event.stopPropagation(); deleteVideo(${rec.id})">Delete</button>`
+              : (isShowcase ? `<span class="pill-status" style="background:rgba(99,102,241,0.15);color:#818cf8;border:1px solid rgba(99,102,241,0.3);font-size:10px;font-weight:700;padding:5px 8px;border-radius:6px;display:inline-flex;align-items:center;">PRE-RECORD</span>` : '')
             }
           </div>
         </div>
