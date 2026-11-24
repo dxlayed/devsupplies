@@ -2,10 +2,10 @@ const crypto = require('crypto');
 const db = require('../database');
 
 const TIER_CONFIG = {
-  // Sold as Lifetime access for $5 (no recurring weekly or monthly)
+  // Sold as Lifetime access for $10 (no recurring weekly or monthly)
   yearly: {
     name: 'Lifetime',
-    price: 5.00,
+    price: 10.00,
     days: 36500,
     lifetime: true,
     durationMs: 36500 * 24 * 60 * 60 * 1000,
@@ -13,14 +13,14 @@ const TIER_CONFIG = {
   },
   weekly: {
     name: 'Weekly',
-    price: 5.00,
+    price: 10.00,
     days: 7,
     durationMs: 7 * 24 * 60 * 60 * 1000,
     prefix: 'DEV-W7D'
   },
   monthly: {
     name: 'Monthly',
-    price: 5.00,
+    price: 10.00,
     days: 30,
     durationMs: 30 * 24 * 60 * 60 * 1000,
     prefix: 'DEV-M30'

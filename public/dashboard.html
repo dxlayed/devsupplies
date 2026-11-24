@@ -1338,7 +1338,7 @@
     <h2 style="font-family:'Space Grotesk';font-size:26px;margin-bottom:8px">Access Locked</h2>
     <p style="color:var(--muted);font-size:14px;line-height:1.5;margin-bottom:18px">Get an active license key to start recording TikTok Live streams directly in your browser.</p>
     <a href="/checkout" class="lock-btn">Get a key</a>
-    <div style="margin-top:14px"><a href="/checkout?tier=yearly" style="color:var(--muted);font-size:13px;text-decoration:underline">Get Lifetime Access ($5)</a></div>
+    <div style="margin-top:14px"><a href="/checkout?tier=yearly" style="color:var(--muted);font-size:13px;text-decoration:underline">Get Lifetime Access ($10)</a></div>
   </div>
 </div>
 
@@ -1525,8 +1525,8 @@
       if (data.licenses && data.licenses.length > 0) {
         activeLicense = data.licenses[0];
         document.getElementById('keyCode').textContent = activeLicense.key_code;
-        const planMap = { weekly: 'Lifetime ($5)', monthly: 'Lifetime ($5)', yearly: 'Lifetime ($5)' };
-        document.getElementById('keyPlanName').textContent = planMap[activeLicense.tier] || 'Lifetime ($5)';
+        const planMap = { weekly: 'Lifetime ($10)', monthly: 'Lifetime ($10)', yearly: 'Lifetime ($10)' };
+        document.getElementById('keyPlanName').textContent = planMap[activeLicense.tier] || 'Lifetime ($10)';
         document.getElementById('keyExpires').textContent = activeLicense.tier === 'yearly' ? 'Forever' : `${activeLicense.daysRemaining} days`;
 
         if (activeLicense.isExpired) {

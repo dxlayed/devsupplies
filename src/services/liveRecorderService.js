@@ -127,7 +127,7 @@ function remuxToMp4(rawFlvPath, targetMp4Path, orientation = 'portrait') {
 
     // Always use fast stream copy with faststart and -nostdin
     // TikTok streams are native H.264/AAC. Stream copy is instantaneous (0.5s), zero quality loss, and never times out.
-    const args = ['-nostdin', '-y', '-i', rawFlvPath, '-c', 'copy', '-movflags', '+faststart', targetMp4Path];
+    const args = ['-nostdin', '-y', '-i', rawFlvPath, '-c', 'copy', '-bsf:a', 'aac_adtstoasc', '-movflags', '+faststart', targetMp4Path];
 
     console.log(`[remuxToMp4] Fast stream copy: ${ffmpegBin} ${args.join(' ')}`);
 
@@ -635,6 +635,16 @@ class LiveRecorderService {
               }
             });
 
+            // If the response socket closes or disconnects when live ends
+            res.on('close', () => {
+              if (this.activeJobs.has(jobId) && job.status === 'recording') {
+                if (job.bytesWritten > 1000) {
+                  console.log(`[liveRecorderService] Stream connection closed for @${user} (${formatSize(job.bytesWritten)} captured), finalizing MP4...`);
+                  this.finishJob(jobId);
+                }
+              }
+            });
+
             res.on('error', err => {
               job.error = err.message;
               console.warn(`[liveRecorderService] Stream socket error:`, err.message);
@@ -642,6 +652,19 @@ class LiveRecorderService {
                 this.finishJob(jobId);
               }
             });
+          });
+
+          // 15-second idle socket timeout detection
+          req.setTimeout(15000, () => {
+            if (this.activeJobs.has(jobId) && job.status === 'recording') {
+              console.log(`[liveRecorderService] Socket 15s idle timeout for @${user}, checking live status...`);
+              this.checkStatus(user).then(st => {
+                if (!st.is_live && this.activeJobs.has(jobId) && job.status === 'recording') {
+                  console.log(`[liveRecorderService] Creator @${user} offline on timeout. Finalizing MP4...`);
+                  this.finishJob(jobId);
+                }
+              }).catch(() => {});
+            }
           });
 
           req.on('error', err => {
@@ -683,16 +706,19 @@ class LiveRecorderService {
         const elapsed = Date.now() - job.startTime;
         const idleMs = Date.now() - (job.lastDataTime || job.startTime);
 
-        // Allow at least 25 seconds of continuous buffering before checking offline
-        if (elapsed < 25000) return;
+        // Allow at least 5 seconds of initial buffering
+        if (elapsed < 5000) return;
 
-        // Check if stream has been completely idle (no chunks received for 18 seconds)
-        if (idleMs > 18000) {
+        // If no data chunks for > 6 seconds, or periodically every 12 seconds:
+        // check creator's official live status
+        if (idleMs > 6000 || elapsed % 12000 < 4000) {
           const st = await this.checkStatus(user);
           if (!st.is_live) {
             consecutiveOfflineCount++;
-            if (consecutiveOfflineCount >= 2) {
-              console.log(`[Watchdog] Stream for @${user} ended by creator. Finalizing and saving MP4...`);
+            console.log(`[Watchdog] Creator @${user} reported offline (count=${consecutiveOfflineCount}, idleMs=${idleMs}ms)`);
+            // If confirmed offline and either idle for 5s or total elapsed > 10s:
+            if (consecutiveOfflineCount >= 1 && (idleMs > 5000 || elapsed > 10000)) {
+              console.log(`[Watchdog] Stream for @${user} ended by creator. Finalizing and saving MP4 immediately...`);
               if (job.watchdogTimer) clearInterval(job.watchdogTimer);
               await this.stopRecording(jobId);
               return;
@@ -701,8 +727,17 @@ class LiveRecorderService {
             consecutiveOfflineCount = 0;
           }
         }
-      } catch (e) {}
-    }, 10000);
+
+        // Failsafe: if stream has received zero bytes for 18 seconds, auto-finalize
+        if (idleMs > 18000 && job.bytesWritten > 1000) {
+          console.log(`[Watchdog] Stream idle for >18s for @${user}. Finalizing MP4...`);
+          if (job.watchdogTimer) clearInterval(job.watchdogTimer);
+          await this.stopRecording(jobId);
+        }
+      } catch (e) {
+        console.warn(`[Watchdog] Check error for @${user}:`, e.message);
+      }
+    }, 4000);
 
     this.activeJobs.set(jobId, job);
     return this.formatJob(job);
